@@ -2,6 +2,8 @@
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Render/D3D11Shader.h"
 #include "HorseEngine/Render/D3D11Texture.h"
+#include "HorseEngine/Scene/Components.h"
+#include "HorseEngine/Scene/Scene.h"
 #include <DirectXMath.h>
 #include <dxgi1_2.h>
 
@@ -124,6 +126,113 @@ void D3D11Renderer::DrawCube() {
   m_Context->PSSetShader(m_CubePS.Get(), nullptr, 0);
 
   m_Context->DrawIndexed(36, 0, 0);
+}
+
+void D3D11Renderer::RenderScene(Scene *scene) {
+  if (!scene)
+    return;
+  if (!m_CubeInitialized) {
+    if (!InitCube())
+      return;
+  }
+
+  // Find primary camera
+  entt::registry &registry = scene->GetRegistry();
+  XMMATRIX view = XMMatrixIdentity();
+  XMMATRIX projection = XMMatrixPerspectiveFovLH(
+      XM_PIDIV4, m_Width / (f32)m_Height, 0.1f, 1000.0f);
+  bool cameraFound = false;
+
+  auto cameraView = registry.view<TransformComponent, CameraComponent>();
+  for (auto entity : cameraView) {
+    auto [transform, camera] =
+        cameraView.get<TransformComponent, CameraComponent>(entity);
+    if (!camera.Primary)
+      continue;
+
+    XMVECTOR pos = XMVectorSet(transform.Position[0], transform.Position[1],
+                               transform.Position[2], 1.0f);
+    XMVECTOR rot = XMVectorSet(XMConvertToRadians(transform.Position[0]),
+                               XMConvertToRadians(transform.Position[1]),
+                               XMConvertToRadians(transform.Position[2]), 0.0f);
+
+    // Simple lookat for now, assuming camera looks forward or we use transform
+    // rotation For now let's just use a fixed lookat if we don't have camera
+    // orientation logic yet
+    XMVECTOR target =
+        pos + XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f); // Default forward
+    XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+    // Better: use transform rotation
+    XMMATRIX rotMat =
+        XMMatrixRotationRollPitchYaw(XMConvertToRadians(transform.Rotation[0]),
+                                     XMConvertToRadians(transform.Rotation[1]),
+                                     XMConvertToRadians(transform.Rotation[2]));
+    XMVECTOR forward =
+        XMVector3TransformCoord(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), rotMat);
+    target = pos + forward;
+    up = XMVector3TransformCoord(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), rotMat);
+
+    view = XMMatrixLookAtLH(pos, target, up);
+    projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(camera.FOV),
+                                          m_Width / (f32)m_Height,
+                                          camera.NearClip, camera.FarClip);
+    cameraFound = true;
+    break;
+  }
+
+  if (!cameraFound) {
+    // Fallback camera
+    XMVECTOR eye = XMVectorSet(0.0f, 2.0f, -5.0f, 0.0f);
+    XMVECTOR at = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+    XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    view = XMMatrixLookAtLH(eye, at, up);
+  }
+
+  // Set common pipeline state
+  UINT stride = sizeof(Vertex);
+  UINT offset = 0;
+  m_Context->IASetVertexBuffers(0, 1, m_CubeVertexBuffer.GetAddressOf(),
+                                &stride, &offset);
+  m_Context->IASetIndexBuffer(m_CubeIndexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+  m_Context->IASetInputLayout(m_CubeInputLayout.Get());
+  m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+  m_Context->VSSetShader(m_CubeVS.Get(), nullptr, 0);
+  m_Context->VSSetConstantBuffers(0, 1, m_CubeConstantBuffer.GetAddressOf());
+
+  if (m_CubeTexture) {
+    m_CubeTexture->Bind(m_Context.Get(), 0);
+  }
+
+  m_Context->PSSetShader(m_CubePS.Get(), nullptr, 0);
+
+  // Render meshes
+  auto meshView = registry.view<TransformComponent, MeshRendererComponent>();
+  for (auto entity : meshView) {
+    auto [transform, mesh] =
+        meshView.get<TransformComponent, MeshRendererComponent>(entity);
+
+    XMMATRIX world =
+        XMMatrixScaling(transform.Scale[0], transform.Scale[1],
+                        transform.Scale[2]) *
+        XMMatrixRotationRollPitchYaw(
+            XMConvertToRadians(transform.Rotation[0]),
+            XMConvertToRadians(transform.Rotation[1]),
+            XMConvertToRadians(transform.Rotation[2])) *
+        XMMatrixTranslation(transform.Position[0], transform.Position[1],
+                            transform.Position[2]);
+
+    XMMATRIX wvp = world * view * projection;
+
+    // Update constant buffer
+    XMFLOAT4X4 wvpData;
+    XMStoreFloat4x4(&wvpData, XMMatrixTranspose(wvp));
+    m_Context->UpdateSubresource(m_CubeConstantBuffer.Get(), 0, nullptr,
+                                 &wvpData, 0, 0);
+
+    m_Context->DrawIndexed(36, 0, 0);
+  }
 }
 
 void D3D11Renderer::OnResize(u32 width, u32 height) {

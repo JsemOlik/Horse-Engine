@@ -139,6 +139,9 @@ void EditorWindow::NewScene() {
   if (m_HierarchyPanel) {
     m_HierarchyPanel->SetScene(m_ActiveScene);
   }
+  if (m_ViewportWidget) {
+    m_ViewportWidget->SetScene(m_ActiveScene);
+  }
   if (m_InspectorPanel) {
     m_InspectorPanel->SetSelectedEntity({});
   }

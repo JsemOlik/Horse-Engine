@@ -34,6 +34,7 @@ public:
 
   void Clear(f32 r, f32 g, f32 b, f32 a = 1.0f);
   void Present();
+  void RenderScene(class Scene *scene);
 
   void OnResize(u32 width, u32 height);
 

@@ -45,3 +45,5 @@ private:
 };
 
 } // namespace Horse
+
+#include "HorseEngine/Scene/Entity.inl"
