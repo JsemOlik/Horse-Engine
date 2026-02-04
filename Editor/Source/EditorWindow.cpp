@@ -311,6 +311,10 @@ void EditorWindow::NewProject(const std::string &filepath) {
   Horse::Project::SetActive(project);
   SaveProject(filepath);
 
+  if (m_ContentBrowserPanel) {
+    m_ContentBrowserPanel->Refresh();
+  }
+
   NewScene(); // Start with a clean scene in the new project
 }
 
@@ -335,6 +339,10 @@ void EditorWindow::OpenProject(const std::string &filepath) {
 
     setWindowTitle(QString("Horse Engine Editor - %1")
                        .arg(QString::fromStdString(project->GetConfig().Name)));
+
+    if (m_ContentBrowserPanel) {
+      m_ContentBrowserPanel->Refresh();
+    }
   } else {
     QMessageBox::critical(this, "Error", "Failed to load project!");
   }
