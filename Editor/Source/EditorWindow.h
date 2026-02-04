@@ -30,6 +30,9 @@ public:
   void SetSelectedEntity(Horse::Entity entity);
 
 private slots:
+  void OnNewProject();
+  void OnOpenProject();
+  void OnSaveProject();
   void OnNewScene();
   void OnOpenScene();
   void OnSaveScene();
@@ -40,6 +43,9 @@ private:
   void CreateMenus();
   void CreatePanels();
   void CreateToolBar();
+  void NewProject(const std::string &filepath);
+  void OpenProject(const std::string &filepath);
+  void SaveProject(const std::string &filepath);
   void NewScene();
   void OpenScene(const std::string &filepath);
   void SaveScene(const std::string &filepath);

@@ -62,6 +62,20 @@ void EditorWindow::CreateMenus() {
 
   fileMenu->addSeparator();
 
+  QAction *newProjectAction = fileMenu->addAction("New &Project...");
+  connect(newProjectAction, &QAction::triggered, this,
+          &EditorWindow::OnNewProject);
+
+  QAction *openProjectAction = fileMenu->addAction("&Open Project...");
+  connect(openProjectAction, &QAction::triggered, this,
+          &EditorWindow::OnOpenProject);
+
+  QAction *saveProjectAction = fileMenu->addAction("Sa&ve Project");
+  connect(saveProjectAction, &QAction::triggered, this,
+          &EditorWindow::OnSaveProject);
+
+  fileMenu->addSeparator();
+
   QAction *exitAction = fileMenu->addAction("E&xit");
   connect(exitAction, &QAction::triggered, this, &EditorWindow::OnExit);
 
@@ -185,6 +199,29 @@ void EditorWindow::OnSaveScene() {
   }
 }
 
+#include "HorseEngine/Project/Project.h"
+#include "HorseEngine/Project/ProjectSerializer.h"
+
+void EditorWindow::OnNewProject() {
+  QString filename = QFileDialog::getSaveFileName(
+      this, "New Project", "",
+      "Horse Project Files (*.horseproject.json);;All Files (*)");
+
+  if (!filename.isEmpty()) {
+    NewProject(filename.toStdString());
+  }
+}
+
+void EditorWindow::OnOpenProject() {
+  QString filename = QFileDialog::getOpenFileName(
+      this, "Open Project", "",
+      "Horse Project Files (*.horseproject.json);;All Files (*)");
+
+  if (!filename.isEmpty()) {
+    OpenProject(filename.toStdString());
+  }
+}
+
 void EditorWindow::OnSaveSceneAs() {
   QString filename = QFileDialog::getSaveFileName(
       this, "Save Scene As", "",
@@ -192,6 +229,71 @@ void EditorWindow::OnSaveSceneAs() {
 
   if (!filename.isEmpty()) {
     SaveScene(filename.toStdString());
+  }
+}
+
+void EditorWindow::OnSaveProject() {
+  auto project = Horse::Project::GetActive();
+  if (project) {
+    std::filesystem::path projectPath = project->GetConfig().ProjectDirectory /
+                                        project->GetConfig().ProjectFileName;
+    SaveProject(projectPath.string());
+  }
+}
+
+void EditorWindow::NewProject(const std::string &filepath) {
+  auto project = std::make_shared<Horse::Project>();
+  project->GetConfig().Name = std::filesystem::path(filepath).stem().string();
+  project->GetConfig().GUID = Horse::UUID().ToString();
+  project->GetConfig().ProjectFileName =
+      std::filesystem::path(filepath).filename();
+  project->GetConfig().ProjectDirectory =
+      std::filesystem::path(filepath).parent_path();
+
+  // Create asset directory if it doesn't exist
+  std::filesystem::create_directories(project->GetConfig().ProjectDirectory /
+                                      project->GetConfig().AssetDirectory);
+
+  Horse::Project::SetActive(project);
+  SaveProject(filepath);
+
+  NewScene(); // Start with a clean scene in the new project
+}
+
+void EditorWindow::OpenProject(const std::string &filepath) {
+  auto project = std::make_shared<Horse::Project>();
+  Horse::ProjectSerializer serializer(project);
+  if (serializer.DeserializeFromJSON(filepath)) {
+    Horse::Project::SetActive(project);
+
+    // Load default scene if available
+    if (!project->GetConfig().DefaultScene.empty()) {
+      std::filesystem::path scenePath = project->GetConfig().ProjectDirectory /
+                                        project->GetConfig().DefaultScene;
+      if (std::filesystem::exists(scenePath)) {
+        OpenScene(scenePath.string());
+      } else {
+        NewScene();
+      }
+    } else {
+      NewScene();
+    }
+
+    setWindowTitle(QString("Horse Engine Editor - %1")
+                       .arg(QString::fromStdString(project->GetConfig().Name)));
+  } else {
+    QMessageBox::critical(this, "Error", "Failed to load project!");
+  }
+}
+
+void EditorWindow::SaveProject(const std::string &filepath) {
+  auto project = Horse::Project::GetActive();
+  if (!project)
+    return;
+
+  Horse::ProjectSerializer serializer(project);
+  if (!serializer.SerializeToJSON(filepath)) {
+    QMessageBox::critical(this, "Error", "Failed to save project!");
   }
 }
 
