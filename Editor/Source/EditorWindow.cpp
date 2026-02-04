@@ -7,9 +7,10 @@
 #include "Panels/InspectorPanel.h"
 #include "Panels/SceneViewport.h"
 
-
+#include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Entity.h"
 #include "HorseEngine/Scene/Scene.h"
+
 
 #include <QDockWidget>
 #include <QFileDialog>
@@ -149,6 +150,13 @@ void EditorWindow::NewScene() {
   m_ActiveScene = std::make_shared<Horse::Scene>("Untitled Scene");
   m_CurrentScenePath.clear();
   m_SelectedEntity = {};
+
+  // Create default camera
+  auto cameraEntity = m_ActiveScene->CreateEntity("Main Camera");
+  auto &camera = cameraEntity.AddComponent<Horse::CameraComponent>();
+  camera.Primary = true;
+  auto &transform = cameraEntity.GetComponent<Horse::TransformComponent>();
+  transform.Position = {0.0f, 2.0f, -5.0f};
 
   // Update panels
   if (m_HierarchyPanel) {
