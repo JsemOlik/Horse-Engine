@@ -6,6 +6,9 @@ add_library(HorseRuntime STATIC
     Source/Core/Logging.cpp
     Source/Core/Memory.cpp
     Source/Core/JobSystem.cpp
+    Source/Scene/UUID.cpp
+    Source/Scene/Entity.cpp
+    Source/Scene/Scene.cpp
     Source/Engine.cpp
 )
 
