@@ -5,7 +5,6 @@
 #include <string>
 #include <unordered_map>
 
-
 namespace Horse {
 
 class Material {
@@ -30,6 +29,7 @@ public:
 
   void SetTexture(const std::string &name, const std::string &pathOrAssetID);
   std::string GetTexture(const std::string &name) const;
+  bool HasTexture(const std::string &name) const;
 
   // Access to raw maps for serialization/iteration
   const std::unordered_map<std::string, float> &GetFloatProperties() const {

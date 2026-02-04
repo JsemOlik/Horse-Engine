@@ -43,4 +43,8 @@ std::string Material::GetTexture(const std::string &name) const {
   return "";
 }
 
+bool Material::HasTexture(const std::string &name) const {
+  return m_TextureProps.find(name) != m_TextureProps.end();
+}
+
 } // namespace Horse

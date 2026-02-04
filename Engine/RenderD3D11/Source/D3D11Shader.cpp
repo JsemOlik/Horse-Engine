@@ -6,10 +6,10 @@
 
 namespace Horse {
 
-bool D3D11Shader::CompileFromFile(ID3D11Device *device,
-                                  const std::wstring &filepath,
-                                  const std::string &entryPoint,
-                                  const std::string &profile) {
+bool D3D11Shader::CompileFromFile(
+    ID3D11Device *device, const std::wstring &filepath,
+    const std::string &entryPoint, const std::string &profile,
+    const std::vector<D3D_SHADER_MACRO> &defines) {
   std::ifstream file(filepath);
   if (!file.is_open()) {
     HORSE_LOG_RENDER_ERROR("Failed to open shader file");
@@ -20,27 +20,37 @@ bool D3D11Shader::CompileFromFile(ID3D11Device *device,
   buffer << file.rdbuf();
   std::string source = buffer.str();
 
-  return CompileShader(device, source, entryPoint, profile);
+  return CompileShader(device, source, entryPoint, profile, defines);
 }
 
-bool D3D11Shader::CompileFromSource(ID3D11Device *device,
-                                    const std::string &source,
-                                    const std::string &entryPoint,
-                                    const std::string &profile) {
-  return CompileShader(device, source, entryPoint, profile);
+bool D3D11Shader::CompileFromSource(
+    ID3D11Device *device, const std::string &source,
+    const std::string &entryPoint, const std::string &profile,
+    const std::vector<D3D_SHADER_MACRO> &defines) {
+  return CompileShader(device, source, entryPoint, profile, defines);
 }
 
 bool D3D11Shader::CompileShader(ID3D11Device *device, const std::string &source,
                                 const std::string &entryPoint,
-                                const std::string &profile) {
+                                const std::string &profile,
+                                const std::vector<D3D_SHADER_MACRO> &defines) {
   UINT compileFlags = D3DCOMPILE_ENABLE_STRICTNESS;
 #ifdef _DEBUG
   compileFlags |= D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
 
+  // Handle null termination safely
+  const D3D_SHADER_MACRO *pDefines = nullptr;
+  std::vector<D3D_SHADER_MACRO> definesWithNull;
+  if (!defines.empty()) {
+    definesWithNull = defines;
+    definesWithNull.push_back({nullptr, nullptr}); // Terminator
+    pDefines = definesWithNull.data();
+  }
+
   ComPtr<ID3DBlob> errorBlob;
   HRESULT hr =
-      D3DCompile(source.c_str(), source.length(), nullptr, nullptr,
+      D3DCompile(source.c_str(), source.length(), nullptr, pDefines,
                  D3D_COMPILE_STANDARD_FILE_INCLUDE, entryPoint.c_str(),
                  profile.c_str(), compileFlags, 0, &m_Bytecode, &errorBlob);
 

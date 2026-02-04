@@ -17,6 +17,7 @@ namespace Horse {
 using Microsoft::WRL::ComPtr;
 
 class Window;
+class Material;
 
 struct RenderItem {
   entt::entity Entity;
@@ -102,6 +103,9 @@ private:
   std::unique_ptr<class D3D11Buffer> m_MaterialConstantBuffer;
   std::unordered_map<std::string, std::shared_ptr<class D3D11Shader>> m_Shaders;
   std::shared_ptr<class D3D11Shader> m_DefaultShader;
+
+  std::shared_ptr<class D3D11Shader> GetShader(const std::string &shaderName,
+                                               const Material &material);
 
   // Default white texture for when no texture is bound
   std::shared_ptr<class D3D11Texture> m_WhiteTexture;

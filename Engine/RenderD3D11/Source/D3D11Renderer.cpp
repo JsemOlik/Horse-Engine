@@ -151,21 +151,66 @@ void D3D11Renderer::DrawCube() {
   m_CubeConstantBuffer->UpdateData(m_Context.Get(), &wvpData, sizeof(wvpData));
 
   // Set pipeline state
-  m_CubeVertexBuffer->Bind(m_Context.Get(), 0);
-  m_CubeIndexBuffer->Bind(m_Context.Get(), 0);
   m_Context->IASetInputLayout(m_CubeInputLayout.Get());
   m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+  m_CubeVertexBuffer->Bind(m_Context.Get(), 0);
+  m_CubeIndexBuffer->Bind(m_Context.Get(), 0);
 
-  m_Context->VSSetShader(m_CubeVS.Get(), nullptr, 0);
-  m_CubeConstantBuffer->Bind(m_Context.Get(), 0);
+  // Constants are updated in RenderScene
+  // m_Context->VSSetShader(m_CubeVS.Get(), nullptr, 0);
+  // m_Context->PSSetShader(m_CubePS.Get(), nullptr, 0);
+  // m_Context->DrawIndexed(36, 0, 0);
+}
 
-  if (m_CubeTexture) {
-    m_CubeTexture->Bind(m_Context.Get(), 0);
+std::shared_ptr<D3D11Shader>
+D3D11Renderer::GetShader(const std::string &shaderName,
+                         const Material &material) {
+  std::string key = shaderName;
+  std::vector<D3D_SHADER_MACRO> defines;
+
+  // Build Permutation Key & Defines
+  // TODO: This mapping should ideally be data-driven or based on shader
+  // metadata
+  if (material.HasTexture("AlbedoMap")) {
+    key += "_ALBEDO";
+    defines.push_back({"HAS_ALBEDO_MAP", "1"});
+  }
+  // Add other properties here (NormalMap, RoughnessMap, etc.)
+
+  // Check Cache
+  auto it = m_Shaders.find(key);
+  if (it != m_Shaders.end()) {
+    return it->second;
   }
 
-  m_Context->PSSetShader(m_CubePS.Get(), nullptr, 0);
+  // Compile New Variant
+  HORSE_LOG_RENDER_INFO("Compiling Shader Variant: {}", key);
+  auto shader = std::make_shared<D3D11Shader>();
 
-  m_Context->DrawIndexed(36, 0, 0);
+  // Resolve Path
+  // Hardcoded mapping for now
+  std::wstring path = L"Engine/Runtime/Shaders/Triangle.hlsl";
+  if (shaderName != "StandardPBR") {
+    // Fallback or specific paths
+  }
+
+  // Compile VS and PS (Assume same file for now)
+  // IMPORTANT: In production, Vertex Shader might not need the same
+  // permutations as Pixel Shader, or might need different ones (e.g. skinning).
+  // Current simple system assumes shared logic.
+  bool success = true;
+  if (!shader->CompileFromFile(m_Device.Get(), path, "VS", "vs_5_0", defines))
+    success = false;
+  if (!shader->CompileFromFile(m_Device.Get(), path, "PS", "ps_5_0", defines))
+    success = false;
+
+  if (!success) {
+    HORSE_LOG_RENDER_ERROR("Failed to compile shader variant: {}", key);
+    return m_DefaultShader;
+  }
+
+  m_Shaders[key] = shader;
+  return shader;
 }
 
 void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
@@ -347,8 +392,8 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
     fallbackMat.SetFloat("Roughness", 0.5f);
     fallbackMat.SetFloat("Metalness", 0.0f);
 
-    // Bind Shader
-    auto shader = m_Shaders[fallbackMat.GetShaderName()];
+    // Bind Shader (Permutation Aware)
+    auto shader = GetShader(fallbackMat.GetShaderName(), fallbackMat);
     if (!shader)
       shader = m_DefaultShader;
 
