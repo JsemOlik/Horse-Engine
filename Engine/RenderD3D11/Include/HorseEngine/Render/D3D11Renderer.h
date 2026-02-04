@@ -1,6 +1,7 @@
 #pragma once
 
 #include "HorseEngine/Core.h"
+#include "HorseEngine/Render/D3D11Shader.h" // Add this
 #include "HorseEngine/Render/D3D11Texture.h"
 #include "HorseEngine/Render/Frustum.h"
 #include <DirectXMath.h>
@@ -10,7 +11,6 @@
 #include <memory>
 #include <vector>
 #include <wrl/client.h>
-
 
 namespace Horse {
 
@@ -90,6 +90,21 @@ private:
   u32 m_Width = 0;
   u32 m_Height = 0;
   bool m_VSync = true;
+
+  // Material constants
+  struct MaterialConstantBuffer {
+    DirectX::XMFLOAT4 AlbedoColor;
+    f32 Roughness;
+    f32 Metalness;
+    f32 Padding[2]; // Align to 16 bytes
+  };
+
+  std::unique_ptr<class D3D11Buffer> m_MaterialConstantBuffer;
+  std::unordered_map<std::string, std::shared_ptr<class D3D11Shader>> m_Shaders;
+  std::shared_ptr<class D3D11Shader> m_DefaultShader;
+
+  // Default white texture for when no texture is bound
+  std::shared_ptr<class D3D11Texture> m_WhiteTexture;
 };
 
 } // namespace Horse

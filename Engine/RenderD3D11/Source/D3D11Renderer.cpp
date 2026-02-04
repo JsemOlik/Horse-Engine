@@ -4,6 +4,7 @@
 #include "HorseEngine/Render/D3D11Shader.h"
 #include "HorseEngine/Render/D3D11Texture.h"
 #include "HorseEngine/Render/Frustum.h"
+#include "HorseEngine/Render/Material.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Scene.h"
 #include <DirectXMath.h>
@@ -37,6 +38,44 @@ bool D3D11Renderer::Initialize(const RendererDesc &desc) {
     HORSE_LOG_RENDER_ERROR("Failed to create depth stencil view");
     return false;
   }
+
+  // Create Material Constant Buffer
+  m_MaterialConstantBuffer = std::make_unique<D3D11Buffer>();
+  if (!m_MaterialConstantBuffer->Initialize(
+          m_Device.Get(), BufferType::Constant, BufferUsage::Dynamic, nullptr,
+          sizeof(MaterialConstantBuffer))) {
+    HORSE_LOG_RENDER_ERROR("Failed to create Material Constant Buffer");
+    return false;
+  }
+
+  // Create Default White Texture
+  uint32_t whitePixel = 0xFFFFFFFF;
+  m_WhiteTexture = std::make_unique<D3D11Texture>();
+  if (!m_WhiteTexture->Create(m_Device.Get(), 1, 1, &whitePixel)) {
+    HORSE_LOG_RENDER_ERROR("Failed to create default white texture");
+    return false;
+  }
+
+  // Load Default Shader
+  m_DefaultShader = std::make_shared<D3D11Shader>();
+  if (!m_DefaultShader->CompileFromFile(m_Device.Get(),
+                                        L"Engine/Runtime/Shaders/Triangle.hlsl",
+                                        "VS", "vs_5_0")) {
+    HORSE_LOG_RENDER_ERROR("Failed to compile default vertex shader");
+    return false;
+  }
+  // Hack: Re-using the same object to compile pixel shader, assuming internal
+  // state handles it or we need separate calls? D3D11Shader logic:
+  // CompileFromFile stores GetVertexShader/GetPixelShader. Let's check
+  // D3D11Shader.h again. It has both members.
+  if (!m_DefaultShader->CompileFromFile(m_Device.Get(),
+                                        L"Engine/Runtime/Shaders/Triangle.hlsl",
+                                        "PS", "ps_5_0")) {
+    HORSE_LOG_RENDER_ERROR("Failed to compile default pixel shader");
+    return false;
+  }
+
+  m_Shaders["StandardPBR"] = m_DefaultShader;
 
   m_Viewport.TopLeftX = 0.0f;
   m_Viewport.TopLeftY = 0.0f;
@@ -292,11 +331,54 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
 
     XMMATRIX wvp = world * view * projection;
 
-    // Update constant buffer
+    // Update Object Constant Buffer (WVP)
     XMFLOAT4X4 wvpData;
     XMStoreFloat4x4(&wvpData, XMMatrixTranspose(wvp));
     m_CubeConstantBuffer->UpdateData(m_Context.Get(), &wvpData,
                                      sizeof(wvpData));
+    m_CubeConstantBuffer->Bind(m_Context.Get(), 0); // Slot 0: Object CBuffer
+
+    // Retrieve Material properties
+    // For now, assuming default/fallback if no material is present or using a
+    // test material Ideally: components also have a MaterialComponent or GUID
+    // Let's use a temporary fallback material for now to test the pipeline
+    static Material fallbackMat("Default");
+    fallbackMat.SetColor("Albedo", {1.0f, 1.0f, 1.0f, 1.0f});
+    fallbackMat.SetFloat("Roughness", 0.5f);
+    fallbackMat.SetFloat("Metalness", 0.0f);
+
+    // Bind Shader
+    auto shader = m_Shaders[fallbackMat.GetShaderName()];
+    if (!shader)
+      shader = m_DefaultShader;
+
+    if (shader) {
+      m_Context->VSSetShader(shader->GetVertexShader(), nullptr, 0);
+      m_Context->PSSetShader(shader->GetPixelShader(), nullptr, 0);
+    }
+
+    // Update Material Constant Buffer
+    MaterialConstantBuffer matCB;
+    auto color = fallbackMat.GetColor("Albedo");
+    matCB.AlbedoColor = {color[0], color[1], color[2], color[3]};
+    matCB.Roughness = fallbackMat.GetFloat("Roughness");
+    matCB.Metalness = fallbackMat.GetFloat("Metalness");
+
+    m_MaterialConstantBuffer->UpdateData(m_Context.Get(), &matCB,
+                                         sizeof(MaterialConstantBuffer));
+    m_MaterialConstantBuffer->Bind(m_Context.Get(),
+                                   1); // Slot 1: Material CBuffer
+
+    // Bind Textures
+    // If material has an albedo texture, bind it. Else bind white texture.
+    std::string albedoPath = fallbackMat.GetTexture("AlbedoMap");
+    // TODO: Texture Manager lookup. For now, just bind the white texture if
+    // nothing else Or reuse the checkerboard if we want to visualize it
+    if (m_CubeTexture) {
+      m_CubeTexture->Bind(m_Context.Get(), 0);
+    } else {
+      m_WhiteTexture->Bind(m_Context.Get(), 0);
+    }
 
     m_Context->DrawIndexed(36, 0, 0);
   }

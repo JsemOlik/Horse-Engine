@@ -1,8 +1,15 @@
 Texture2D MainTex : register(t0);
 SamplerState MainSampler : register(s0);
 
-cbuffer PerFrame : register(b0) {
+cbuffer Object : register(b0) {
     float4x4 WVP;
+};
+
+cbuffer Material : register(b1) {
+    float4 AlbedoColor;
+    float Roughness;
+    float Metalness;
+    float2 Padding;
 };
 
 struct VS_INPUT {
@@ -26,5 +33,5 @@ PS_INPUT VS(VS_INPUT input) {
 }
 
 float4 PS(PS_INPUT input) : SV_Target {
-    return MainTex.Sample(MainSampler, input.UV) * input.Color;
+    return MainTex.Sample(MainSampler, input.UV) * input.Color * AlbedoColor;
 }
