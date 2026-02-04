@@ -2,12 +2,15 @@
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Entity.h"
 
+#include <QCheckBox>
+#include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QLabel>
 #include <QLineEdit>
 #include <QVBoxLayout>
+
 
 InspectorPanel::InspectorPanel(QWidget *parent) : QWidget(parent) {
 
@@ -130,18 +133,66 @@ void InspectorPanel::DrawComponents() {
     QGroupBox *cameraGroup = new QGroupBox("Camera");
     QFormLayout *cameraLayout = new QFormLayout(cameraGroup);
 
-    cameraLayout->addRow(
-        "Type:",
-        new QLabel(camera.Type ==
-                           Horse::CameraComponent::ProjectionType::Perspective
-                       ? "Perspective"
-                       : "Orthographic"));
-    cameraLayout->addRow("FOV:", new QLabel(QString::number(camera.FOV)));
-    cameraLayout->addRow("Near Clip:",
-                         new QLabel(QString::number(camera.NearClip)));
-    cameraLayout->addRow("Far Clip:",
-                         new QLabel(QString::number(camera.FarClip)));
-    cameraLayout->addRow("Primary:", new QLabel(camera.Primary ? "Yes" : "No"));
+    QComboBox *typeCombo = new QComboBox();
+    typeCombo->addItem("Perspective");
+    typeCombo->addItem("Orthographic");
+    typeCombo->setCurrentIndex(static_cast<int>(camera.Type));
+    connect(typeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this](int index) {
+              if (m_SelectedEntity) {
+                m_SelectedEntity.GetComponent<Horse::CameraComponent>().Type =
+                    static_cast<Horse::CameraComponent::ProjectionType>(index);
+              }
+            });
+    cameraLayout->addRow("Type:", typeCombo);
+
+    QDoubleSpinBox *fovSpin = new QDoubleSpinBox();
+    fovSpin->setRange(1.0, 179.0);
+    fovSpin->setValue(camera.FOV);
+    connect(fovSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+            [this](double val) {
+              if (m_SelectedEntity) {
+                m_SelectedEntity.GetComponent<Horse::CameraComponent>().FOV =
+                    static_cast<float>(val);
+              }
+            });
+    cameraLayout->addRow("FOV:", fovSpin);
+
+    QDoubleSpinBox *nearSpin = new QDoubleSpinBox();
+    nearSpin->setRange(0.001, 1000.0);
+    nearSpin->setValue(camera.NearClip);
+    connect(
+        nearSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+        [this](double val) {
+          if (m_SelectedEntity) {
+            m_SelectedEntity.GetComponent<Horse::CameraComponent>().NearClip =
+                static_cast<float>(val);
+          }
+        });
+    cameraLayout->addRow("Near Clip:", nearSpin);
+
+    QDoubleSpinBox *farSpin = new QDoubleSpinBox();
+    farSpin->setRange(0.01, 10000.0);
+    farSpin->setValue(camera.FarClip);
+    connect(
+        farSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+        [this](double val) {
+          if (m_SelectedEntity) {
+            m_SelectedEntity.GetComponent<Horse::CameraComponent>().FarClip =
+                static_cast<float>(val);
+          }
+        });
+    cameraLayout->addRow("Far Clip:", farSpin);
+
+    QCheckBox *primaryCheck = new QCheckBox();
+    primaryCheck->setChecked(camera.Primary);
+    connect(primaryCheck, &QCheckBox::toggled, this, [this](bool checked) {
+      if (m_SelectedEntity) {
+        m_SelectedEntity.GetComponent<Horse::CameraComponent>().Primary =
+            checked;
+      }
+    });
+    cameraLayout->addRow("Primary:", primaryCheck);
 
     m_ContentLayout->addWidget(cameraGroup);
   }
