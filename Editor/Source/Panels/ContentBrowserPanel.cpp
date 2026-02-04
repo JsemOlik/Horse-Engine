@@ -1,10 +1,13 @@
 #include "ContentBrowserPanel.h"
 #include "HorseEngine/Project/Project.h"
+#include <QDesktopServices>
 #include <QDir>
+#include <QFileIconProvider>
 #include <QFileInfo>
 #include <QInputDialog>
 #include <QMenu>
 #include <QMessageBox>
+#include <QUrl>
 #include <QVBoxLayout>
 
 
@@ -49,11 +52,13 @@ void ContentBrowserPanel::Refresh() {
     return;
   }
 
+  QFileIconProvider iconProvider;
+
   // Add back button if not in base directory
   if (m_CurrentDirectory != m_BaseDirectory) {
     QListWidgetItem *item = new QListWidgetItem("..");
     item->setData(Qt::UserRole, QString(".."));
-    // TODO: Add back icon
+    item->setIcon(iconProvider.icon(QFileIconProvider::Folder));
     m_ListWidget->addItem(item);
   }
 
@@ -63,11 +68,8 @@ void ContentBrowserPanel::Refresh() {
     QListWidgetItem *item = new QListWidgetItem(name);
     item->setData(Qt::UserRole, QString::fromStdString(entry.path().string()));
 
-    if (entry.is_directory()) {
-      // TODO: Add folder icon
-    } else {
-      // TODO: Add file icon
-    }
+    QFileInfo fileInfo(QString::fromStdString(entry.path().string()));
+    item->setIcon(iconProvider.icon(fileInfo));
 
     m_ListWidget->addItem(item);
   }
@@ -78,14 +80,17 @@ void ContentBrowserPanel::OnItemDoubleClicked(QListWidgetItem *item) {
 
   if (pathStr == "..") {
     m_CurrentDirectory = m_CurrentDirectory.parent_path();
+    Refresh();
   } else {
     std::filesystem::path path(pathStr.toStdString());
     if (std::filesystem::is_directory(path)) {
       m_CurrentDirectory = path;
+      Refresh();
+    } else {
+      // Open file in associated program
+      QDesktopServices::openUrl(QUrl::fromLocalFile(pathStr));
     }
   }
-
-  Refresh();
 }
 
 void ContentBrowserPanel::OnContextMenu(const QPoint &pos) {

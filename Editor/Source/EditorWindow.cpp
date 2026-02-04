@@ -307,6 +307,9 @@ void EditorWindow::NewProject(const std::string &filepath) {
   // Create asset directory if it doesn't exist
   std::filesystem::create_directories(project->GetConfig().ProjectDirectory /
                                       project->GetConfig().AssetDirectory);
+  std::filesystem::create_directories(project->GetConfig().ProjectDirectory /
+                                      project->GetConfig().AssetDirectory /
+                                      "Scenes");
 
   Horse::Project::SetActive(project);
   SaveProject(filepath);
