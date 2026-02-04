@@ -381,7 +381,7 @@ bool D3D11Renderer::InitCube() {
   // Create constant buffer
   m_CubeConstantBuffer = std::make_unique<D3D11Buffer>();
   if (!m_CubeConstantBuffer->Initialize(m_Device.Get(), BufferType::Constant,
-                                        BufferUsage::Default, nullptr,
+                                        BufferUsage::Dynamic, nullptr,
                                         sizeof(XMFLOAT4X4)))
     return false;
 
