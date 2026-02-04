@@ -15,14 +15,24 @@ if(MSVC)
     add_compile_options(
         /W4                    # Warning level 4
         /permissive-           # Standards conformance
-        $<$<CONFIG:Debug>:/Od /Zi>
-        $<$<CONFIG:DevRelease>:/O2 /Zi>
-        $<$<CONFIG:Shipping>:/O2>
+        /EHsc                  # Exception handling
+        /wd4251                # Disable DLL interface warnings
+        /wd4275                # Disable DLL base class warnings
     )
     
-    if(HORSE_WARNINGS_AS_ERRORS)
-        add_compile_options(/WX)
-    endif()
+    # Configuration-specific optimizations
+    add_compile_options(
+        $<$<CONFIG:Debug>:/Od>
+        $<$<CONFIG:Debug>:/Zi>
+        $<$<CONFIG:RelWithDebInfo>:/O2>
+        $<$<CONFIG:RelWithDebInfo>:/Zi>
+        $<$<CONFIG:Release>:/O2>
+    )
+    
+    # Temporarily disabled due to fmt library constexpr issues with MSVC 19.50
+    # if(HORSE_WARNINGS_AS_ERRORS)
+    #     add_compile_options(/WX)
+    # endif()
     
     add_compile_definitions(
         _CRT_SECURE_NO_WARNINGS
