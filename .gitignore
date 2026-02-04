@@ -1,0 +1,61 @@
+# Build directories
+/Build/
+/out/
+/build/
+**/CMakeFiles/
+**/CMakeCache.txt
+**/cmake_install.cmake
+**/CTestTestfile.cmake
+**/install_manifest.txt
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sdf
+*.opensdf
+*.db
+*.opendb
+ipch/
+*.VC.db
+*.VC.opendb
+
+# vcpkg
+/vcpkg_installed/
+
+# Qt generated files
+**/moc_*.cpp
+**/ui_*.h
+**/qrc_*.cpp
+*.qm
+
+# Compiled binaries
+*.exe
+*.dll
+*.lib
+*.pdb
+*.exp
+*.ilk
+*.obj
+*.o
+
+# Logs and temps
+*.log
+*.tmp
+~*
+
+# IDE files
+.vscode/
+.idea/
+*.code-workspace
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Planning documents
+TODO_LIST.md
