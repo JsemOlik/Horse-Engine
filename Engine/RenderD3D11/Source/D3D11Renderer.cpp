@@ -128,7 +128,8 @@ void D3D11Renderer::DrawCube() {
   m_Context->DrawIndexed(36, 0, 0);
 }
 
-void D3D11Renderer::RenderScene(Scene *scene) {
+void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
+                                const XMMATRIX *overrideProjection) {
   if (!scene)
     return;
   if (!m_CubeInitialized) {
@@ -136,49 +137,46 @@ void D3D11Renderer::RenderScene(Scene *scene) {
       return;
   }
 
-  // Find primary camera
   entt::registry &registry = scene->GetRegistry();
-  XMMATRIX view = XMMatrixIdentity();
-  XMMATRIX projection = XMMatrixPerspectiveFovLH(
-      XM_PIDIV4, m_Width / (f32)m_Height, 0.1f, 1000.0f);
-  bool cameraFound = false;
 
-  auto cameraView = registry.view<TransformComponent, CameraComponent>();
-  for (auto entity : cameraView) {
-    auto [transform, camera] =
-        cameraView.get<TransformComponent, CameraComponent>(entity);
-    if (!camera.Primary)
-      continue;
+  XMMATRIX view = overrideView ? *overrideView : XMMatrixIdentity();
+  XMMATRIX projection =
+      overrideProjection
+          ? *overrideProjection
+          : XMMatrixPerspectiveFovLH(XM_PIDIV4, m_Width / (f32)m_Height, 0.1f,
+                                     1000.0f);
+  bool cameraFound = (overrideView != nullptr && overrideProjection != nullptr);
 
-    XMVECTOR pos = XMVectorSet(transform.Position[0], transform.Position[1],
-                               transform.Position[2], 1.0f);
-    XMVECTOR rot = XMVectorSet(XMConvertToRadians(transform.Position[0]),
-                               XMConvertToRadians(transform.Position[1]),
-                               XMConvertToRadians(transform.Position[2]), 0.0f);
+  if (!cameraFound) {
+    // Find primary camera
+    auto cameraView = registry.view<TransformComponent, CameraComponent>();
+    for (auto entity : cameraView) {
+      auto [transform, camera] =
+          cameraView.get<TransformComponent, CameraComponent>(entity);
+      if (!camera.Primary)
+        continue;
 
-    // Simple lookat for now, assuming camera looks forward or we use transform
-    // rotation For now let's just use a fixed lookat if we don't have camera
-    // orientation logic yet
-    XMVECTOR target =
-        pos + XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f); // Default forward
-    XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+      XMVECTOR pos = XMVectorSet(transform.Position[0], transform.Position[1],
+                                 transform.Position[2], 1.0f);
 
-    // Better: use transform rotation
-    XMMATRIX rotMat =
-        XMMatrixRotationRollPitchYaw(XMConvertToRadians(transform.Rotation[0]),
-                                     XMConvertToRadians(transform.Rotation[1]),
-                                     XMConvertToRadians(transform.Rotation[2]));
-    XMVECTOR forward =
-        XMVector3TransformCoord(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), rotMat);
-    target = pos + forward;
-    up = XMVector3TransformCoord(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), rotMat);
+      // Use transform rotation
+      XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(
+          XMConvertToRadians(transform.Rotation[0]),
+          XMConvertToRadians(transform.Rotation[1]),
+          XMConvertToRadians(transform.Rotation[2]));
+      XMVECTOR forward =
+          XMVector3TransformCoord(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), rotMat);
+      XMVECTOR target = pos + forward;
+      XMVECTOR up =
+          XMVector3TransformCoord(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), rotMat);
 
-    view = XMMatrixLookAtLH(pos, target, up);
-    projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(camera.FOV),
-                                          m_Width / (f32)m_Height,
-                                          camera.NearClip, camera.FarClip);
-    cameraFound = true;
-    break;
+      view = XMMatrixLookAtLH(pos, target, up);
+      projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(camera.FOV),
+                                            m_Width / (f32)m_Height,
+                                            camera.NearClip, camera.FarClip);
+      cameraFound = true;
+      break;
+    }
   }
 
   if (!cameraFound) {

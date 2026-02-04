@@ -2,8 +2,11 @@
 #include "D3D11ViewportWidget.h"
 #include "Panels/ConsolePanel.h"
 #include "Panels/ContentBrowserPanel.h"
+#include "Panels/GameViewport.h"
 #include "Panels/HierarchyPanel.h"
 #include "Panels/InspectorPanel.h"
+#include "Panels/SceneViewport.h"
+
 
 #include "HorseEngine/Scene/Entity.h"
 #include "HorseEngine/Scene/Scene.h"
@@ -93,8 +96,20 @@ void EditorWindow::CreateMenus() {
 }
 
 void EditorWindow::CreatePanels() {
-  m_ViewportWidget = new D3D11ViewportWidget(this);
-  setCentralWidget(m_ViewportWidget);
+  setCentralWidget(nullptr);
+
+  QDockWidget *sceneDock = new QDockWidget("Scene", this);
+  m_SceneViewport = new SceneViewport(sceneDock);
+  sceneDock->setWidget(m_SceneViewport);
+  addDockWidget(Qt::TopDockWidgetArea, sceneDock);
+
+  QDockWidget *gameDock = new QDockWidget("Game", this);
+  m_GameViewport = new GameViewport(gameDock);
+  gameDock->setWidget(m_GameViewport);
+  addDockWidget(Qt::TopDockWidgetArea, gameDock);
+
+  tabifyDockWidget(sceneDock, gameDock);
+  sceneDock->raise(); // Scene by default
 
   QDockWidget *hierarchyDock = new QDockWidget("Hierarchy", this);
   m_HierarchyPanel = new HierarchyPanel(hierarchyDock);
@@ -139,8 +154,11 @@ void EditorWindow::NewScene() {
   if (m_HierarchyPanel) {
     m_HierarchyPanel->SetScene(m_ActiveScene);
   }
-  if (m_ViewportWidget) {
-    m_ViewportWidget->SetScene(m_ActiveScene);
+  if (m_SceneViewport) {
+    m_SceneViewport->SetScene(m_ActiveScene);
+  }
+  if (m_GameViewport) {
+    m_GameViewport->SetScene(m_ActiveScene);
   }
   if (m_InspectorPanel) {
     m_InspectorPanel->SetSelectedEntity({});
@@ -160,6 +178,12 @@ void EditorWindow::OpenScene(const std::string &filepath) {
 
     if (m_HierarchyPanel) {
       m_HierarchyPanel->SetScene(m_ActiveScene);
+    }
+    if (m_SceneViewport) {
+      m_SceneViewport->SetScene(m_ActiveScene);
+    }
+    if (m_GameViewport) {
+      m_GameViewport->SetScene(m_ActiveScene);
     }
     if (m_InspectorPanel) {
       m_InspectorPanel->SetSelectedEntity({});

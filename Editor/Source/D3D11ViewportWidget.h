@@ -24,9 +24,8 @@ protected:
   void paintEvent(QPaintEvent *event) override;
   void showEvent(QShowEvent *event) override;
 
-private:
+  virtual void Render();
   void InitializeRenderer();
-  void Render();
 
   std::unique_ptr<Horse::D3D11Renderer> m_Renderer;
   std::shared_ptr<Horse::Scene> m_Scene;

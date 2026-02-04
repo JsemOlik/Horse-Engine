@@ -15,6 +15,10 @@ add_executable(HorseEditor WIN32
     Source/Panels/HierarchyPanel.h
     Source/Panels/InspectorPanel.cpp
     Source/Panels/InspectorPanel.h
+    Source/Panels/SceneViewport.cpp
+    Source/Panels/SceneViewport.h
+    Source/Panels/GameViewport.cpp
+    Source/Panels/GameViewport.h
     Source/Panels/ContentBrowserPanel.cpp
     Source/Panels/ContentBrowserPanel.h
     Source/Panels/ConsolePanel.cpp

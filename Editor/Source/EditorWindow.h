@@ -13,6 +13,8 @@ class Scene;
 } // namespace Horse
 
 class D3D11ViewportWidget;
+class SceneViewport;
+class GameViewport;
 class HierarchyPanel;
 class InspectorPanel;
 class ContentBrowserPanel;
@@ -51,7 +53,8 @@ private:
   void OpenScene(const std::string &filepath);
   void SaveScene(const std::string &filepath);
 
-  D3D11ViewportWidget *m_ViewportWidget = nullptr;
+  SceneViewport *m_SceneViewport = nullptr;
+  GameViewport *m_GameViewport = nullptr;
   HierarchyPanel *m_HierarchyPanel = nullptr;
   InspectorPanel *m_InspectorPanel = nullptr;
   ContentBrowserPanel *m_ContentBrowserPanel = nullptr;
