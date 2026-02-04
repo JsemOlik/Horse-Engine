@@ -1,6 +1,7 @@
 #include "HorseEngine/Render/D3D11Renderer.h"
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Render/D3D11Shader.h"
+#include "HorseEngine/Render/D3D11Texture.h"
 #include <DirectXMath.h>
 #include <dxgi1_2.h>
 
@@ -42,6 +43,7 @@ bool D3D11Renderer::Initialize(const RendererDesc &desc) {
 }
 
 void D3D11Renderer::Shutdown() {
+  m_CubeTexture.reset();
   m_CubeVertexBuffer.Reset();
   m_CubeIndexBuffer.Reset();
   m_CubeConstantBuffer.Reset();
@@ -114,6 +116,11 @@ void D3D11Renderer::DrawCube() {
 
   m_Context->VSSetShader(m_CubeVS.Get(), nullptr, 0);
   m_Context->VSSetConstantBuffers(0, 1, m_CubeConstantBuffer.GetAddressOf());
+
+  if (m_CubeTexture) {
+    m_CubeTexture->Bind(m_Context.Get(), 0);
+  }
+
   m_Context->PSSetShader(m_CubePS.Get(), nullptr, 0);
 
   m_Context->DrawIndexed(36, 0, 0);
@@ -197,6 +204,8 @@ bool D3D11Renderer::InitCube() {
        D3D11_INPUT_PER_VERTEX_DATA, 0},
       {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12,
        D3D11_INPUT_PER_VERTEX_DATA, 0},
+      {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28,
+       D3D11_INPUT_PER_VERTEX_DATA, 0},
   };
 
   HRESULT hr = m_Device->CreateInputLayout(
@@ -205,17 +214,43 @@ bool D3D11Renderer::InitCube() {
   if (FAILED(hr))
     return false;
 
-  // Create vertex buffer (Rainbow Cube)
+  // Create vertex buffer (Textured Cube - 24 vertices for unique UVs per face)
   Vertex vertices[] = {
-      {-1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f}, // Front-top-left (Red)
-      {1.0f, 1.0f, -1.0f, 0.0f, 1.0f, 0.0f, 1.0f},  // Front-top-right (Green)
-      {1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f}, // Front-bottom-right (Blue)
-      {-1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 0.0f,
-       1.0f},                                      // Front-bottom-left (Yellow)
-      {-1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f}, // Back-top-left (Magenta)
-      {1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f},  // Back-top-right (Cyan)
-      {1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f}, // Back-bottom-right (White)
-      {-1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f}, // Back-bottom-left (Black)
+      // Front Face
+      {-1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f},
+      {1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f},
+      {1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f},
+      {-1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f},
+
+      // Back Face
+      {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f},
+      {-1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f},
+      {-1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f},
+      {1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f},
+
+      // Left Face
+      {-1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f},
+      {-1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f},
+      {-1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f},
+      {-1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f},
+
+      // Right Face
+      {1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f},
+      {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f},
+      {1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f},
+      {1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f},
+
+      // Top Face
+      {-1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f},
+      {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f},
+      {1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f},
+      {-1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f},
+
+      // Bottom Face
+      {-1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f},
+      {1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f},
+      {1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f},
+      {-1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f},
   };
 
   D3D11_BUFFER_DESC vbd = {};
@@ -231,12 +266,12 @@ bool D3D11Renderer::InitCube() {
 
   // Create index buffer
   u32 indices[] = {
-      0, 1, 2, 0, 2, 3, // Front
-      5, 4, 7, 5, 7, 6, // Back
-      4, 0, 3, 4, 3, 7, // Left
-      1, 5, 6, 1, 6, 2, // Right
-      4, 5, 1, 4, 1, 0, // Top
-      3, 2, 6, 3, 6, 7  // Bottom
+      0,  1,  2,  0,  2,  3,  // Front
+      4,  5,  6,  4,  6,  7,  // Back
+      8,  9,  10, 8,  10, 11, // Left
+      12, 13, 14, 12, 14, 15, // Right
+      16, 17, 18, 16, 18, 19, // Top
+      20, 21, 22, 20, 22, 23, // Bottom
   };
 
   D3D11_BUFFER_DESC ibd = {};
@@ -258,6 +293,13 @@ bool D3D11Renderer::InitCube() {
   hr = m_Device->CreateBuffer(&cbd, nullptr, &m_CubeConstantBuffer);
   if (FAILED(hr))
     return false;
+
+  // Load texture
+  m_CubeTexture = std::make_unique<D3D11Texture>();
+  if (!m_CubeTexture->LoadFromFile(
+          m_Device.Get(), "Engine/Runtime/Textures/Checkerboard.png")) {
+    HORSE_LOG_RENDER_WARN("Failed to load test texture, cube will be white");
+  }
 
   m_CubeInitialized = true;
   return true;

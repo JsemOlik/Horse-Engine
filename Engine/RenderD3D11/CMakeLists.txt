@@ -2,6 +2,7 @@
 add_library(HorseRenderD3D11 STATIC
     Source/D3D11Renderer.cpp
     Source/D3D11Shader.cpp
+    Source/D3D11Texture.cpp
 )
 
 target_include_directories(HorseRenderD3D11

@@ -1,8 +1,10 @@
 #pragma once
 
 #include "HorseEngine/Core.h"
+#include "HorseEngine/Render/D3D11Texture.h"
 #include <d3d11.h>
 #include <dxgi.h>
+#include <memory>
 #include <wrl/client.h>
 
 namespace Horse {
@@ -44,6 +46,7 @@ private:
   struct Vertex {
     f32 x, y, z;
     f32 r, g, b, a;
+    f32 u, v;
   };
 
   bool CreateDeviceAndSwapChain(const RendererDesc &desc);
@@ -59,6 +62,7 @@ private:
   ComPtr<ID3D11Texture2D> m_DepthStencilBuffer;
 
   // Cube members
+  std::unique_ptr<class D3D11Texture> m_CubeTexture;
   ComPtr<ID3D11Buffer> m_CubeVertexBuffer;
   ComPtr<ID3D11Buffer> m_CubeIndexBuffer;
   ComPtr<ID3D11Buffer> m_CubeConstantBuffer;
