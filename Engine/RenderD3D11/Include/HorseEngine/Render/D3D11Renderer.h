@@ -2,17 +2,26 @@
 
 #include "HorseEngine/Core.h"
 #include "HorseEngine/Render/D3D11Texture.h"
+#include "HorseEngine/Render/Frustum.h"
 #include <DirectXMath.h>
 #include <d3d11.h>
 #include <dxgi.h>
+#include <entt/entt.hpp>
 #include <memory>
+#include <vector>
 #include <wrl/client.h>
+
 
 namespace Horse {
 
 using Microsoft::WRL::ComPtr;
 
 class Window;
+
+struct RenderItem {
+  entt::entity Entity;
+  float DistanceSq; // To camera
+};
 
 struct RendererDesc {
   HWND WindowHandle = nullptr;

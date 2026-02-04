@@ -3,9 +3,11 @@
 #include "HorseEngine/Render/D3D11Buffer.h"
 #include "HorseEngine/Render/D3D11Shader.h"
 #include "HorseEngine/Render/D3D11Texture.h"
+#include "HorseEngine/Render/Frustum.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Scene.h"
 #include <DirectXMath.h>
+#include <algorithm>
 #include <dxgi1_2.h>
 
 using namespace DirectX;
@@ -170,9 +172,18 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
           XMVector3TransformCoord(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), rotMat);
 
       view = XMMatrixLookAtLH(pos, target, up);
-      projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(camera.FOV),
-                                            m_Width / (f32)m_Height,
+
+      if (camera.Type == CameraComponent::ProjectionType::Perspective) {
+        projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(camera.FOV),
+                                              m_Width / (f32)m_Height,
+                                              camera.NearClip, camera.FarClip);
+      } else {
+        float orthoWidth = camera.OrthographicSize * (m_Width / (f32)m_Height);
+        float orthoHeight = camera.OrthographicSize;
+        projection = XMMatrixOrthographicLH(orthoWidth, orthoHeight,
                                             camera.NearClip, camera.FarClip);
+      }
+
       cameraFound = true;
       break;
     }
@@ -185,6 +196,50 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
     XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
     view = XMMatrixLookAtLH(eye, at, up);
   }
+
+  // Create Frustum
+  Frustum frustum;
+  frustum.Update(view * projection);
+
+  XMVECTOR cameraPosVec = XMVectorSet(0, 0, 0, 1);
+  XMMATRIX invView = XMMatrixInverse(nullptr, view);
+  cameraPosVec = XMVector3TransformCoord(cameraPosVec, invView);
+  XMFLOAT3 cameraPos;
+  XMStoreFloat3(&cameraPos, cameraPosVec);
+
+  // Cull and Collect
+  std::vector<RenderItem> renderItems;
+  auto meshView = registry.view<TransformComponent, MeshRendererComponent>();
+
+  for (auto entity : meshView) {
+    auto [transform, mesh] =
+        meshView.get<TransformComponent, MeshRendererComponent>(entity);
+
+    // Create AABB for the unit cube scaled by transform
+    // Note: This assumes the mesh is roughly a unit cube centered at origin.
+    // For arbitrary meshes, we'd need AABB data from the asset.
+    AABB aabb;
+    aabb.Center = {transform.Position[0], transform.Position[1],
+                   transform.Position[2]};
+    // Extents = 0.5 * Scale for a unit cube (-0.5 to 0.5)
+    aabb.Extents = {0.5f * transform.Scale[0], 0.5f * transform.Scale[1],
+                    0.5f * transform.Scale[2]};
+
+    if (frustum.Intersects(aabb)) {
+      float dx = transform.Position[0] - cameraPos.x;
+      float dy = transform.Position[1] - cameraPos.y;
+      float dz = transform.Position[2] - cameraPos.z;
+      float distSq = dx * dx + dy * dy + dz * dz;
+
+      renderItems.push_back({entity, distSq});
+    }
+  }
+
+  // Sort front-to-back (optimization for opaque objects to leverage early-Z)
+  std::sort(renderItems.begin(), renderItems.end(),
+            [](const RenderItem &a, const RenderItem &b) {
+              return a.DistanceSq < b.DistanceSq;
+            });
 
   // Set common pipeline state
   m_CubeVertexBuffer->Bind(m_Context.Get(), 0);
@@ -201,11 +256,10 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
 
   m_Context->PSSetShader(m_CubePS.Get(), nullptr, 0);
 
-  // Render meshes
-  auto meshView = registry.view<TransformComponent, MeshRendererComponent>();
-  for (auto entity : meshView) {
+  // Render Sorted Items
+  for (const auto &item : renderItems) {
     auto [transform, mesh] =
-        meshView.get<TransformComponent, MeshRendererComponent>(entity);
+        meshView.get<TransformComponent, MeshRendererComponent>(item.Entity);
 
     XMMATRIX world =
         XMMatrixScaling(transform.Scale[0], transform.Scale[1],
