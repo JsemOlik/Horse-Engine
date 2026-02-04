@@ -2,6 +2,7 @@
 
 #include "HorseEngine/Core.h"
 #include "HorseEngine/Render/D3D11Texture.h"
+#include <DirectXMath.h>
 #include <d3d11.h>
 #include <dxgi.h>
 #include <memory>
@@ -34,6 +35,9 @@ public:
 
   void Clear(f32 r, f32 g, f32 b, f32 a = 1.0f);
   void Present();
+  void RenderScene(class Scene *scene,
+                   const DirectX::XMMATRIX *overrideView = nullptr,
+                   const DirectX::XMMATRIX *overrideProjection = nullptr);
 
   void OnResize(u32 width, u32 height);
 

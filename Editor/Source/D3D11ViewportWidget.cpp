@@ -67,7 +67,9 @@ void D3D11ViewportWidget::Render() {
   m_Renderer->BeginFrame();
   m_Renderer->Clear(m_ClearColor[0], m_ClearColor[1], m_ClearColor[2]);
 
-  m_Renderer->DrawCube();
+  if (m_Scene) {
+    m_Renderer->RenderScene(m_Scene.get());
+  }
 
   m_Renderer->EndFrame();
   m_Renderer->Present();

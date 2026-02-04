@@ -2,17 +2,26 @@
 #include "D3D11ViewportWidget.h"
 #include "Panels/ConsolePanel.h"
 #include "Panels/ContentBrowserPanel.h"
+#include "Panels/GameViewport.h"
 #include "Panels/HierarchyPanel.h"
 #include "Panels/InspectorPanel.h"
+#include "Panels/SceneViewport.h"
 
+#include "Dialogs/PreferencesDialog.h"
+#include "EditorPreferences.h"
+#include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Entity.h"
 #include "HorseEngine/Scene/Scene.h"
+#include "ThemeManager.h"
 
+#include <QCoreApplication>
 #include <QDockWidget>
 #include <QFileDialog>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QSettings>
 #include <QToolBar>
+
 
 EditorWindow::EditorWindow(QWidget *parent) : QMainWindow(parent) {
 
@@ -23,8 +32,15 @@ EditorWindow::EditorWindow(QWidget *parent) : QMainWindow(parent) {
   CreatePanels();
   CreateToolBar();
 
+  // Apply saved theme
+  Horse::ThemeManager::ApplyTheme(
+      Horse::EditorPreferences::Get().GetAppearance());
+
   // Create default scene
   NewScene();
+
+  // Load layout if it exists
+  OnLoadLayout();
 }
 
 EditorWindow::~EditorWindow() {}
@@ -83,18 +99,46 @@ void EditorWindow::CreateMenus() {
   QAction *projectSettingsAction = editMenu->addAction("&Project Settings...");
   connect(projectSettingsAction, &QAction::triggered, this,
           &EditorWindow::OnProjectSettings);
-  editMenu->addAction("&Preferences...");
+
+  QAction *preferencesAction = editMenu->addAction("&Preferences...");
+  connect(preferencesAction, &QAction::triggered, this,
+          &EditorWindow::OnPreferences);
 
   QMenu *viewMenu = menuBar()->addMenu("&View");
-  viewMenu->addAction("Reset Layout");
+
+  QAction *saveLayoutAction = viewMenu->addAction("Save Layout");
+  connect(saveLayoutAction, &QAction::triggered, this,
+          &EditorWindow::OnSaveLayout);
+
+  QAction *loadLayoutAction = viewMenu->addAction("Load Layout");
+  connect(loadLayoutAction, &QAction::triggered, this,
+          &EditorWindow::OnLoadLayout);
+
+  viewMenu->addSeparator();
+
+  QAction *resetLayoutAction = viewMenu->addAction("Reset Layout");
+  connect(resetLayoutAction, &QAction::triggered, this,
+          &EditorWindow::OnResetLayout);
 
   QMenu *helpMenu = menuBar()->addMenu("&Help");
   helpMenu->addAction("&About");
 }
 
 void EditorWindow::CreatePanels() {
-  m_ViewportWidget = new D3D11ViewportWidget(this);
-  setCentralWidget(m_ViewportWidget);
+  setCentralWidget(nullptr);
+
+  QDockWidget *sceneDock = new QDockWidget("Scene", this);
+  m_SceneViewport = new SceneViewport(sceneDock);
+  sceneDock->setWidget(m_SceneViewport);
+  addDockWidget(Qt::TopDockWidgetArea, sceneDock);
+
+  QDockWidget *gameDock = new QDockWidget("Game", this);
+  m_GameViewport = new GameViewport(gameDock);
+  gameDock->setWidget(m_GameViewport);
+  addDockWidget(Qt::TopDockWidgetArea, gameDock);
+
+  tabifyDockWidget(sceneDock, gameDock);
+  sceneDock->raise(); // Scene by default
 
   QDockWidget *hierarchyDock = new QDockWidget("Hierarchy", this);
   m_HierarchyPanel = new HierarchyPanel(hierarchyDock);
@@ -135,9 +179,22 @@ void EditorWindow::NewScene() {
   m_CurrentScenePath.clear();
   m_SelectedEntity = {};
 
+  // Create default camera
+  auto cameraEntity = m_ActiveScene->CreateEntity("Main Camera");
+  auto &camera = cameraEntity.AddComponent<Horse::CameraComponent>();
+  camera.Primary = true;
+  auto &transform = cameraEntity.GetComponent<Horse::TransformComponent>();
+  transform.Position = {0.0f, 2.0f, -5.0f};
+
   // Update panels
   if (m_HierarchyPanel) {
     m_HierarchyPanel->SetScene(m_ActiveScene);
+  }
+  if (m_SceneViewport) {
+    m_SceneViewport->SetScene(m_ActiveScene);
+  }
+  if (m_GameViewport) {
+    m_GameViewport->SetScene(m_ActiveScene);
   }
   if (m_InspectorPanel) {
     m_InspectorPanel->SetSelectedEntity({});
@@ -157,6 +214,12 @@ void EditorWindow::OpenScene(const std::string &filepath) {
 
     if (m_HierarchyPanel) {
       m_HierarchyPanel->SetScene(m_ActiveScene);
+    }
+    if (m_SceneViewport) {
+      m_SceneViewport->SetScene(m_ActiveScene);
+    }
+    if (m_GameViewport) {
+      m_GameViewport->SetScene(m_ActiveScene);
     }
     if (m_InspectorPanel) {
       m_InspectorPanel->SetSelectedEntity({});
@@ -263,9 +326,16 @@ void EditorWindow::NewProject(const std::string &filepath) {
   // Create asset directory if it doesn't exist
   std::filesystem::create_directories(project->GetConfig().ProjectDirectory /
                                       project->GetConfig().AssetDirectory);
+  std::filesystem::create_directories(project->GetConfig().ProjectDirectory /
+                                      project->GetConfig().AssetDirectory /
+                                      "Scenes");
 
   Horse::Project::SetActive(project);
   SaveProject(filepath);
+
+  if (m_ContentBrowserPanel) {
+    m_ContentBrowserPanel->Refresh();
+  }
 
   NewScene(); // Start with a clean scene in the new project
 }
@@ -291,6 +361,10 @@ void EditorWindow::OpenProject(const std::string &filepath) {
 
     setWindowTitle(QString("Horse Engine Editor - %1")
                        .arg(QString::fromStdString(project->GetConfig().Name)));
+
+    if (m_ContentBrowserPanel) {
+      m_ContentBrowserPanel->Refresh();
+    }
   } else {
     QMessageBox::critical(this, "Error", "Failed to load project!");
   }
@@ -360,3 +434,39 @@ void EditorWindow::OnProjectSettings() {
 }
 
 void EditorWindow::OnExit() { close(); }
+
+void EditorWindow::OnPreferences() {
+  Horse::PreferencesDialog dialog(this);
+  dialog.exec();
+}
+
+void EditorWindow::OnSaveLayout() {
+  QSettings settings(QCoreApplication::applicationDirPath() + "/layout.ini",
+                     QSettings::IniFormat);
+  settings.setValue("geometry", saveGeometry());
+  settings.setValue("windowState", saveState());
+}
+
+void EditorWindow::OnLoadLayout() {
+  QSettings settings(QCoreApplication::applicationDirPath() + "/layout.ini",
+                     QSettings::IniFormat);
+  if (settings.contains("geometry")) {
+    restoreGeometry(settings.value("geometry").toByteArray());
+  }
+  if (settings.contains("windowState")) {
+    restoreState(settings.value("windowState").toByteArray());
+  }
+}
+
+void EditorWindow::OnResetLayout() {
+  // Simple way to reset: remove existing docks and recreate them
+  // But a better way is to define a "default" state
+  // For now, let's just use a hardcoded layout or similar
+  // Actually, just calling CreatePanels again might duplicate things.
+  // The user might just want a "factory reset".
+
+  // To keep it simple and safe for now:
+  QMessageBox::information(this, "Reset Layout",
+                           "Restart the editor with the layout.ini deleted to "
+                           "fully reset to default.");
+}

@@ -3,11 +3,9 @@
 #include "HorseEngine/Scene/Entity.h"
 #include "HorseEngine/Scene/Scene.h"
 
-
 #include <QAction>
 #include <QMenu>
 #include <QVBoxLayout>
-
 
 HierarchyPanel::HierarchyPanel(QWidget *parent) : QWidget(parent) {
 
@@ -110,6 +108,10 @@ void HierarchyPanel::OnContextMenuRequested(const QPoint &pos) {
   connect(createEmptyAction, &QAction::triggered, this,
           &HierarchyPanel::OnCreateEmptyEntity);
 
+  QAction *createCubeAction = contextMenu.addAction("Create Cube");
+  connect(createCubeAction, &QAction::triggered, this,
+          &HierarchyPanel::OnCreateCube);
+
   QAction *createCameraAction = contextMenu.addAction("Create Camera");
   connect(createCameraAction, &QAction::triggered, this,
           &HierarchyPanel::OnCreateCamera);
@@ -134,6 +136,17 @@ void HierarchyPanel::OnCreateEmptyEntity() {
     return;
 
   m_Scene->CreateEntity("Entity");
+  RefreshHierarchy();
+}
+
+void HierarchyPanel::OnCreateCube() {
+  if (!m_Scene)
+    return;
+
+  auto entity = m_Scene->CreateEntity("Cube");
+  entity.AddComponent<Horse::MeshRendererComponent>();
+  // Transform is added by default in CreateEntity (usually, checking
+  // components.h)
   RefreshHierarchy();
 }
 

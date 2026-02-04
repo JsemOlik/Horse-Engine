@@ -1,7 +1,5 @@
 #pragma once
 
-#include "HorseEngine/Scene/Scene.h"
-
 namespace Horse {
 
 template <typename T, typename... Args>
