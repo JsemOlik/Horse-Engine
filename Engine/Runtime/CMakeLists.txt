@@ -15,6 +15,8 @@ add_library(HorseRuntime STATIC
     Source/Scene/SceneSerializer.cpp
     Source/Project/ProjectSerializer.cpp
     Source/Engine.cpp
+    Source/Material.cpp
+    Source/MaterialSerializer.cpp
 )
 
 target_include_directories(HorseRuntime
