@@ -41,6 +41,9 @@ private slots:
   void OnOpenScene();
   void OnSaveScene();
   void OnSaveSceneAs();
+  void OnSaveLayout();
+  void OnLoadLayout();
+  void OnResetLayout();
   void OnExit();
 
 private:

@@ -14,11 +14,14 @@
 #include "HorseEngine/Scene/Scene.h"
 #include "ThemeManager.h"
 
+#include <QCoreApplication>
 #include <QDockWidget>
 #include <QFileDialog>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QSettings>
 #include <QToolBar>
+
 
 EditorWindow::EditorWindow(QWidget *parent) : QMainWindow(parent) {
 
@@ -35,6 +38,9 @@ EditorWindow::EditorWindow(QWidget *parent) : QMainWindow(parent) {
 
   // Create default scene
   NewScene();
+
+  // Load layout if it exists
+  OnLoadLayout();
 }
 
 EditorWindow::~EditorWindow() {}
@@ -99,7 +105,20 @@ void EditorWindow::CreateMenus() {
           &EditorWindow::OnPreferences);
 
   QMenu *viewMenu = menuBar()->addMenu("&View");
-  viewMenu->addAction("Reset Layout");
+
+  QAction *saveLayoutAction = viewMenu->addAction("Save Layout");
+  connect(saveLayoutAction, &QAction::triggered, this,
+          &EditorWindow::OnSaveLayout);
+
+  QAction *loadLayoutAction = viewMenu->addAction("Load Layout");
+  connect(loadLayoutAction, &QAction::triggered, this,
+          &EditorWindow::OnLoadLayout);
+
+  viewMenu->addSeparator();
+
+  QAction *resetLayoutAction = viewMenu->addAction("Reset Layout");
+  connect(resetLayoutAction, &QAction::triggered, this,
+          &EditorWindow::OnResetLayout);
 
   QMenu *helpMenu = menuBar()->addMenu("&Help");
   helpMenu->addAction("&About");
@@ -419,4 +438,35 @@ void EditorWindow::OnExit() { close(); }
 void EditorWindow::OnPreferences() {
   Horse::PreferencesDialog dialog(this);
   dialog.exec();
+}
+
+void EditorWindow::OnSaveLayout() {
+  QSettings settings(QCoreApplication::applicationDirPath() + "/layout.ini",
+                     QSettings::IniFormat);
+  settings.setValue("geometry", saveGeometry());
+  settings.setValue("windowState", saveState());
+}
+
+void EditorWindow::OnLoadLayout() {
+  QSettings settings(QCoreApplication::applicationDirPath() + "/layout.ini",
+                     QSettings::IniFormat);
+  if (settings.contains("geometry")) {
+    restoreGeometry(settings.value("geometry").toByteArray());
+  }
+  if (settings.contains("windowState")) {
+    restoreState(settings.value("windowState").toByteArray());
+  }
+}
+
+void EditorWindow::OnResetLayout() {
+  // Simple way to reset: remove existing docks and recreate them
+  // But a better way is to define a "default" state
+  // For now, let's just use a hardcoded layout or similar
+  // Actually, just calling CreatePanels again might duplicate things.
+  // The user might just want a "factory reset".
+
+  // To keep it simple and safe for now:
+  QMessageBox::information(this, "Reset Layout",
+                           "Restart the editor with the layout.ini deleted to "
+                           "fully reset to default.");
 }
