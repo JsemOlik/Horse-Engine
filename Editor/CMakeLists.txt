@@ -25,6 +25,12 @@ add_executable(HorseEditor WIN32
     Source/Panels/ConsolePanel.h
     Source/Dialogs/ProjectSettingsDialog.cpp
     Source/Dialogs/ProjectSettingsDialog.h
+    Source/Dialogs/PreferencesDialog.cpp
+    Source/Dialogs/PreferencesDialog.h
+    Source/EditorPreferences.cpp
+    Source/EditorPreferences.h
+    Source/ThemeManager.cpp
+    Source/ThemeManager.h
 )
 
 target_include_directories(HorseEditor

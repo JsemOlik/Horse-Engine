@@ -7,10 +7,12 @@
 #include "Panels/InspectorPanel.h"
 #include "Panels/SceneViewport.h"
 
+#include "Dialogs/PreferencesDialog.h"
+#include "EditorPreferences.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Entity.h"
 #include "HorseEngine/Scene/Scene.h"
-
+#include "ThemeManager.h"
 
 #include <QDockWidget>
 #include <QFileDialog>
@@ -26,6 +28,10 @@ EditorWindow::EditorWindow(QWidget *parent) : QMainWindow(parent) {
   CreateMenus();
   CreatePanels();
   CreateToolBar();
+
+  // Apply saved theme
+  Horse::ThemeManager::ApplyTheme(
+      Horse::EditorPreferences::Get().GetAppearance());
 
   // Create default scene
   NewScene();
@@ -87,7 +93,10 @@ void EditorWindow::CreateMenus() {
   QAction *projectSettingsAction = editMenu->addAction("&Project Settings...");
   connect(projectSettingsAction, &QAction::triggered, this,
           &EditorWindow::OnProjectSettings);
-  editMenu->addAction("&Preferences...");
+
+  QAction *preferencesAction = editMenu->addAction("&Preferences...");
+  connect(preferencesAction, &QAction::triggered, this,
+          &EditorWindow::OnPreferences);
 
   QMenu *viewMenu = menuBar()->addMenu("&View");
   viewMenu->addAction("Reset Layout");
@@ -395,3 +404,8 @@ void EditorWindow::OnProjectSettings() {
 }
 
 void EditorWindow::OnExit() { close(); }
+
+void EditorWindow::OnPreferences() {
+  Horse::PreferencesDialog dialog(this);
+  dialog.exec();
+}
