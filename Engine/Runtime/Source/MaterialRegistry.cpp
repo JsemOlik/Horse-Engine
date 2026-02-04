@@ -1,5 +1,7 @@
 #include "HorseEngine/Render/MaterialRegistry.h"
 #include "HorseEngine/Core/Logging.h"
+#include "HorseEngine/Render/MaterialSerializer.h"
+#include <filesystem>
 
 namespace Horse {
 
@@ -42,6 +44,39 @@ MaterialRegistry::CreateMaterial(const std::string &name) {
 
   m_Materials[name] = newMat;
   return newMat;
+}
+
+std::shared_ptr<Material>
+MaterialRegistry::LoadMaterial(const std::string &filepath) {
+  auto material = std::make_shared<Material>("Temp");
+  if (MaterialSerializer::Deserialize(filepath, *material)) {
+    material->SetFilePath(filepath);
+
+    // Check if material with this name already exists
+    std::string name = material->GetName();
+    if (m_Materials.find(name) != m_Materials.end()) {
+      // If it exists but path is different, maybe rename?
+      // For now, we overwrite or just log warning.
+      // Let's ensure unique names in a real system, but here we overwrite.
+      HORSE_LOG_CORE_WARN("Reloading material: {}", name);
+    }
+    m_Materials[name] = material;
+    return material;
+  }
+  return nullptr;
+}
+
+void MaterialRegistry::LoadMaterialsFromDirectory(
+    const std::string &directory) {
+  if (!std::filesystem::exists(directory))
+    return;
+
+  for (const auto &entry :
+       std::filesystem::recursive_directory_iterator(directory)) {
+    if (entry.is_regular_file() && entry.path().extension() == ".horsemat") {
+      LoadMaterial(entry.path().string());
+    }
+  }
 }
 
 } // namespace Horse

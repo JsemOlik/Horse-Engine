@@ -4,7 +4,6 @@
 #include <QWidget>
 #include <filesystem>
 
-
 class ContentBrowserPanel : public QWidget {
   Q_OBJECT
 
@@ -17,6 +16,7 @@ private slots:
   void OnItemDoubleClicked(QListWidgetItem *item);
   void OnContextMenu(const QPoint &pos);
   void OnCreateFolder();
+  void OnCreateMaterial();
   void OnRenameItem();
   void OnDeleteItem();
 

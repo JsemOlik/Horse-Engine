@@ -1,8 +1,12 @@
 #include "InspectorPanel.h"
 #include "HorseEngine/Render/Material.h"
 #include "HorseEngine/Render/MaterialRegistry.h"
+#include "HorseEngine/Render/MaterialSerializer.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Entity.h"
+#include <algorithm>
+#include <vector>
+
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -236,15 +240,53 @@ void InspectorPanel::DrawComponents() {
     QGroupBox *materialGroup = new QGroupBox("Material");
     QFormLayout *materialLayout = new QFormLayout(materialGroup);
 
+    // Material Selector
+    QComboBox *materialCombo = new QComboBox();
+    std::vector<std::string> materialNames;
+    for (const auto &[name, mat] :
+         Horse::MaterialRegistry::Get().GetMaterials()) {
+      materialNames.push_back(name);
+    }
+    std::sort(materialNames.begin(), materialNames.end());
+
+    int currentIndex = -1;
+    for (int i = 0; i < materialNames.size(); ++i) {
+      materialCombo->addItem(QString::fromStdString(materialNames[i]));
+      if (materialNames[i] == mesh.MaterialGUID) {
+        currentIndex = i;
+      }
+    }
+
+    // Add Default if not found or empty
+    if (currentIndex == -1) {
+      mesh.MaterialGUID = "Default"; // Ensure valid
+                                     // Find "Default" index if we just reset it
+      for (int i = 0; i < materialNames.size(); ++i) {
+        if (materialNames[i] == "Default")
+          currentIndex = i;
+      }
+    }
+    materialCombo->setCurrentIndex(currentIndex);
+
+    connect(materialCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this, materialNames](int index) {
+              if (m_SelectedEntity && index >= 0 &&
+                  index < materialNames.size()) {
+                m_SelectedEntity.GetComponent<Horse::MeshRendererComponent>()
+                    .MaterialGUID = materialNames[index];
+                RefreshInspector(); // Re-draw to update properties below
+              }
+            });
+
+    materialLayout->addRow("Assignment:", materialCombo);
+
     // Get Active Material
     auto material =
         Horse::MaterialRegistry::Get().GetMaterial(mesh.MaterialGUID);
-    if (!material) {
-      // Fallback
-      materialLayout->addRow(new QLabel("Invalid Material GUID"));
-    } else {
-      materialLayout->addRow(
-          "Name:", new QLabel(QString::fromStdString(material->GetName())));
+
+    if (material) {
+      // Only allow editing if not Default (or maybe allow Default editing in
+      // memory?) Better: Show properties always. Save if path exists.
 
       // Albedo Color (RGB SpinBoxes for now)
       QHBoxLayout *colorLayout = new QHBoxLayout();
@@ -264,6 +306,12 @@ void InspectorPanel::DrawComponents() {
                     auto c = material->GetColor("Albedo");
                     c[i] = static_cast<float>(val);
                     material->SetColor("Albedo", c);
+
+                    // Save
+                    if (!material->GetFilePath().empty()) {
+                      Horse::MaterialSerializer::Serialize(
+                          *material, material->GetFilePath());
+                    }
                   }
                 });
         colorLayout->addWidget(spin);
@@ -278,8 +326,13 @@ void InspectorPanel::DrawComponents() {
       connect(roughnessSpin,
               QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
               [this, material](double val) {
-                if (material)
+                if (material) {
                   material->SetFloat("Roughness", static_cast<float>(val));
+                  if (!material->GetFilePath().empty()) {
+                    Horse::MaterialSerializer::Serialize(
+                        *material, material->GetFilePath());
+                  }
+                }
               });
       materialLayout->addRow("Roughness:", roughnessSpin);
 
@@ -291,8 +344,13 @@ void InspectorPanel::DrawComponents() {
       connect(metalnessSpin,
               QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
               [this, material](double val) {
-                if (material)
+                if (material) {
                   material->SetFloat("Metalness", static_cast<float>(val));
+                  if (!material->GetFilePath().empty()) {
+                    Horse::MaterialSerializer::Serialize(
+                        *material, material->GetFilePath());
+                  }
+                }
               });
       materialLayout->addRow("Metalness:", metalnessSpin);
     }

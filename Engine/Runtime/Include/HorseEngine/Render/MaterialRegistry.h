@@ -15,6 +15,16 @@ public:
   std::shared_ptr<Material> GetMaterial(const std::string &name);
   std::shared_ptr<Material> CreateMaterial(const std::string &name);
 
+  // Load a single material file
+  std::shared_ptr<Material> LoadMaterial(const std::string &filepath);
+  // Scan a directory recursively for .horsemat files
+  void LoadMaterialsFromDirectory(const std::string &directory);
+
+  const std::unordered_map<std::string, std::shared_ptr<Material>> &
+  GetMaterials() const {
+    return m_Materials;
+  }
+
 private:
   MaterialRegistry();
   ~MaterialRegistry() = default;

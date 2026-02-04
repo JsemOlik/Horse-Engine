@@ -31,6 +31,9 @@ public:
   std::string GetTexture(const std::string &name) const;
   bool HasTexture(const std::string &name) const;
 
+  const std::string &GetFilePath() const { return m_FilePath; }
+  void SetFilePath(const std::string &path) { m_FilePath = path; }
+
   // Access to raw maps for serialization/iteration
   const std::unordered_map<std::string, float> &GetFloatProperties() const {
     return m_FloatProps;
@@ -46,6 +49,7 @@ public:
 
 private:
   std::string m_Name;
+  std::string m_FilePath;
   std::string m_ShaderName;
 
   std::unordered_map<std::string, float> m_FloatProps;
