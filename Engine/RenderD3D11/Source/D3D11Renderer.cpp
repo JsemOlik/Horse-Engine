@@ -5,6 +5,7 @@
 #include "HorseEngine/Render/D3D11Texture.h"
 #include "HorseEngine/Render/Frustum.h"
 #include "HorseEngine/Render/Material.h"
+#include "HorseEngine/Render/MaterialRegistry.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Scene.h"
 #include <DirectXMath.h>
@@ -384,16 +385,14 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
     m_CubeConstantBuffer->Bind(m_Context.Get(), 0); // Slot 0: Object CBuffer
 
     // Retrieve Material properties
-    // For now, assuming default/fallback if no material is present or using a
-    // test material Ideally: components also have a MaterialComponent or GUID
-    // Let's use a temporary fallback material for now to test the pipeline
-    static Material fallbackMat("Default");
-    fallbackMat.SetColor("Albedo", {1.0f, 1.0f, 1.0f, 1.0f});
-    fallbackMat.SetFloat("Roughness", 0.5f);
-    fallbackMat.SetFloat("Metalness", 0.0f);
+    // Use Material Registry to get the material for this entity
+    auto material = MaterialRegistry::Get().GetMaterial(mesh.MaterialGUID);
+    if (!material) {
+      material = MaterialRegistry::Get().GetMaterial("Default");
+    }
 
     // Bind Shader (Permutation Aware)
-    auto shader = GetShader(fallbackMat.GetShaderName(), fallbackMat);
+    auto shader = GetShader(material->GetShaderName(), *material);
     if (!shader)
       shader = m_DefaultShader;
 
@@ -404,10 +403,10 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
 
     // Update Material Constant Buffer
     MaterialConstantBuffer matCB;
-    auto color = fallbackMat.GetColor("Albedo");
+    auto color = material->GetColor("Albedo");
     matCB.AlbedoColor = {color[0], color[1], color[2], color[3]};
-    matCB.Roughness = fallbackMat.GetFloat("Roughness");
-    matCB.Metalness = fallbackMat.GetFloat("Metalness");
+    matCB.Roughness = material->GetFloat("Roughness");
+    matCB.Metalness = material->GetFloat("Metalness");
 
     m_MaterialConstantBuffer->UpdateData(m_Context.Get(), &matCB,
                                          sizeof(MaterialConstantBuffer));
@@ -416,7 +415,8 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
 
     // Bind Textures
     // If material has an albedo texture, bind it. Else bind white texture.
-    std::string albedoPath = fallbackMat.GetTexture("AlbedoMap");
+    std::string albedoPath = material->GetTexture("AlbedoMap");
+
     // TODO: Texture Manager lookup. For now, just bind the white texture if
     // nothing else Or reuse the checkerboard if we want to visualize it
     if (m_CubeTexture) {
