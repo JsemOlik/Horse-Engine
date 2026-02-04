@@ -16,6 +16,7 @@
 #include <QLineEdit>
 #include <QMenu>
 #include <QPushButton>
+#include <QTimer>
 #include <QVBoxLayout>
 
 InspectorPanel::InspectorPanel(QWidget *parent) : QWidget(parent) {
@@ -258,7 +259,7 @@ void InspectorPanel::DrawComponents() {
             if (m_SelectedEntity) {
               m_SelectedEntity.GetComponent<Horse::MeshRendererComponent>()
                   .MaterialGUID = name;
-              RefreshInspector();
+              QTimer::singleShot(0, this, [this]() { RefreshInspector(); });
             }
           });
         }
@@ -300,7 +301,7 @@ void InspectorPanel::DrawComponents() {
                     index < materialNames.size()) {
                   m_SelectedEntity.GetComponent<Horse::MeshRendererComponent>()
                       .MaterialGUID = materialNames[index];
-                  RefreshInspector(); // Re-draw to update properties below
+                  QTimer::singleShot(0, this, [this]() { RefreshInspector(); });
                 }
               });
 

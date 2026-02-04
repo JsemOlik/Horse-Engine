@@ -145,7 +145,7 @@ void HierarchyPanel::OnCreateCube() {
 
   auto entity = m_Scene->CreateEntity("Cube");
   auto &meshRenderer = entity.AddComponent<Horse::MeshRendererComponent>();
-  meshRenderer.MaterialGUID = "Default";
+  meshRenderer.MaterialGUID = "";
   // Transform is added by default in CreateEntity (usually, checking
   // components.h)
   RefreshHierarchy();
