@@ -4,7 +4,6 @@
 #include <DirectXMath.h>
 #include <dxgi1_2.h>
 
-
 using namespace DirectX;
 
 namespace Horse {
@@ -233,7 +232,7 @@ bool D3D11Renderer::InitCube() {
   // Create index buffer
   u32 indices[] = {
       0, 1, 2, 0, 2, 3, // Front
-      4, 5, 6, 4, 6, 7, // Back
+      5, 4, 7, 5, 7, 6, // Back
       4, 0, 3, 4, 3, 7, // Left
       1, 5, 6, 1, 6, 2, // Right
       4, 5, 1, 4, 1, 0, // Top
