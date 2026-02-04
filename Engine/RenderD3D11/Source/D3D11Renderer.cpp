@@ -215,15 +215,34 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
     auto [transform, mesh] =
         meshView.get<TransformComponent, MeshRendererComponent>(entity);
 
-    // Create AABB for the unit cube scaled by transform
-    // Note: This assumes the mesh is roughly a unit cube centered at origin.
-    // For arbitrary meshes, we'd need AABB data from the asset.
+    // Calculate Rotation Matrix
+    XMMATRIX rotation =
+        XMMatrixRotationRollPitchYaw(XMConvertToRadians(transform.Rotation[0]),
+                                     XMConvertToRadians(transform.Rotation[1]),
+                                     XMConvertToRadians(transform.Rotation[2]));
+
+    // Calculate World Space AABB Extents
+    // Transform local extents (1.0 * Scale) into world space axes
+    // Note: Vertices are -1 to 1, so the half-size (extent) is 1.0.
+    XMVECTOR localExtentsX =
+        XMVectorSet(transform.Scale[0] * 1.0f, 0.0f, 0.0f, 0.0f);
+    XMVECTOR localExtentsY =
+        XMVectorSet(0.0f, transform.Scale[1] * 1.0f, 0.0f, 0.0f);
+    XMVECTOR localExtentsZ =
+        XMVectorSet(0.0f, 0.0f, transform.Scale[2] * 1.0f, 0.0f);
+
+    XMVECTOR rotExtentsX = XMVector3TransformNormal(localExtentsX, rotation);
+    XMVECTOR rotExtentsY = XMVector3TransformNormal(localExtentsY, rotation);
+    XMVECTOR rotExtentsZ = XMVector3TransformNormal(localExtentsZ, rotation);
+
+    // Sum absolute values to get the bounding box extents
+    XMVECTOR worldExtents = XMVectorAbs(rotExtentsX) +
+                            XMVectorAbs(rotExtentsY) + XMVectorAbs(rotExtentsZ);
+
     AABB aabb;
     aabb.Center = {transform.Position[0], transform.Position[1],
                    transform.Position[2]};
-    // Extents = 0.5 * Scale for a unit cube (-0.5 to 0.5)
-    aabb.Extents = {0.5f * transform.Scale[0], 0.5f * transform.Scale[1],
-                    0.5f * transform.Scale[2]};
+    XMStoreFloat3(&aabb.Extents, worldExtents);
 
     if (frustum.Intersects(aabb)) {
       float dx = transform.Position[0] - cameraPos.x;
