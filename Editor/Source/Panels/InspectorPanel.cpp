@@ -2,14 +2,12 @@
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Entity.h"
 
-
 #include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QLabel>
 #include <QLineEdit>
 #include <QVBoxLayout>
-
 
 InspectorPanel::InspectorPanel(QWidget *parent) : QWidget(parent) {
 
@@ -62,11 +60,23 @@ void InspectorPanel::DrawComponents() {
     QFormLayout *tagLayout = new QFormLayout(tagGroup);
 
     QLineEdit *nameEdit = new QLineEdit(QString::fromStdString(tag.Name));
-    nameEdit->setReadOnly(true); // TODO: Make editable
+    connect(nameEdit, &QLineEdit::textChanged, this,
+            [this](const QString &text) {
+              if (m_SelectedEntity) {
+                m_SelectedEntity.GetComponent<Horse::TagComponent>().Name =
+                    text.toStdString();
+              }
+            });
     tagLayout->addRow("Name:", nameEdit);
 
     QLineEdit *tagEdit = new QLineEdit(QString::fromStdString(tag.Tag));
-    tagEdit->setReadOnly(true); // TODO: Make editable
+    connect(tagEdit, &QLineEdit::textChanged, this,
+            [this](const QString &text) {
+              if (m_SelectedEntity) {
+                m_SelectedEntity.GetComponent<Horse::TagComponent>().Tag =
+                    text.toStdString();
+              }
+            });
     tagLayout->addRow("Tag:", tagEdit);
 
     m_ContentLayout->addWidget(tagGroup);
@@ -78,25 +88,37 @@ void InspectorPanel::DrawComponents() {
         m_SelectedEntity.GetComponent<Horse::TransformComponent>();
 
     QGroupBox *transformGroup = new QGroupBox("Transform");
-    QFormLayout *transformLayout = new QFormLayout(transformGroup);
+    QVBoxLayout *transformVLayout = new QVBoxLayout(transformGroup);
 
-    QLabel *posLabel = new QLabel(QString("X: %1, Y: %2, Z: %3")
-                                      .arg(transform.Position[0])
-                                      .arg(transform.Position[1])
-                                      .arg(transform.Position[2]));
-    transformLayout->addRow("Position:", posLabel);
+    auto createVec3Control = [&](const QString &label,
+                                 std::array<float, 3> &values) {
+      QHBoxLayout *rowLayout = new QHBoxLayout();
+      rowLayout->addWidget(new QLabel(label));
 
-    QLabel *rotLabel = new QLabel(QString("X: %1, Y: %2, Z: %3")
-                                      .arg(transform.Rotation[0])
-                                      .arg(transform.Rotation[1])
-                                      .arg(transform.Rotation[2]));
-    transformLayout->addRow("Rotation:", rotLabel);
+      for (int i = 0; i < 3; ++i) {
+        QDoubleSpinBox *spin = new QDoubleSpinBox();
+        spin->setRange(-1000000.0, 1000000.0);
+        spin->setSingleStep(0.1);
+        spin->setValue(values[i]);
+        spin->setDecimals(3);
 
-    QLabel *scaleLabel = new QLabel(QString("X: %1, Y: %2, Z: %3")
-                                        .arg(transform.Scale[0])
-                                        .arg(transform.Scale[1])
-                                        .arg(transform.Scale[2]));
-    transformLayout->addRow("Scale:", scaleLabel);
+        // Re-implementing connection to capture index
+        auto updateFunc = [this, &values, i](double val) {
+          if (m_SelectedEntity) {
+            values[i] = static_cast<float>(val);
+          }
+        };
+        connect(spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                this, updateFunc);
+
+        rowLayout->addWidget(spin);
+      }
+      transformVLayout->addLayout(rowLayout);
+    };
+
+    createVec3Control("Position", transform.Position);
+    createVec3Control("Rotation", transform.Rotation);
+    createVec3Control("Scale", transform.Scale);
 
     m_ContentLayout->addWidget(transformGroup);
   }
