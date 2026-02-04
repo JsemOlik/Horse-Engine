@@ -1,0 +1,183 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://horseengine.dev/schemas/horselevel.schema.json",
+  "title": "Horse Engine Level",
+  "description": "Scene/level file format for Horse Engine",
+  "type": "object",
+  "required": ["name", "version", "entities"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Human-readable name of the scene"
+    },
+    "version": {
+      "type": "string",
+      "description": "Scene format version (semver)",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "entities": {
+      "type": "array",
+      "description": "List of entities in the scene",
+      "items": {
+        "$ref": "#/definitions/entity"
+      }
+    }
+  },
+  "definitions": {
+    "entity": {
+      "type": "object",
+      "required": ["uuid", "components"],
+      "properties": {
+        "uuid": {
+          "type": "string",
+          "description": "Unique identifier for this entity",
+          "pattern": "^[0-9]+$"
+        },
+        "components": {
+          "type": "object",
+          "description": "Components attached to this entity",
+          "properties": {
+            "TagComponent": {
+              "$ref": "#/definitions/tagComponent"
+            },
+            "TransformComponent": {
+              "$ref": "#/definitions/transformComponent"
+            },
+            "RelationshipComponent": {
+              "$ref": "#/definitions/relationshipComponent"
+            },
+            "CameraComponent": {
+              "$ref": "#/definitions/cameraComponent"
+            },
+            "LightComponent": {
+              "$ref": "#/definitions/lightComponent"
+            },
+            "MeshRendererComponent": {
+              "$ref": "#/definitions/meshRendererComponent"
+            }
+          }
+        }
+      }
+    },
+    "tagComponent": {
+      "type": "object",
+      "required": ["name", "tag"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Entity name"
+        },
+        "tag": {
+          "type": "string",
+          "description": "Entity tag for grouping/filtering"
+        }
+      }
+    },
+    "transformComponent": {
+      "type": "object",
+      "required": ["position", "rotation", "scale"],
+      "properties": {
+        "position": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "Position [x, y, z]"
+        },
+        "rotation": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "Rotation in Euler angles [x, y, z] (degrees)"
+        },
+        "scale": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "Scale [x, y, z]"
+        }
+      }
+    },
+    "relationshipComponent": {
+      "type": "object",
+      "properties": {
+        "parent": {
+          "type": ["string", "null"],
+          "description": "UUID of parent entity, or null if root"
+        },
+        "firstChild": {
+          "type": ["string", "null"],
+          "description": "UUID of first child entity"
+        },
+        "nextSibling": {
+          "type": ["string", "null"],
+          "description": "UUID of next sibling entity"
+        }
+      }
+    },
+    "cameraComponent": {
+      "type": "object",
+      "required": ["type", "fov", "nearClip", "farClip", "primary"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["Perspective", "Orthographic"],
+          "description": "Camera projection type"
+        },
+        "fov": {
+          "type": "number",
+          "description": "Field of view in degrees (for perspective)"
+        },
+        "nearClip": {
+          "type": "number",
+          "description": "Near clipping plane distance"
+        },
+        "farClip": {
+          "type": "number",
+          "description": "Far clipping plane distance"
+        },
+        "primary": {
+          "type": "boolean",
+          "description": "Is this the primary camera?"
+        }
+      }
+    },
+    "lightComponent": {
+      "type": "object",
+      "required": ["type", "color", "intensity"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["Directional", "Point", "Spot"],
+          "description": "Light type"
+        },
+        "color": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "Light color [r, g, b] (0-1 range)"
+        },
+        "intensity": {
+          "type": "number",
+          "description": "Light intensity multiplier"
+        }
+      }
+    },
+    "meshRendererComponent": {
+      "type": "object",
+      "properties": {
+        "meshGuid": {
+          "type": "string",
+          "description": "GUID of the mesh asset"
+        },
+        "materialGuid": {
+          "type": "string",
+          "description": "GUID of the material asset"
+        }
+      }
+    }
+  }
+}

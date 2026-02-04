@@ -2,24 +2,33 @@
 
 #include "HorseEngine/Core.h"
 #include "HorseEngine/Scene/UUID.h"
+#include <array>
 #include <entt/entt.hpp>
 #include <string>
 
 
 namespace Horse {
 
+// UUID Component - Every entity has a unique identifier
+struct UUIDComponent {
+  UUID ID;
+
+  UUIDComponent() = default;
+  UUIDComponent(const UUID &uuid) : ID(uuid) {}
+};
+
 struct TagComponent {
   std::string Name = "Entity";
-  std::string Tag;
+  std::string Tag = "Default";
 
   TagComponent() = default;
   TagComponent(const std::string &name) : Name(name) {}
 };
 
 struct TransformComponent {
-  float Position[3] = {0.0f, 0.0f, 0.0f};
-  float Rotation[3] = {0.0f, 0.0f, 0.0f}; // Euler angles in degrees
-  float Scale[3] = {1.0f, 1.0f, 1.0f};
+  std::array<float, 3> Position = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> Rotation = {0.0f, 0.0f, 0.0f}; // Euler angles in degrees
+  std::array<float, 3> Scale = {1.0f, 1.0f, 1.0f};
 
   TransformComponent() = default;
 };
@@ -50,7 +59,7 @@ struct LightComponent {
   enum class LightType { Directional = 0, Point = 1, Spot = 2 };
 
   LightType Type = LightType::Directional;
-  float Color[3] = {1.0f, 1.0f, 1.0f};
+  std::array<float, 3> Color = {1.0f, 1.0f, 1.0f};
   float Intensity = 1.0f;
   float Range = 10.0f;     // For point/spot lights
   float SpotAngle = 45.0f; // For spot lights
@@ -59,8 +68,8 @@ struct LightComponent {
 };
 
 struct MeshRendererComponent {
-  UUID MeshID;
-  UUID MaterialID;
+  std::string MeshGUID;
+  std::string MaterialGUID;
 
   MeshRendererComponent() = default;
 };

@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://horseengine.dev/schemas/horseproject.schema.json",
+  "title": "Horse Engine Project",
+  "description": "Project configuration file for Horse Engine",
+  "type": "object",
+  "required": ["name", "guid", "engineVersion"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Project name"
+    },
+    "guid": {
+      "type": "string",
+      "description": "Unique project identifier"
+    },
+    "engineVersion": {
+      "type": "string",
+      "description": "Required engine version (semver)",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "defaultScene": {
+      "type": "string",
+      "description": "Path to default scene file (relative to project root)"
+    },
+    "assetDirectory": {
+      "type": "string",
+      "description": "Path to assets directory (default: Assets)",
+      "default": "Assets"
+    }
+  }
+}

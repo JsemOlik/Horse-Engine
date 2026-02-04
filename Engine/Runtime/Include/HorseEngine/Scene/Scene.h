@@ -28,7 +28,7 @@ public:
   const entt::registry &GetRegistry() const { return m_Registry; }
 
   // Hierarchy management
-  void SetParent(Entity child, Entity parent);
+  void SetEntityParent(Entity child, Entity parent);
   void RemoveParent(Entity child);
   Entity GetParent(Entity entity);
 

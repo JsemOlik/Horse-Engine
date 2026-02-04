@@ -2,7 +2,6 @@
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Scene/Components.h"
 
-
 namespace Horse {
 
 Scene::Scene(const std::string &name) : m_Name(name) {}
@@ -16,6 +15,7 @@ Entity Scene::CreateEntity(const std::string &name) {
 Entity Scene::CreateEntityWithUUID(UUID uuid, const std::string &name) {
   Entity entity = {m_Registry.create(), this};
 
+  entity.AddComponent<UUIDComponent>(uuid);
   entity.AddComponent<TagComponent>(name);
   entity.AddComponent<TransformComponent>();
   entity.AddComponent<RelationshipComponent>();
@@ -66,7 +66,7 @@ Entity Scene::GetEntityByName(const std::string &name) {
   return {};
 }
 
-void Scene::SetParent(Entity child, Entity parent) {
+void Scene::SetEntityParent(Entity child, Entity parent) {
   if (!child || !parent)
     return;
 

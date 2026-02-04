@@ -7,6 +7,7 @@
     "spdlog",
     "fmt",
     "entt",
+    "nlohmann-json",
     "qt5-base",
     "stb",
     "assimp",
