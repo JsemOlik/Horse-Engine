@@ -5,17 +5,14 @@
 #include "Panels/HierarchyPanel.h"
 #include "Panels/InspectorPanel.h"
 
-
 #include "HorseEngine/Scene/Entity.h"
 #include "HorseEngine/Scene/Scene.h"
-
 
 #include <QDockWidget>
 #include <QFileDialog>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QToolBar>
-
 
 EditorWindow::EditorWindow(QWidget *parent) : QMainWindow(parent) {
 
@@ -132,27 +129,37 @@ void EditorWindow::NewScene() {
   setWindowTitle("Horse Engine Editor - Untitled Scene*");
 }
 
+#include "HorseEngine/Scene/SceneSerializer.h"
+
 void EditorWindow::OpenScene(const std::string &filepath) {
-  // TODO: Implement scene deserialization
-  m_CurrentScenePath = filepath;
+  auto scene = Horse::SceneSerializer::DeserializeFromJSON(filepath);
+  if (scene) {
+    m_ActiveScene = scene;
+    m_CurrentScenePath = filepath;
+    m_SelectedEntity = {};
 
-  // For now, just create a new scene
-  m_ActiveScene = std::make_shared<Horse::Scene>("Loaded Scene");
+    if (m_HierarchyPanel) {
+      m_HierarchyPanel->SetScene(m_ActiveScene);
+    }
+    if (m_InspectorPanel) {
+      m_InspectorPanel->SetSelectedEntity({});
+    }
 
-  if (m_HierarchyPanel) {
-    m_HierarchyPanel->SetScene(m_ActiveScene);
+    setWindowTitle(QString("Horse Engine Editor - %1")
+                       .arg(QString::fromStdString(filepath)));
+  } else {
+    QMessageBox::critical(this, "Error", "Failed to load scene!");
   }
-
-  setWindowTitle(QString("Horse Engine Editor - %1")
-                     .arg(QString::fromStdString(filepath)));
 }
 
 void EditorWindow::SaveScene(const std::string &filepath) {
-  // TODO: Implement scene serialization
-  m_CurrentScenePath = filepath;
-
-  setWindowTitle(QString("Horse Engine Editor - %1")
-                     .arg(QString::fromStdString(filepath)));
+  if (Horse::SceneSerializer::SerializeToJSON(m_ActiveScene.get(), filepath)) {
+    m_CurrentScenePath = filepath;
+    setWindowTitle(QString("Horse Engine Editor - %1")
+                       .arg(QString::fromStdString(filepath)));
+  } else {
+    QMessageBox::critical(this, "Error", "Failed to save scene!");
+  }
 }
 
 void EditorWindow::OnNewScene() {
