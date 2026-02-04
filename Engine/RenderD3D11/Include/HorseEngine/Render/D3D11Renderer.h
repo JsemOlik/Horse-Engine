@@ -24,7 +24,7 @@ struct RendererDesc {
 
 class D3D11Renderer {
 public:
-  D3D11Renderer() = default;
+  D3D11Renderer();
   ~D3D11Renderer();
 
   bool Initialize(const RendererDesc &desc);
@@ -67,9 +67,9 @@ private:
 
   // Cube members
   std::unique_ptr<class D3D11Texture> m_CubeTexture;
-  ComPtr<ID3D11Buffer> m_CubeVertexBuffer;
-  ComPtr<ID3D11Buffer> m_CubeIndexBuffer;
-  ComPtr<ID3D11Buffer> m_CubeConstantBuffer;
+  std::unique_ptr<class D3D11Buffer> m_CubeVertexBuffer;
+  std::unique_ptr<class D3D11Buffer> m_CubeIndexBuffer;
+  std::unique_ptr<class D3D11Buffer> m_CubeConstantBuffer;
   ComPtr<ID3D11InputLayout> m_CubeInputLayout;
   ComPtr<ID3D11VertexShader> m_CubeVS;
   ComPtr<ID3D11PixelShader> m_CubePS;

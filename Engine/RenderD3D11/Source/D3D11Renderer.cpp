@@ -1,5 +1,6 @@
 #include "HorseEngine/Render/D3D11Renderer.h"
 #include "HorseEngine/Core/Logging.h"
+#include "HorseEngine/Render/D3D11Buffer.h"
 #include "HorseEngine/Render/D3D11Shader.h"
 #include "HorseEngine/Render/D3D11Texture.h"
 #include "HorseEngine/Scene/Components.h"
@@ -10,6 +11,8 @@
 using namespace DirectX;
 
 namespace Horse {
+
+D3D11Renderer::D3D11Renderer() = default;
 
 D3D11Renderer::~D3D11Renderer() { Shutdown(); }
 
@@ -46,9 +49,9 @@ bool D3D11Renderer::Initialize(const RendererDesc &desc) {
 
 void D3D11Renderer::Shutdown() {
   m_CubeTexture.reset();
-  m_CubeVertexBuffer.Reset();
-  m_CubeIndexBuffer.Reset();
-  m_CubeConstantBuffer.Reset();
+  m_CubeVertexBuffer.reset();
+  m_CubeIndexBuffer.reset();
+  m_CubeConstantBuffer.reset();
   m_CubeInputLayout.Reset();
   m_CubeVS.Reset();
   m_CubePS.Reset();
@@ -104,20 +107,16 @@ void D3D11Renderer::DrawCube() {
   // Update constant buffer
   XMFLOAT4X4 wvpData;
   XMStoreFloat4x4(&wvpData, XMMatrixTranspose(wvp));
-  m_Context->UpdateSubresource(m_CubeConstantBuffer.Get(), 0, nullptr, &wvpData,
-                               0, 0);
+  m_CubeConstantBuffer->UpdateData(m_Context.Get(), &wvpData, sizeof(wvpData));
 
   // Set pipeline state
-  UINT stride = sizeof(Vertex);
-  UINT offset = 0;
-  m_Context->IASetVertexBuffers(0, 1, m_CubeVertexBuffer.GetAddressOf(),
-                                &stride, &offset);
-  m_Context->IASetIndexBuffer(m_CubeIndexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+  m_CubeVertexBuffer->Bind(m_Context.Get(), 0);
+  m_CubeIndexBuffer->Bind(m_Context.Get(), 0);
   m_Context->IASetInputLayout(m_CubeInputLayout.Get());
   m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
   m_Context->VSSetShader(m_CubeVS.Get(), nullptr, 0);
-  m_Context->VSSetConstantBuffers(0, 1, m_CubeConstantBuffer.GetAddressOf());
+  m_CubeConstantBuffer->Bind(m_Context.Get(), 0);
 
   if (m_CubeTexture) {
     m_CubeTexture->Bind(m_Context.Get(), 0);
@@ -188,16 +187,13 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
   }
 
   // Set common pipeline state
-  UINT stride = sizeof(Vertex);
-  UINT offset = 0;
-  m_Context->IASetVertexBuffers(0, 1, m_CubeVertexBuffer.GetAddressOf(),
-                                &stride, &offset);
-  m_Context->IASetIndexBuffer(m_CubeIndexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+  m_CubeVertexBuffer->Bind(m_Context.Get(), 0);
+  m_CubeIndexBuffer->Bind(m_Context.Get(), 0);
   m_Context->IASetInputLayout(m_CubeInputLayout.Get());
   m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
   m_Context->VSSetShader(m_CubeVS.Get(), nullptr, 0);
-  m_Context->VSSetConstantBuffers(0, 1, m_CubeConstantBuffer.GetAddressOf());
+  m_CubeConstantBuffer->Bind(m_Context.Get(), 0);
 
   if (m_CubeTexture) {
     m_CubeTexture->Bind(m_Context.Get(), 0);
@@ -226,8 +222,8 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
     // Update constant buffer
     XMFLOAT4X4 wvpData;
     XMStoreFloat4x4(&wvpData, XMMatrixTranspose(wvp));
-    m_Context->UpdateSubresource(m_CubeConstantBuffer.Get(), 0, nullptr,
-                                 &wvpData, 0, 0);
+    m_CubeConstantBuffer->UpdateData(m_Context.Get(), &wvpData,
+                                     sizeof(wvpData));
 
     m_Context->DrawIndexed(36, 0, 0);
   }
@@ -360,15 +356,10 @@ bool D3D11Renderer::InitCube() {
       {-1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f},
   };
 
-  D3D11_BUFFER_DESC vbd = {};
-  vbd.Usage = D3D11_USAGE_DEFAULT;
-  vbd.ByteWidth = sizeof(vertices);
-  vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-
-  D3D11_SUBRESOURCE_DATA vsd = {};
-  vsd.pSysMem = vertices;
-  hr = m_Device->CreateBuffer(&vbd, &vsd, &m_CubeVertexBuffer);
-  if (FAILED(hr))
+  m_CubeVertexBuffer = std::make_unique<D3D11Buffer>();
+  if (!m_CubeVertexBuffer->Initialize(m_Device.Get(), BufferType::Vertex,
+                                      BufferUsage::Immutable, vertices,
+                                      sizeof(vertices), sizeof(Vertex)))
     return false;
 
   // Create index buffer
@@ -381,30 +372,24 @@ bool D3D11Renderer::InitCube() {
       20, 21, 22, 20, 22, 23, // Bottom
   };
 
-  D3D11_BUFFER_DESC ibd = {};
-  ibd.Usage = D3D11_USAGE_DEFAULT;
-  ibd.ByteWidth = sizeof(indices);
-  ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-
-  D3D11_SUBRESOURCE_DATA isd = {};
-  isd.pSysMem = indices;
-  hr = m_Device->CreateBuffer(&ibd, &isd, &m_CubeIndexBuffer);
-  if (FAILED(hr))
+  m_CubeIndexBuffer = std::make_unique<D3D11Buffer>();
+  if (!m_CubeIndexBuffer->Initialize(m_Device.Get(), BufferType::Index,
+                                     BufferUsage::Immutable, indices,
+                                     sizeof(indices)))
     return false;
 
   // Create constant buffer
-  D3D11_BUFFER_DESC cbd = {};
-  cbd.Usage = D3D11_USAGE_DEFAULT;
-  cbd.ByteWidth = sizeof(XMFLOAT4X4);
-  cbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-  hr = m_Device->CreateBuffer(&cbd, nullptr, &m_CubeConstantBuffer);
-  if (FAILED(hr))
+  m_CubeConstantBuffer = std::make_unique<D3D11Buffer>();
+  if (!m_CubeConstantBuffer->Initialize(m_Device.Get(), BufferType::Constant,
+                                        BufferUsage::Default, nullptr,
+                                        sizeof(XMFLOAT4X4)))
     return false;
 
   // Load texture
   m_CubeTexture = std::make_unique<D3D11Texture>();
   if (!m_CubeTexture->LoadFromFile(
-          m_Device.Get(), "Engine/Runtime/Textures/Checkerboard.png")) {
+          m_Device.Get(), m_Context.Get(),
+          "Engine/Runtime/Textures/Checkerboard.png")) {
     HORSE_LOG_RENDER_WARN("Failed to load test texture, cube will be white");
   }
 
