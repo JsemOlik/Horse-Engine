@@ -1,14 +1,39 @@
 #pragma once
 
-#include <QWidget>
 #include <QTreeWidget>
+#include <QWidget>
+#include <memory>
+
+#include "HorseEngine/Scene/Entity.h"
+
+namespace Horse {
+class Scene;
+} // namespace Horse
 
 class HierarchyPanel : public QWidget {
-    Q_OBJECT
-    
+  Q_OBJECT
+
 public:
-    explicit HierarchyPanel(QWidget* parent = nullptr);
-    
+  explicit HierarchyPanel(QWidget *parent = nullptr);
+
+  void SetScene(std::shared_ptr<Horse::Scene> scene);
+  void RefreshHierarchy();
+
+signals:
+  void EntitySelected(Horse::Entity entity);
+
+private slots:
+  void OnItemSelectionChanged();
+  void OnContextMenuRequested(const QPoint &pos);
+  void OnCreateEmptyEntity();
+  void OnCreateCamera();
+  void OnCreateLight();
+  void OnDeleteEntity();
+
 private:
-    QTreeWidget* m_TreeWidget;
+  void AddEntityToTree(Horse::Entity entity,
+                       QTreeWidgetItem *parentItem = nullptr);
+
+  QTreeWidget *m_TreeWidget;
+  std::shared_ptr<Horse::Scene> m_Scene;
 };

@@ -1,14 +1,26 @@
 #pragma once
 
+#include <QScrollArea>
+#include <QVBoxLayout>
 #include <QWidget>
-#include <QLabel>
+
+
+#include "HorseEngine/Scene/Entity.h"
 
 class InspectorPanel : public QWidget {
-    Q_OBJECT
-    
+  Q_OBJECT
+
 public:
-    explicit InspectorPanel(QWidget* parent = nullptr);
-    
+  explicit InspectorPanel(QWidget *parent = nullptr);
+
+  void SetSelectedEntity(Horse::Entity entity);
+
 private:
-    QLabel* m_PlaceholderLabel;
+  void RefreshInspector();
+  void DrawComponents();
+
+  QScrollArea *m_ScrollArea;
+  QWidget *m_ContentWidget;
+  QVBoxLayout *m_ContentLayout;
+  Horse::Entity m_SelectedEntity;
 };

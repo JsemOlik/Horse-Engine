@@ -4,12 +4,12 @@
 #include <QMainWindow>
 #include <memory>
 
+#include "HorseEngine/Scene/Entity.h"
 
 namespace Horse {
 class D3D11Renderer;
 class Window;
 class Scene;
-class Entity;
 } // namespace Horse
 
 class D3D11ViewportWidget;
