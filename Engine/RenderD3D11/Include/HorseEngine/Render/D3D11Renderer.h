@@ -35,7 +35,7 @@ public:
 
   void OnResize(u32 width, u32 height);
 
-  void DrawTriangle();
+  void DrawCube();
 
   ID3D11Device *GetDevice() const { return m_Device.Get(); }
   ID3D11DeviceContext *GetContext() const { return m_Context.Get(); }
@@ -48,19 +48,25 @@ private:
 
   bool CreateDeviceAndSwapChain(const RendererDesc &desc);
   bool CreateRenderTargetView();
-  bool InitTriangle();
+  bool CreateDepthStencilView();
+  bool InitCube();
 
   ComPtr<ID3D11Device> m_Device;
   ComPtr<ID3D11DeviceContext> m_Context;
   ComPtr<IDXGISwapChain> m_SwapChain;
   ComPtr<ID3D11RenderTargetView> m_RenderTargetView;
+  ComPtr<ID3D11DepthStencilView> m_DepthStencilView;
+  ComPtr<ID3D11Texture2D> m_DepthStencilBuffer;
 
-  // Triangle members
-  ComPtr<ID3D11Buffer> m_TriangleVertexBuffer;
-  ComPtr<ID3D11InputLayout> m_TriangleInputLayout;
-  ComPtr<ID3D11VertexShader> m_TriangleVS;
-  ComPtr<ID3D11PixelShader> m_TrianglePS;
-  bool m_TriangleInitialized = false;
+  // Cube members
+  ComPtr<ID3D11Buffer> m_CubeVertexBuffer;
+  ComPtr<ID3D11Buffer> m_CubeIndexBuffer;
+  ComPtr<ID3D11Buffer> m_CubeConstantBuffer;
+  ComPtr<ID3D11InputLayout> m_CubeInputLayout;
+  ComPtr<ID3D11VertexShader> m_CubeVS;
+  ComPtr<ID3D11PixelShader> m_CubePS;
+  bool m_CubeInitialized = false;
+  f32 m_Rotation = 0.0f;
 
   D3D11_VIEWPORT m_Viewport = {};
   D3D_FEATURE_LEVEL m_FeatureLevel = D3D_FEATURE_LEVEL_11_0;

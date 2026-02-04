@@ -2,11 +2,9 @@
 #include "HorseEngine/Core/Time.h"
 #include "HorseEngine/Render/D3D11Renderer.h"
 
-
 #include <QPaintEvent>
 #include <QResizeEvent>
 #include <QTimer>
-
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -69,7 +67,7 @@ void D3D11ViewportWidget::Render() {
   m_Renderer->BeginFrame();
   m_Renderer->Clear(m_ClearColor[0], m_ClearColor[1], m_ClearColor[2]);
 
-  m_Renderer->DrawTriangle();
+  m_Renderer->DrawCube();
 
   m_Renderer->EndFrame();
   m_Renderer->Present();

@@ -1,3 +1,7 @@
+cbuffer PerFrame : register(b0) {
+    float4x4 WVP;
+};
+
 struct VS_INPUT {
     float3 Pos : POSITION;
     float4 Color : COLOR;
@@ -10,7 +14,7 @@ struct PS_INPUT {
 
 PS_INPUT VS(VS_INPUT input) {
     PS_INPUT output;
-    output.Pos = float4(input.Pos, 1.0f);
+    output.Pos = mul(float4(input.Pos, 1.0f), WVP);
     output.Color = input.Color;
     return output;
 }
