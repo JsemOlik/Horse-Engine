@@ -19,6 +19,8 @@ add_executable(HorseEditor WIN32
     Source/Panels/ContentBrowserPanel.h
     Source/Panels/ConsolePanel.cpp
     Source/Panels/ConsolePanel.h
+    Source/Dialogs/ProjectSettingsDialog.cpp
+    Source/Dialogs/ProjectSettingsDialog.h
 )
 
 target_include_directories(HorseEditor

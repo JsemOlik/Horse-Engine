@@ -80,6 +80,9 @@ void EditorWindow::CreateMenus() {
   connect(exitAction, &QAction::triggered, this, &EditorWindow::OnExit);
 
   QMenu *editMenu = menuBar()->addMenu("&Edit");
+  QAction *projectSettingsAction = editMenu->addAction("&Project Settings...");
+  connect(projectSettingsAction, &QAction::triggered, this,
+          &EditorWindow::OnProjectSettings);
   editMenu->addAction("&Preferences...");
 
   QMenu *viewMenu = menuBar()->addMenu("&View");
@@ -243,12 +246,19 @@ void EditorWindow::OnSaveProject() {
 
 void EditorWindow::NewProject(const std::string &filepath) {
   auto project = std::make_shared<Horse::Project>();
-  project->GetConfig().Name = std::filesystem::path(filepath).stem().string();
+  std::filesystem::path p(filepath);
+  std::string stem = p.stem().string();
+
+  // Strip .horseproject if it's part of the stem
+  size_t pos = stem.find(".horseproject");
+  if (pos != std::string::npos) {
+    stem = stem.substr(0, pos);
+  }
+
+  project->GetConfig().Name = stem;
   project->GetConfig().GUID = Horse::UUID().ToString();
-  project->GetConfig().ProjectFileName =
-      std::filesystem::path(filepath).filename();
-  project->GetConfig().ProjectDirectory =
-      std::filesystem::path(filepath).parent_path();
+  project->GetConfig().ProjectFileName = p.filename();
+  project->GetConfig().ProjectDirectory = p.parent_path();
 
   // Create asset directory if it doesn't exist
   std::filesystem::create_directories(project->GetConfig().ProjectDirectory /
@@ -294,6 +304,58 @@ void EditorWindow::SaveProject(const std::string &filepath) {
   Horse::ProjectSerializer serializer(project);
   if (!serializer.SerializeToJSON(filepath)) {
     QMessageBox::critical(this, "Error", "Failed to save project!");
+  }
+}
+
+#include "Dialogs/ProjectSettingsDialog.h"
+
+void EditorWindow::OnProjectSettings() {
+  auto project = Horse::Project::GetActive();
+  if (!project) {
+    QMessageBox::warning(this, "Warning", "No active project found!");
+    return;
+  }
+
+  ProjectSettingsDialog dialog(project, this);
+  if (dialog.exec() == QDialog::Accepted) {
+    auto &config = project->GetConfig();
+    std::string oldName = config.Name;
+    std::string newName = dialog.GetProjectName();
+
+    config.Name = newName;
+    config.EngineVersion = dialog.GetEngineVersion();
+    config.DefaultScene = dialog.GetDefaultScene();
+
+    // Handle project file renaming if name changed
+    if (oldName != newName) {
+      std::filesystem::path oldPath =
+          config.ProjectDirectory / config.ProjectFileName;
+
+      std::string newFileNameStr = newName;
+      if (newFileNameStr.find(".horseproject") == std::string::npos) {
+        newFileNameStr += ".horseproject.json";
+      } else if (!newFileNameStr.ends_with(".json")) {
+        newFileNameStr += ".json";
+      }
+
+      std::filesystem::path newFileName(newFileNameStr);
+      std::filesystem::path newPath = config.ProjectDirectory / newFileName;
+
+      try {
+        if (std::filesystem::exists(oldPath)) {
+          std::filesystem::rename(oldPath, newPath);
+          config.ProjectFileName = newFileName;
+        }
+      } catch (const std::exception &e) {
+        QMessageBox::critical(
+            this, "Error",
+            QString("Failed to rename project file: %1").arg(e.what()));
+      }
+    }
+
+    SaveProject((config.ProjectDirectory / config.ProjectFileName).string());
+    setWindowTitle(QString("Horse Engine Editor - %1")
+                       .arg(QString::fromStdString(config.Name)));
   }
 }
 

@@ -33,6 +33,7 @@ private slots:
   void OnNewProject();
   void OnOpenProject();
   void OnSaveProject();
+  void OnProjectSettings();
   void OnNewScene();
   void OnOpenScene();
   void OnSaveScene();
