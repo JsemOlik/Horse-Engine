@@ -17,6 +17,7 @@ add_library(HorseRuntime STATIC
     Source/Engine.cpp
     Source/Material.cpp
     Source/MaterialSerializer.cpp
+    Source/MaterialRegistry.cpp
 )
 
 target_include_directories(HorseRuntime

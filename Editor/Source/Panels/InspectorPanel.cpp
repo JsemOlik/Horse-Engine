@@ -1,4 +1,6 @@
 #include "InspectorPanel.h"
+#include "HorseEngine/Render/Material.h"
+#include "HorseEngine/Render/MaterialRegistry.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Entity.h"
 
@@ -10,7 +12,6 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QVBoxLayout>
-
 
 InspectorPanel::InspectorPanel(QWidget *parent) : QWidget(parent) {
 
@@ -226,5 +227,76 @@ void InspectorPanel::DrawComponents() {
                         new QLabel(QString::number(light.Intensity)));
 
     m_ContentLayout->addWidget(lightGroup);
+  }
+
+  // Mesh Renderer Component (Material Inspector)
+  if (m_SelectedEntity.HasComponent<Horse::MeshRendererComponent>()) {
+    auto &mesh = m_SelectedEntity.GetComponent<Horse::MeshRendererComponent>();
+
+    QGroupBox *materialGroup = new QGroupBox("Material");
+    QFormLayout *materialLayout = new QFormLayout(materialGroup);
+
+    // Get Active Material
+    auto material =
+        Horse::MaterialRegistry::Get().GetMaterial(mesh.MaterialGUID);
+    if (!material) {
+      // Fallback
+      materialLayout->addRow(new QLabel("Invalid Material GUID"));
+    } else {
+      materialLayout->addRow(
+          "Name:", new QLabel(QString::fromStdString(material->GetName())));
+
+      // Albedo Color (RGB SpinBoxes for now)
+      QHBoxLayout *colorLayout = new QHBoxLayout();
+      auto color = material->GetColor("Albedo");
+      std::array<float, 3> rgb = {color[0], color[1], color[2]};
+
+      for (int i = 0; i < 3; ++i) {
+        QDoubleSpinBox *spin = new QDoubleSpinBox();
+        spin->setRange(0.0, 1.0);
+        spin->setSingleStep(0.01);
+        spin->setValue(rgb[i]);
+
+        // Connect Signal
+        connect(spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                this, [this, material, i](double val) {
+                  if (material) {
+                    auto c = material->GetColor("Albedo");
+                    c[i] = static_cast<float>(val);
+                    material->SetColor("Albedo", c);
+                  }
+                });
+        colorLayout->addWidget(spin);
+      }
+      materialLayout->addRow("Albedo (RGB):", colorLayout);
+
+      // Roughness
+      QDoubleSpinBox *roughnessSpin = new QDoubleSpinBox();
+      roughnessSpin->setRange(0.0, 1.0);
+      roughnessSpin->setSingleStep(0.01);
+      roughnessSpin->setValue(material->GetFloat("Roughness"));
+      connect(roughnessSpin,
+              QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+              [this, material](double val) {
+                if (material)
+                  material->SetFloat("Roughness", static_cast<float>(val));
+              });
+      materialLayout->addRow("Roughness:", roughnessSpin);
+
+      // Metalness
+      QDoubleSpinBox *metalnessSpin = new QDoubleSpinBox();
+      metalnessSpin->setRange(0.0, 1.0);
+      metalnessSpin->setSingleStep(0.01);
+      metalnessSpin->setValue(material->GetFloat("Metalness"));
+      connect(metalnessSpin,
+              QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+              [this, material](double val) {
+                if (material)
+                  material->SetFloat("Metalness", static_cast<float>(val));
+              });
+      materialLayout->addRow("Metalness:", metalnessSpin);
+    }
+
+    m_ContentLayout->addWidget(materialGroup);
   }
 }
