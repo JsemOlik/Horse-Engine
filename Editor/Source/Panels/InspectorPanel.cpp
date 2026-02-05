@@ -1,12 +1,3 @@
-#include "InspectorPanel.h"
-#include "HorseEngine/Render/Material.h"
-#include "HorseEngine/Render/MaterialRegistry.h"
-#include "HorseEngine/Render/MaterialSerializer.h"
-#include "HorseEngine/Scene/Components.h"
-#include "HorseEngine/Scene/Entity.h"
-#include <algorithm>
-#include <vector>
-
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
@@ -15,9 +6,25 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
+#include <QMessageBox>
+#include <QPalette>
 #include <QPushButton>
+#include <QStyle>
 #include <QTimer>
 #include <QVBoxLayout>
+#include <QWidget>
+#include <algorithm>
+#include <nlohmann/json.hpp>
+#include <vector>
+
+#include "HorseEngine/Core/Logging.h"
+#include "HorseEngine/Render/Material.h"
+#include "HorseEngine/Render/MaterialRegistry.h"
+#include "HorseEngine/Render/MaterialSerializer.h"
+#include "HorseEngine/Scene/Components.h"
+#include "HorseEngine/Scene/Entity.h"
+#include "InspectorPanel.h"
+#include "Panels/SceneViewport.h"
 
 InspectorPanel::InspectorPanel(QWidget *parent) : QWidget(parent) {
 
@@ -58,7 +65,63 @@ void InspectorPanel::RefreshInspector() {
     return;
   }
 
+  DrawPrefabComponent();
   DrawComponents();
+}
+
+void InspectorPanel::RecordOverride(const std::string &componentName,
+                                    const std::string &fieldName,
+                                    const nlohmann::json &value) {
+  if (!m_SelectedEntity.HasComponent<Horse::PrefabComponent>())
+    return;
+
+  auto &prefabComp = m_SelectedEntity.GetComponent<Horse::PrefabComponent>();
+  nlohmann::json overrides;
+  if (!prefabComp.Overrides.empty()) {
+    try {
+      overrides = nlohmann::json::parse(prefabComp.Overrides);
+    } catch (...) {
+      overrides = nlohmann::json::object();
+    }
+  }
+
+  overrides[componentName][fieldName] = value;
+  prefabComp.Overrides = overrides.dump();
+}
+
+void InspectorPanel::DrawPrefabComponent() {
+  if (!m_SelectedEntity.HasComponent<Horse::PrefabComponent>())
+    return;
+
+  auto &prefabComp = m_SelectedEntity.GetComponent<Horse::PrefabComponent>();
+
+  QGroupBox *prefabGroup = new QGroupBox("Prefab Instance");
+  QVBoxLayout *vLayout = new QVBoxLayout(prefabGroup);
+
+  vLayout->addWidget(new QLabel("Prefab GUID: " +
+                                QString::fromStdString(prefabComp.PrefabGUID)));
+
+  QHBoxLayout *hLayout = new QHBoxLayout();
+  QPushButton *applyBtn = new QPushButton("Apply to Prefab");
+  QPushButton *revertBtn = new QPushButton("Revert Overrides");
+
+  connect(applyBtn, &QPushButton::clicked, this, [this]() {
+    // TODO: Implement Apply to Prefab
+    QMessageBox::information(this, "Prefab",
+                             "Apply to Prefab not yet implemented.");
+  });
+
+  connect(revertBtn, &QPushButton::clicked, this, [this, &prefabComp]() {
+    prefabComp.Overrides = "";
+    RefreshInspector();
+    QMessageBox::information(this, "Prefab", "Overrides reverted.");
+  });
+
+  hLayout->addWidget(applyBtn);
+  hLayout->addWidget(revertBtn);
+  vLayout->addLayout(hLayout);
+
+  m_ContentLayout->addWidget(prefabGroup);
 }
 
 void InspectorPanel::DrawComponents() {
@@ -75,6 +138,7 @@ void InspectorPanel::DrawComponents() {
               if (m_SelectedEntity) {
                 m_SelectedEntity.GetComponent<Horse::TagComponent>().Name =
                     text.toStdString();
+                RecordOverride("TagComponent", "name", text.toStdString());
               }
             });
     tagLayout->addRow("Name:", nameEdit);
@@ -85,6 +149,7 @@ void InspectorPanel::DrawComponents() {
               if (m_SelectedEntity) {
                 m_SelectedEntity.GetComponent<Horse::TagComponent>().Tag =
                     text.toStdString();
+                RecordOverride("TagComponent", "tag", text.toStdString());
               }
             });
     tagLayout->addRow("Tag:", tagEdit);
@@ -113,9 +178,11 @@ void InspectorPanel::DrawComponents() {
         spin->setDecimals(3);
 
         // Re-implementing connection to capture index
-        auto updateFunc = [this, &values, i](double val) {
+        auto updateFunc = [this, &values, i, label](double val) {
           if (m_SelectedEntity) {
             values[i] = static_cast<float>(val);
+            RecordOverride("TransformComponent", label.toLower().toStdString(),
+                           nlohmann::json(values));
           }
         };
         connect(spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
@@ -149,6 +216,8 @@ void InspectorPanel::DrawComponents() {
               if (m_SelectedEntity) {
                 m_SelectedEntity.GetComponent<Horse::CameraComponent>().Type =
                     static_cast<Horse::CameraComponent::ProjectionType>(index);
+                RecordOverride("CameraComponent", "type",
+                               (index == 0) ? "Perspective" : "Orthographic");
               }
             });
     cameraLayout->addRow("Type:", typeCombo);
@@ -161,6 +230,7 @@ void InspectorPanel::DrawComponents() {
               if (m_SelectedEntity) {
                 m_SelectedEntity.GetComponent<Horse::CameraComponent>().FOV =
                     static_cast<float>(val);
+                RecordOverride("CameraComponent", "fov", val);
               }
             });
     cameraLayout->addRow("FOV:", fovSpin);
@@ -301,6 +371,8 @@ void InspectorPanel::DrawComponents() {
                     index < materialNames.size()) {
                   m_SelectedEntity.GetComponent<Horse::MeshRendererComponent>()
                       .MaterialGUID = materialNames[index];
+                  RecordOverride("MeshRendererComponent", "materialGuid",
+                                 materialNames[index]);
                   QTimer::singleShot(0, this, [this]() { RefreshInspector(); });
                 }
               });

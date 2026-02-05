@@ -1,15 +1,23 @@
 #include "SceneViewport.h"
 #include "HorseEngine/Asset/AssetManager.h"
+#include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Core/Time.h"
 #include "HorseEngine/Render/D3D11Renderer.h"
+#include "HorseEngine/Render/MaterialRegistry.h"
+#include "HorseEngine/Render/MaterialSerializer.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Scene.h"
 #include <DirectXMath.h>
+#include <QApplication>
+#include <QColor>
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QKeyEvent>
 #include <QMimeData>
 #include <QMouseEvent>
+#include <QPalette>
+#include <QStyle>
+#include <QStyleFactory>
 #include <QUrl>
 
 

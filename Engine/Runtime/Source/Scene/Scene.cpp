@@ -1,9 +1,93 @@
 #include "HorseEngine/Scene/Scene.h"
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Scene/Components.h"
+#include "HorseEngine/Scene/Prefab.h"
 #include "HorseEngine/Scene/SceneSerializer.h"
+#include <nlohmann/json.hpp>
+
 
 namespace Horse {
+
+using json = nlohmann::json;
+
+static Entity InstantiateEntityRecursive(Scene *scene, const json &entityJson,
+                                         Entity parent) {
+  std::string name = "Entity";
+  if (entityJson.contains("components") &&
+      entityJson["components"].contains("TagComponent")) {
+    name = entityJson["components"]["TagComponent"].value("name", "Entity");
+  }
+
+  Entity entity = scene->CreateEntity(name);
+  if (parent) {
+    scene->SetEntityParent(entity, parent);
+  }
+
+  if (entityJson.contains("components")) {
+    const auto &componentsJson = entityJson["components"];
+
+    if (componentsJson.contains("TransformComponent")) {
+      auto &transform = entity.GetComponent<TransformComponent>();
+      const auto &tc = componentsJson["TransformComponent"];
+      if (tc.contains("position"))
+        transform.Position = tc["position"].get<std::array<float, 3>>();
+      if (tc.contains("rotation"))
+        transform.Rotation = tc["rotation"].get<std::array<float, 3>>();
+      if (tc.contains("scale"))
+        transform.Scale = tc["scale"].get<std::array<float, 3>>();
+    }
+
+    if (componentsJson.contains("CameraComponent")) {
+      auto &camera = entity.AddComponent<CameraComponent>();
+      const auto &cc = componentsJson["CameraComponent"];
+      std::string type = cc.value("type", "Perspective");
+      camera.Type = (type == "Perspective")
+                        ? CameraComponent::ProjectionType::Perspective
+                        : CameraComponent::ProjectionType::Orthographic;
+      camera.FOV = cc.value("fov", 45.0f);
+      camera.NearClip = cc.value("nearClip", 0.1f);
+      camera.FarClip = cc.value("farClip", 1000.0f);
+      camera.Primary = cc.value("primary", false);
+    }
+
+    if (componentsJson.contains("MeshRendererComponent")) {
+      auto &mr = entity.AddComponent<MeshRendererComponent>();
+      const auto &mrc = componentsJson["MeshRendererComponent"];
+      mr.MeshGUID = mrc.value("meshGuid", "");
+      mr.MaterialGUID = mrc.value("materialGuid", "");
+    }
+
+    if (componentsJson.contains("ScriptComponent")) {
+      auto &sc = entity.AddComponent<ScriptComponent>();
+      const auto &scc = componentsJson["ScriptComponent"];
+      sc.ScriptGUID = scc.value("scriptGuid", "");
+    }
+  }
+
+  if (entityJson.contains("children")) {
+    for (const auto &childJson : entityJson["children"]) {
+      InstantiateEntityRecursive(scene, childJson, entity);
+    }
+  }
+
+  return entity;
+}
+
+Entity Scene::InstantiatePrefab(std::shared_ptr<Prefab> prefab, Entity parent) {
+  if (!prefab)
+    return {};
+
+  Entity root =
+      InstantiateEntityRecursive(this, prefab->GetTemplateData(), parent);
+
+  // Mark as prefab instance (TODO: Generate unique GUID for the prefab file if
+  // not provided)
+  auto &prefabComp = root.AddComponent<PrefabComponent>();
+  // prefabComp.PrefabGUID = prefab->GetGUID(); // We'll need GUIDs in Prefab
+  // class later
+
+  return root;
+}
 
 std::shared_ptr<Scene> Scene::Copy(const std::shared_ptr<Scene> &other) {
   if (!other)

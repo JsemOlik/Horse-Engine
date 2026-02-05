@@ -13,6 +13,8 @@
 #include "HorseEngine/Render/MaterialRegistry.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Entity.h"
+#include "HorseEngine/Scene/Prefab.h"
+#include "HorseEngine/Scene/PrefabSerializer.h"
 #include "HorseEngine/Scene/Scene.h"
 #include "ThemeManager.h"
 
@@ -135,7 +137,19 @@ void EditorWindow::CreateMenus() {
   QAction *resetLayoutAction = viewMenu->addAction("Reset Layout");
   connect(resetLayoutAction, &QAction::triggered, this,
           &EditorWindow::OnResetLayout);
+  // Prefabs Menu
+  QMenu *prefabMenu = menuBar()->addMenu("&Prefabs");
+  QAction *createPrefabAction =
+      prefabMenu->addAction("&Create Prefab from Selected");
+  connect(createPrefabAction, &QAction::triggered, this,
+          &EditorWindow::OnCreatePrefab);
 
+  QAction *instantiatePrefabAction =
+      prefabMenu->addAction("&Instantiate Prefab...");
+  connect(instantiatePrefabAction, &QAction::triggered, this,
+          &EditorWindow::OnInstantiatePrefab);
+
+  // Help Menu
   QMenu *helpMenu = menuBar()->addMenu("&Help");
   helpMenu->addAction("&About");
 }
@@ -509,15 +523,72 @@ void EditorWindow::OnPause() {
       m_ActiveScene->SetState(Horse::SceneState::Pause);
     } else if (m_ActiveScene->GetState() == Horse::SceneState::Pause) {
       m_ActiveScene->SetState(Horse::SceneState::Play);
+      if (m_ActiveScene &&
+          m_ActiveScene->GetState() != Horse::SceneState::Edit) {
+        m_ActiveScene->OnRuntimeStop();
+        m_ActiveScene = m_EditorScene;
+        m_RuntimeScene.reset();
+        UpdateSceneContext();
+      }
     }
   }
 }
 
 void EditorWindow::OnStop() {
-  if (m_ActiveScene && m_ActiveScene->GetState() != Horse::SceneState::Edit) {
+  if (m_ActiveScene) {
     m_ActiveScene->OnRuntimeStop();
+
+    // Restore editor scene
     m_ActiveScene = m_EditorScene;
     m_RuntimeScene.reset();
     UpdateSceneContext();
+  }
+}
+
+void EditorWindow::OnCreatePrefab() {
+  if (!m_SelectedEntity) {
+    QMessageBox::warning(this, "Create Prefab", "No entity selected.");
+    return;
+  }
+
+  QString filepath = QFileDialog::getSaveFileName(
+      this, "Save Prefab", "", "Horse Prefab (*.horseprefab.json)");
+  if (filepath.isEmpty())
+    return;
+
+  std::string name = m_SelectedEntity.GetComponent<Horse::TagComponent>().Name;
+  auto prefab =
+      Horse::PrefabSerializer::CreateFromEntity(m_SelectedEntity, name);
+  if (Horse::PrefabSerializer::SerializeToJSON(prefab.get(),
+                                               filepath.toStdString())) {
+    // Add PrefabComponent to mark it as an instance
+    if (!m_SelectedEntity.HasComponent<Horse::PrefabComponent>()) {
+      auto &comp = m_SelectedEntity.AddComponent<Horse::PrefabComponent>();
+      // comp.PrefabGUID = ...; // We'll need to assign a GUID here
+    }
+    QMessageBox::information(this, "Create Prefab",
+                             "Prefab created successfully.");
+  } else {
+    QMessageBox::critical(this, "Create Prefab", "Failed to save prefab.");
+  }
+}
+
+void EditorWindow::OnInstantiatePrefab() {
+  if (!m_ActiveScene)
+    return;
+
+  QString filepath = QFileDialog::getOpenFileName(
+      this, "Open Prefab", "", "Horse Prefab (*.horseprefab.json)");
+  if (filepath.isEmpty())
+    return;
+
+  auto prefab =
+      Horse::PrefabSerializer::DeserializeFromJSON(filepath.toStdString());
+  if (prefab) {
+    auto entity = m_ActiveScene->InstantiatePrefab(prefab);
+    SetSelectedEntity(entity);
+    UpdateSceneContext();
+  } else {
+    QMessageBox::critical(this, "Instantiate Prefab", "Failed to load prefab.");
   }
 }
