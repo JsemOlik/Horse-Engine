@@ -123,6 +123,19 @@ void HierarchyPanel::OnContextMenuRequested(const QPoint &pos) {
   auto selectedItems = m_TreeWidget->selectedItems();
   if (!selectedItems.isEmpty()) {
     contextMenu.addSeparator();
+
+    QAction *createPrefabAction = contextMenu.addAction("Create Prefab");
+    connect(createPrefabAction, &QAction::triggered, this, [this]() {
+      auto selectedItems = m_TreeWidget->selectedItems();
+      if (selectedItems.isEmpty() || !m_Scene)
+        return;
+      quint32 entityHandle =
+          selectedItems.first()->data(0, Qt::UserRole).toUInt();
+      Horse::Entity entity(static_cast<entt::entity>(entityHandle),
+                           m_Scene.get());
+      emit CreatePrefabRequested(entity);
+    });
+
     QAction *deleteAction = contextMenu.addAction("Delete Entity");
     connect(deleteAction, &QAction::triggered, this,
             &HierarchyPanel::OnDeleteEntity);

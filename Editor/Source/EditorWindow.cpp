@@ -179,6 +179,8 @@ void EditorWindow::CreatePanels() {
   // Connect hierarchy selection signal
   connect(m_HierarchyPanel, &HierarchyPanel::EntitySelected, this,
           &EditorWindow::SetSelectedEntity);
+  connect(m_HierarchyPanel, &HierarchyPanel::CreatePrefabRequested, this,
+          &EditorWindow::OnCreatePrefab);
 
   QDockWidget *inspectorDock = new QDockWidget("Inspector", this);
   m_InspectorPanel = new InspectorPanel(inspectorDock);

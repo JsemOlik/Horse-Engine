@@ -21,6 +21,7 @@ public:
 
 signals:
   void EntitySelected(Horse::Entity entity);
+  void CreatePrefabRequested(Horse::Entity entity);
 
 private slots:
   void OnItemSelectionChanged();
