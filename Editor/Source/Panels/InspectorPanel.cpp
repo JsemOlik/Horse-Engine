@@ -4,6 +4,7 @@
 #include "HorseEngine/Render/MaterialSerializer.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Entity.h"
+#include "HorseEngine/Scene/Scene.h"
 #include <algorithm>
 #include <vector>
 
