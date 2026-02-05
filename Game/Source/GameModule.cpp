@@ -6,7 +6,6 @@
 #include "HorseEngine/Scene/Scene.h"
 #include "HorseEngine/Scene/ScriptableEntity.h"
 
-
 #include <cmath>
 #include <iostream>
 
@@ -42,9 +41,15 @@ public:
 
   virtual void CreateScript(const std::string &name, Entity entity) override {
     if (name == "VerticalMover") {
-      auto &nsc = entity.AddComponent<NativeScriptComponent>();
-      nsc.Bind<VerticalMover>();
-      nsc.ClassName = "VerticalMover";
+      NativeScriptComponent *nsc = nullptr;
+      if (entity.HasComponent<NativeScriptComponent>()) {
+        nsc = &entity.GetComponent<NativeScriptComponent>();
+      } else {
+        nsc = &entity.AddComponent<NativeScriptComponent>();
+      }
+
+      nsc->Bind<VerticalMover>();
+      nsc->ClassName = "VerticalMover";
     }
   }
 };
