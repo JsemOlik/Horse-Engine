@@ -4,6 +4,7 @@
 #include "HorseEngine/Scene/Entity.h"
 #include "HorseEngine/Scene/UUID.h"
 #include <entt/entt.hpp>
+#include <glm/glm.hpp>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -50,6 +51,7 @@ public:
 
 private:
   void UpdateTransformHierarchy();
+  void UpdateEntityTransform(Entity entity, const glm::mat4 &parentTransform);
   void UpdateStagedLoad();
   void TriggerAssetLoads();
 

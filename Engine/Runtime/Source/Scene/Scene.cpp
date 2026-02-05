@@ -3,6 +3,10 @@
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/SceneSerializer.h"
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 namespace Horse {
 
 std::shared_ptr<Scene> Scene::Copy(const std::shared_ptr<Scene> &other) {
@@ -257,8 +261,46 @@ void Scene::OnUpdate(float deltaTime) {
 }
 
 void Scene::UpdateTransformHierarchy() {
-  // TODO: Implement transform propagation from parent to children
-  // This will be needed when we add actual rendering
+  m_Registry.view<TransformComponent, RelationshipComponent>().each(
+      [&](auto entity, auto &transform, auto &relationship) {
+        // Find roots (entities with no parent)
+        if (relationship.Parent == entt::null) {
+          UpdateEntityTransform({entity, this}, glm::mat4(1.0f));
+        }
+      });
+}
+
+void Scene::UpdateEntityTransform(Entity entity,
+                                  const glm::mat4 &parentTransform) {
+  if (!entity.HasComponent<TransformComponent>())
+    return;
+
+  auto &transform = entity.GetComponent<TransformComponent>();
+
+  // Calculate Local Matrix
+  glm::mat4 model = glm::mat4(1.0f);
+  model = glm::translate(model, glm::make_vec3(transform.Position.data()));
+  model = glm::rotate(model, glm::radians(transform.Rotation[0]),
+                      glm::vec3(1, 0, 0));
+  model = glm::rotate(model, glm::radians(transform.Rotation[1]),
+                      glm::vec3(0, 1, 0));
+  model = glm::rotate(model, glm::radians(transform.Rotation[2]),
+                      glm::vec3(0, 0, 1));
+  model = glm::scale(model, glm::make_vec3(transform.Scale.data()));
+
+  // Calculate World Matrix
+  transform.WorldTransform = parentTransform * model;
+
+  // Propagate to children
+  if (entity.HasComponent<RelationshipComponent>()) {
+    auto &rel = entity.GetComponent<RelationshipComponent>();
+    entt::entity childHandle = rel.FirstChild;
+    while (childHandle != entt::null) {
+      Entity child(childHandle, this);
+      UpdateEntityTransform(child, transform.WorldTransform);
+      childHandle = child.GetComponent<RelationshipComponent>().NextSibling;
+    }
+  }
 }
 
 } // namespace Horse

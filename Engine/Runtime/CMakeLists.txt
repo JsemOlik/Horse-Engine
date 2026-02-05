@@ -34,6 +34,7 @@ target_link_libraries(HorseRuntime
         fmt::fmt
         EnTT::EnTT
         nlohmann_json::nlohmann_json
+        glm::glm
         d3d11.lib
         dxgi.lib
         dxguid.lib
