@@ -1,12 +1,16 @@
 #include "ContentBrowserPanel.h"
+#include "HorseEngine/Asset/AssetManager.h"
 #include "HorseEngine/Project/Project.h"
 #include <QDesktopServices>
 #include <QDir>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QFileIconProvider>
 #include <QFileInfo>
 #include <QInputDialog>
 #include <QMenu>
 #include <QMessageBox>
+#include <QMimeData>
 #include <QUrl>
 #include <QVBoxLayout>
 
@@ -29,7 +33,64 @@ ContentBrowserPanel::ContentBrowserPanel(QWidget *parent) : QWidget(parent) {
   connect(m_ListWidget, &QListWidget::customContextMenuRequested, this,
           &ContentBrowserPanel::OnContextMenu);
 
+  m_ListWidget->setAcceptDrops(true);
+  m_ListWidget->installEventFilter(this);
+
   Refresh();
+}
+
+bool ContentBrowserPanel::eventFilter(QObject *watched, QEvent *event) {
+  if (watched == m_ListWidget) {
+    if (event->type() == QEvent::DragEnter) {
+      QDragEnterEvent *dragEvent = static_cast<QDragEnterEvent *>(event);
+      if (dragEvent->mimeData()->hasUrls()) {
+        dragEvent->acceptProposedAction();
+        return true;
+      }
+    } else if (event->type() == QEvent::DragMove) {
+      QDragMoveEvent *dragEvent = static_cast<QDragMoveEvent *>(event);
+      if (dragEvent->mimeData()->hasUrls()) {
+        dragEvent->acceptProposedAction();
+        return true;
+      }
+    } else if (event->type() == QEvent::Drop) {
+      QDropEvent *dropEvent = static_cast<QDropEvent *>(event);
+      const QMimeData *mimeData = dropEvent->mimeData();
+
+      if (mimeData->hasUrls()) {
+        QList<QUrl> urlList = mimeData->urls();
+        for (const QUrl &url : urlList) {
+          std::filesystem::path sourcePath = url.toLocalFile().toStdString();
+          std::filesystem::path filename = sourcePath.filename();
+          std::filesystem::path destPath = m_CurrentDirectory / filename;
+
+          try {
+            if (std::filesystem::exists(destPath)) {
+              std::filesystem::copy_file(
+                  sourcePath, destPath,
+                  std::filesystem::copy_options::overwrite_existing);
+            } else {
+              std::filesystem::copy_file(sourcePath, destPath);
+            }
+
+            // Register with AssetManager
+            Horse::AssetManager::Get().ImportAsset(destPath);
+
+          } catch (std::exception &e) {
+            QMessageBox::warning(
+                this, "Import Error",
+                QString("Failed to import %1:\n%2")
+                    .arg(QString::fromStdString(filename.string()))
+                    .arg(e.what()));
+          }
+        }
+        Refresh();
+        dropEvent->acceptProposedAction();
+        return true;
+      }
+    }
+  }
+  return QWidget::eventFilter(watched, event);
 }
 
 void ContentBrowserPanel::Refresh() {

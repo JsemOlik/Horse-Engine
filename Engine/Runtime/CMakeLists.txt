@@ -18,6 +18,9 @@ add_library(HorseRuntime STATIC
     Source/Material.cpp
     Source/MaterialSerializer.cpp
     Source/MaterialRegistry.cpp
+    Source/Asset/AssetManager.cpp
+    Source/Asset/TextureImporter.cpp
+    Source/Asset/MeshImporter.cpp
 )
 
 target_include_directories(HorseRuntime

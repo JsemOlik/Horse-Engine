@@ -9,12 +9,12 @@
 
 #include "Dialogs/PreferencesDialog.h"
 #include "EditorPreferences.h"
+#include "HorseEngine/Asset/AssetManager.h"
 #include "HorseEngine/Render/MaterialRegistry.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Entity.h"
 #include "HorseEngine/Scene/Scene.h"
 #include "ThemeManager.h"
-
 
 #include <QCoreApplication>
 #include <QDockWidget>
@@ -335,7 +335,12 @@ void EditorWindow::NewProject(const std::string &filepath) {
                                       "Materials");
 
   Horse::Project::SetActive(project);
+  Horse::Project::SetActive(project);
   SaveProject(filepath);
+
+  // Initialize Asset Manager
+  Horse::AssetManager::Get().Initialize(project->GetConfig().ProjectDirectory /
+                                        project->GetConfig().AssetDirectory);
 
   if (m_ContentBrowserPanel) {
     m_ContentBrowserPanel->Refresh();
@@ -349,6 +354,11 @@ void EditorWindow::OpenProject(const std::string &filepath) {
   Horse::ProjectSerializer serializer(project);
   if (serializer.DeserializeFromJSON(filepath)) {
     Horse::Project::SetActive(project);
+
+    // Initialize Asset Manager
+    Horse::AssetManager::Get().Initialize(
+        project->GetConfig().ProjectDirectory /
+        project->GetConfig().AssetDirectory);
 
     // Load materials
     std::filesystem::path materialPath = project->GetConfig().ProjectDirectory /
