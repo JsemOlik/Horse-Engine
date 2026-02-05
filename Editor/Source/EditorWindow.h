@@ -24,7 +24,8 @@ class EditorWindow : public QMainWindow {
   Q_OBJECT
 
 public:
-  EditorWindow(QWidget *parent = nullptr);
+  EditorWindow(std::shared_ptr<void> logSink = nullptr,
+               QWidget *parent = nullptr);
   ~EditorWindow();
 
   std::shared_ptr<Horse::Scene> GetActiveScene() const { return m_ActiveScene; }
@@ -74,4 +75,5 @@ private:
   std::shared_ptr<Horse::Scene> m_RuntimeScene;
   Horse::Entity m_SelectedEntity;
   std::string m_CurrentScenePath;
+  std::shared_ptr<void> m_LogSink;
 };

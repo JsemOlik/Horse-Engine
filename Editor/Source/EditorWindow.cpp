@@ -24,7 +24,8 @@
 #include <QSettings>
 #include <QToolBar>
 
-EditorWindow::EditorWindow(QWidget *parent) : QMainWindow(parent) {
+EditorWindow::EditorWindow(std::shared_ptr<void> logSink, QWidget *parent)
+    : QMainWindow(parent), m_LogSink(logSink) {
 
   setWindowTitle("Horse Engine Editor");
   resize(1600, 900);
@@ -177,6 +178,8 @@ void EditorWindow::CreatePanels() {
 
   QDockWidget *consoleDock = new QDockWidget("Console", this);
   m_ConsolePanel = new ConsolePanel(consoleDock);
+  if (m_LogSink)
+    m_ConsolePanel->SetSink(m_LogSink);
   consoleDock->setWidget(m_ConsolePanel);
   addDockWidget(Qt::BottomDockWidgetArea, consoleDock);
 

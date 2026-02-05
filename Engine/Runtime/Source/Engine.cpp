@@ -8,7 +8,7 @@ Engine::Engine() { s_Instance = this; }
 
 Engine::~Engine() { s_Instance = nullptr; }
 
-bool Engine::Initialize() {
+bool Engine::Initialize(bool headless) {
   Logger::Initialize();
   HORSE_LOG_CORE_INFO("Horse Engine v0.1.0");
   HORSE_LOG_CORE_INFO("Initializing...");
@@ -20,14 +20,18 @@ bool Engine::Initialize() {
   HORSE_LOG_CORE_INFO("Job System: {} worker threads",
                       JobSystem::GetThreadCount());
 
-  WindowDesc windowDesc;
-  windowDesc.Title = L"Horse Engine";
-  windowDesc.Width = 1280;
-  windowDesc.Height = 720;
+  if (!headless) {
+    WindowDesc windowDesc;
+    windowDesc.Title = L"Horse Engine";
+    windowDesc.Width = 1280;
+    windowDesc.Height = 720;
 
-  m_Window = std::make_unique<Window>(windowDesc);
+    m_Window = std::make_unique<Window>(windowDesc);
+    HORSE_LOG_CORE_INFO("Window initialized");
+  } else {
+    HORSE_LOG_CORE_INFO("Running in headless mode (no window)");
+  }
 
-  HORSE_LOG_CORE_INFO("Engine initialized successfully");
   HORSE_LOG_CORE_INFO("Engine initialized successfully");
 
   LoadGameDLL("HorseGame.dll");

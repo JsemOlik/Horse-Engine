@@ -16,7 +16,7 @@ public:
   Engine();
   ~Engine();
 
-  bool Initialize();
+  bool Initialize(bool headless = false);
   void Shutdown();
 
   void LoadGameDLL(const std::string &dllPath);
