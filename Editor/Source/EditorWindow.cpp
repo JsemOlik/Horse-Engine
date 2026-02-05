@@ -55,6 +55,21 @@ void EditorWindow::SetSelectedEntity(Horse::Entity entity) {
   }
 }
 
+void EditorWindow::UpdateSceneContext() {
+  if (m_HierarchyPanel) {
+    m_HierarchyPanel->SetScene(m_ActiveScene);
+  }
+  if (m_SceneViewport) {
+    m_SceneViewport->SetScene(m_ActiveScene);
+  }
+  if (m_GameViewport) {
+    m_GameViewport->SetScene(m_ActiveScene);
+  }
+  if (m_InspectorPanel) {
+    m_InspectorPanel->SetSelectedEntity({});
+  }
+}
+
 void EditorWindow::CreateMenus() {
   QMenu *fileMenu = menuBar()->addMenu("&File");
 
@@ -182,7 +197,8 @@ void EditorWindow::CreateToolBar() {
 }
 
 void EditorWindow::NewScene() {
-  m_ActiveScene = std::make_shared<Horse::Scene>("Untitled Scene");
+  m_EditorScene = std::make_shared<Horse::Scene>("Untitled Scene");
+  m_ActiveScene = m_EditorScene;
   m_CurrentScenePath.clear();
   m_SelectedEntity = {};
 
@@ -193,19 +209,7 @@ void EditorWindow::NewScene() {
   auto &transform = cameraEntity.GetComponent<Horse::TransformComponent>();
   transform.Position = {0.0f, 2.0f, -5.0f};
 
-  // Update panels
-  if (m_HierarchyPanel) {
-    m_HierarchyPanel->SetScene(m_ActiveScene);
-  }
-  if (m_SceneViewport) {
-    m_SceneViewport->SetScene(m_ActiveScene);
-  }
-  if (m_GameViewport) {
-    m_GameViewport->SetScene(m_ActiveScene);
-  }
-  if (m_InspectorPanel) {
-    m_InspectorPanel->SetSelectedEntity({});
-  }
+  UpdateSceneContext();
 
   setWindowTitle("Horse Engine Editor - Untitled Scene*");
 }
@@ -215,22 +219,12 @@ void EditorWindow::NewScene() {
 void EditorWindow::OpenScene(const std::string &filepath) {
   auto scene = Horse::SceneSerializer::DeserializeFromJSON(filepath);
   if (scene) {
-    m_ActiveScene = scene;
+    m_EditorScene = scene;
+    m_ActiveScene = m_EditorScene;
     m_CurrentScenePath = filepath;
     m_SelectedEntity = {};
 
-    if (m_HierarchyPanel) {
-      m_HierarchyPanel->SetScene(m_ActiveScene);
-    }
-    if (m_SceneViewport) {
-      m_SceneViewport->SetScene(m_ActiveScene);
-    }
-    if (m_GameViewport) {
-      m_GameViewport->SetScene(m_ActiveScene);
-    }
-    if (m_InspectorPanel) {
-      m_InspectorPanel->SetSelectedEntity({});
-    }
+    UpdateSceneContext();
 
     setWindowTitle(QString("Horse Engine Editor - %1")
                        .arg(QString::fromStdString(filepath)));
@@ -500,7 +494,11 @@ void EditorWindow::OnResetLayout() {
 }
 
 void EditorWindow::OnPlay() {
-  if (m_ActiveScene) {
+  if (m_ActiveScene && m_ActiveScene->GetState() == Horse::SceneState::Edit) {
+    m_EditorScene = m_ActiveScene;
+    m_RuntimeScene = Horse::Scene::Copy(m_EditorScene);
+    m_ActiveScene = m_RuntimeScene;
+    UpdateSceneContext();
     m_ActiveScene->OnRuntimeStart();
   }
 }
@@ -516,7 +514,10 @@ void EditorWindow::OnPause() {
 }
 
 void EditorWindow::OnStop() {
-  if (m_ActiveScene) {
+  if (m_ActiveScene && m_ActiveScene->GetState() != Horse::SceneState::Edit) {
     m_ActiveScene->OnRuntimeStop();
+    m_ActiveScene = m_EditorScene;
+    m_RuntimeScene.reset();
+    UpdateSceneContext();
   }
 }

@@ -1,8 +1,17 @@
 #include "HorseEngine/Scene/Scene.h"
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Scene/Components.h"
+#include "HorseEngine/Scene/SceneSerializer.h"
 
 namespace Horse {
+
+std::shared_ptr<Scene> Scene::Copy(const std::shared_ptr<Scene> &other) {
+  if (!other)
+    return nullptr;
+
+  std::string json = SceneSerializer::SerializeToJSONString(other.get());
+  return SceneSerializer::DeserializeFromJSONString(json);
+}
 
 Scene::Scene(const std::string &name) : m_Name(name) {}
 

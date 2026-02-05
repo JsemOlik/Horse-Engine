@@ -4,6 +4,7 @@
 #include "HorseEngine/Scene/Entity.h"
 #include "HorseEngine/Scene/UUID.h"
 #include <entt/entt.hpp>
+#include <memory>
 #include <string>
 #include <unordered_map>
 
@@ -16,6 +17,8 @@ class Scene {
 public:
   Scene(const std::string &name = "Untitled Scene");
   ~Scene();
+
+  static std::shared_ptr<Scene> Copy(const std::shared_ptr<Scene> &other);
 
   void OnRuntimeStart();
   void OnRuntimeStop();
