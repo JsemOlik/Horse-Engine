@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <vector>
 
-
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
@@ -436,5 +435,34 @@ void InspectorPanel::DrawComponents() {
       menu.exec(QCursor::pos());
     });
     m_ContentLayout->addWidget(addScriptBtn);
+
+    // Add Component Menu for Lua Scripts
+    if (m_SelectedEntity.HasComponent<Horse::ScriptComponent>()) {
+      auto &script = m_SelectedEntity.GetComponent<Horse::ScriptComponent>();
+      QGroupBox *luaGroup = new QGroupBox("Lua Script");
+      QFormLayout *luaLayout = new QFormLayout(luaGroup);
+      luaLayout->addRow("Script GUID:",
+                        new QLabel(QString::fromStdString(script.ScriptGUID)));
+
+      QPushButton *removeLuaBtn = new QPushButton("Remove Lua Script");
+      connect(removeLuaBtn, &QPushButton::clicked, this, [this]() {
+        if (m_SelectedEntity) {
+          m_SelectedEntity.RemoveComponent<Horse::ScriptComponent>();
+          RefreshInspector();
+        }
+      });
+      luaLayout->addRow(removeLuaBtn);
+      m_ContentLayout->addWidget(luaGroup);
+    } else {
+      QPushButton *addLuaBtn = new QPushButton("Attach Lua Script");
+      connect(addLuaBtn, &QPushButton::clicked, this, [this]() {
+        if (m_SelectedEntity) {
+          auto &sc = m_SelectedEntity.AddComponent<Horse::ScriptComponent>();
+          sc.ScriptGUID = "placeholder-lua-script";
+          RefreshInspector();
+        }
+      });
+      m_ContentLayout->addWidget(addLuaBtn);
+    }
   }
 }
