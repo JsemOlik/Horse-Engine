@@ -2,7 +2,6 @@
 #include <string>
 #include <unordered_map>
 
-
 namespace Horse {
 
 static std::unordered_map<int, bool> s_KeyStates;
@@ -15,28 +14,34 @@ static std::unordered_map<std::string, AxisMapping> s_Axes;
 
 bool Input::IsKeyPressed(int keycode) {
   auto it = s_KeyStates.find(keycode);
-  if (it != s_KeyStates.end())
-    return it->second;
-  return false;
+  bool pressed = (it != s_KeyStates.end()) ? it->second : false;
+  // Verbose logging - only log if pressed to avoid spamming
+  if (pressed) {
+    HORSE_LOG_CORE_INFO("Input: IsKeyPressed: {} -> {} (StatesAddr: {})",
+                        keycode, pressed, (void *)&s_KeyStates);
+  }
+  return pressed;
 }
 
 bool Input::IsMouseButtonPressed(int button) {
   auto it = s_MouseStates.find(button);
-  if (it != s_MouseStates.end())
-    return it->second;
-  return false;
+  return (it != s_MouseStates.end()) ? it->second : false;
 }
 
 MousePosition Input::GetMousePosition() { return {s_MouseX, s_MouseY}; }
 
 void Input::RegisterAction(const std::string &name,
                            const std::vector<int> &keys) {
+  HORSE_LOG_CORE_INFO("Input: RegisterAction: {} (ActionsAddr: {})", name,
+                      (void *)&s_Actions);
   s_Actions[name] = {name, keys};
 }
 
 void Input::RegisterAxis(const std::string &name,
                          const std::vector<int> &positiveKeys,
                          const std::vector<int> &negativeKeys) {
+  HORSE_LOG_CORE_INFO("Input: RegisterAxis: {} (AxesAddr: {})", name,
+                      (void *)&s_Axes);
   s_Axes[name] = {name, positiveKeys, negativeKeys};
 }
 

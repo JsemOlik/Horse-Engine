@@ -2,6 +2,11 @@
 #include "HorseEngine/Core/Time.h"
 #include "HorseEngine/Render/D3D11Renderer.h"
 
+#include "HorseEngine/Core/Input.h"
+#include "HorseEngine/Scene/Scene.h"
+#include "QtInputMap.h"
+#include <QKeyEvent>
+#include <QMouseEvent>
 #include <QPaintEvent>
 #include <QResizeEvent>
 #include <QTimer>
@@ -73,4 +78,45 @@ void D3D11ViewportWidget::Render() {
 
   m_Renderer->EndFrame();
   m_Renderer->Present();
+}
+
+void D3D11ViewportWidget::keyPressEvent(QKeyEvent *event) {
+  int horseKey = Horse::QtKeyToHorseKey(event->key());
+  HORSE_LOG_CORE_INFO("Editor: Key Pressed: {} (Mapped to Horse: {})",
+                      event->key(), horseKey);
+  if (horseKey != 0) {
+    Horse::Input::UpdateKeyState(horseKey, true);
+  }
+}
+
+void D3D11ViewportWidget::keyReleaseEvent(QKeyEvent *event) {
+  int horseKey = Horse::QtKeyToHorseKey(event->key());
+  HORSE_LOG_CORE_INFO("Editor: Key Released: {} (Mapped to Horse: {})",
+                      event->key(), horseKey);
+  if (horseKey != 0) {
+    Horse::Input::UpdateKeyState(horseKey, false);
+  }
+}
+
+void D3D11ViewportWidget::mousePressEvent(QMouseEvent *event) {
+  if (event->button() == Qt::LeftButton)
+    Horse::Input::UpdateMouseButtonState(Horse::KEY_LBUTTON, true);
+  else if (event->button() == Qt::RightButton)
+    Horse::Input::UpdateMouseButtonState(Horse::KEY_RBUTTON, true);
+  else if (event->button() == Qt::MiddleButton)
+    Horse::Input::UpdateMouseButtonState(Horse::KEY_MBUTTON, true);
+}
+
+void D3D11ViewportWidget::mouseReleaseEvent(QMouseEvent *event) {
+  if (event->button() == Qt::LeftButton)
+    Horse::Input::UpdateMouseButtonState(Horse::KEY_LBUTTON, false);
+  else if (event->button() == Qt::RightButton)
+    Horse::Input::UpdateMouseButtonState(Horse::KEY_RBUTTON, false);
+  else if (event->button() == Qt::MiddleButton)
+    Horse::Input::UpdateMouseButtonState(Horse::KEY_MBUTTON, false);
+}
+
+void D3D11ViewportWidget::mouseMoveEvent(QMouseEvent *event) {
+  Horse::Input::UpdateMousePosition(static_cast<float>(event->pos().x()),
+                                    static_cast<float>(event->pos().y()));
 }
