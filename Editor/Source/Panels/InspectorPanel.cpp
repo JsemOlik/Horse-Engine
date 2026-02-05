@@ -1,5 +1,6 @@
 #include "InspectorPanel.h"
 #include "HorseEngine/Engine.h"
+#include "HorseEngine/Project/Project.h"
 #include "HorseEngine/Render/Material.h"
 #include "HorseEngine/Render/MaterialRegistry.h"
 #include "HorseEngine/Render/MaterialSerializer.h"
@@ -7,6 +8,7 @@
 #include "HorseEngine/Scene/Entity.h"
 #include "HorseEngine/Scene/Scene.h"
 #include <algorithm>
+#include <filesystem>
 #include <vector>
 
 #include <QCheckBox>
@@ -106,35 +108,49 @@ void InspectorPanel::DrawComponents() {
     QGroupBox *transformGroup = new QGroupBox("Transform");
     QVBoxLayout *transformVLayout = new QVBoxLayout(transformGroup);
 
-    auto createVec3Control = [&](const QString &label,
-                                 std::array<float, 3> &values) {
+    // Helper to create a row
+    auto addRow = [&](const QString &label, std::function<float(int)> getter,
+                      std::function<void(int, float)> setter) {
       QHBoxLayout *rowLayout = new QHBoxLayout();
       rowLayout->addWidget(new QLabel(label));
-
       for (int i = 0; i < 3; ++i) {
         QDoubleSpinBox *spin = new QDoubleSpinBox();
         spin->setRange(-1000000.0, 1000000.0);
         spin->setSingleStep(0.1);
-        spin->setValue(values[i]);
         spin->setDecimals(3);
+        spin->setValue(getter(i));
 
-        // Re-implementing connection to capture index
-        auto updateFunc = [this, &values, i](double val) {
-          if (m_SelectedEntity) {
-            values[i] = static_cast<float>(val);
-          }
-        };
         connect(spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-                this, updateFunc);
-
+                this, [this, i, setter](double val) {
+                  if (m_SelectedEntity) {
+                    setter(i, static_cast<float>(val));
+                  }
+                });
         rowLayout->addWidget(spin);
       }
       transformVLayout->addLayout(rowLayout);
     };
 
-    createVec3Control("Position", transform.Position);
-    createVec3Control("Rotation", transform.Rotation);
-    createVec3Control("Scale", transform.Scale);
+    addRow(
+        "Position", [&](int i) { return transform.Position[i]; },
+        [this](int i, float val) {
+          m_SelectedEntity.GetComponent<Horse::TransformComponent>()
+              .Position[i] = val;
+        });
+
+    addRow(
+        "Rotation", [&](int i) { return transform.Rotation[i]; },
+        [this](int i, float val) {
+          m_SelectedEntity.GetComponent<Horse::TransformComponent>()
+              .Rotation[i] = val;
+        });
+
+    addRow(
+        "Scale", [&](int i) { return transform.Scale[i]; },
+        [this](int i, float val) {
+          m_SelectedEntity.GetComponent<Horse::TransformComponent>().Scale[i] =
+              val;
+        });
 
     m_ContentLayout->addWidget(transformGroup);
   }
@@ -441,13 +457,102 @@ void InspectorPanel::DrawComponents() {
     m_ContentLayout->addWidget(addScriptBtn);
 
     // Lua Script Component
-    // Lua Script Component
     if (m_SelectedEntity.HasComponent<Horse::ScriptComponent>()) {
-      m_ContentLayout->addWidget(
-          new QLabel("Lua Script Component (UI Temporarily Disabled)"));
+      auto &script = m_SelectedEntity.GetComponent<Horse::ScriptComponent>();
+      QGroupBox *group = new QGroupBox("Lua Script", this);
+      QFormLayout *layout = new QFormLayout(group);
+
+      // 1. Scan for scripts
+      QComboBox *scriptCombo = new QComboBox();
+      scriptCombo->addItem("None", "");
+
+      namespace fs = std::filesystem;
+      auto assetDir = Horse::Project::GetAssetDirectory();
+      auto scriptsDir = assetDir / "Scripts";
+
+      std::vector<std::pair<QString, QString>> availableScripts;
+
+      if (fs::exists(scriptsDir)) {
+        for (const auto &entry : fs::recursive_directory_iterator(scriptsDir)) {
+          if (entry.is_regular_file() && entry.path().extension() == ".lua") {
+            auto relPath = fs::relative(entry.path(),
+                                        Horse::Project::GetProjectDirectory());
+            QString fullRelPath = QString::fromStdString(relPath.string());
+            QString baseName =
+                QString::fromStdString(entry.path().stem().string());
+            availableScripts.push_back({baseName, fullRelPath});
+          }
+        }
+      }
+
+      std::sort(availableScripts.begin(), availableScripts.end());
+
+      int currentIndex = 0; // "None"
+      for (int i = 0; i < availableScripts.size(); ++i) {
+        scriptCombo->addItem(availableScripts[i].first,
+                             availableScripts[i].second);
+        if (availableScripts[i].second.toStdString() == script.ScriptPath) {
+          currentIndex = i + 1;
+        }
+      }
+
+      // If manually set to an absolute path, add it
+      if (!script.ScriptPath.empty() && currentIndex == 0) {
+        QString currentPath = QString::fromStdString(script.ScriptPath);
+        scriptCombo->addItem(currentPath + " (External)", currentPath);
+        currentIndex = scriptCombo->count() - 1;
+      }
+
+      scriptCombo->setCurrentIndex(currentIndex);
+
+      connect(scriptCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+              this, [this, scriptCombo](int index) {
+                if (m_SelectedEntity) {
+                  QString path = scriptCombo->itemData(index).toString();
+                  m_SelectedEntity.GetComponent<Horse::ScriptComponent>()
+                      .ScriptPath = path.toStdString();
+                }
+              });
+
+      layout->addRow("Script:", scriptCombo);
+
+      // Open Script Button
+      QPushButton *openBtn = new QPushButton("Open Script");
+      connect(openBtn, &QPushButton::clicked, this, [this, scriptCombo]() {
+        QString path =
+            scriptCombo->itemData(scriptCombo->currentIndex()).toString();
+        if (!path.isEmpty()) {
+          namespace fs = std::filesystem;
+          fs::path fullPath = path.toStdString();
+          if (fullPath.is_relative()) {
+            fullPath = Horse::Project::GetProjectDirectory() / fullPath;
+          }
+          QDesktopServices::openUrl(
+              QUrl::fromLocalFile(QString::fromStdString(fullPath.string())));
+        }
+      });
+      layout->addRow(openBtn);
+
+      // Remove Component Button
+      QPushButton *removeBtn = new QPushButton("Remove Component");
+      connect(removeBtn, &QPushButton::clicked, this, [this]() {
+        if (m_SelectedEntity) {
+          m_SelectedEntity.RemoveComponent<Horse::ScriptComponent>();
+          RefreshInspector();
+        }
+      });
+      layout->addRow(removeBtn);
+
+      m_ContentLayout->addWidget(group);
     } else {
-      m_ContentLayout->addWidget(
-          new QLabel("No Lua Script (UI Temporarily Disabled)"));
+      QPushButton *addLuaBtn = new QPushButton("Attach Lua Script");
+      connect(addLuaBtn, &QPushButton::clicked, this, [this]() {
+        if (m_SelectedEntity) {
+          m_SelectedEntity.AddComponent<Horse::ScriptComponent>();
+          RefreshInspector();
+        }
+      });
+      m_ContentLayout->addWidget(addLuaBtn);
     }
   }
 }

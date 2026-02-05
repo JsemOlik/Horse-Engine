@@ -17,7 +17,6 @@
 #include "HorseEngine/Scene/Scene.h"
 #include "ThemeManager.h"
 
-
 #include <QCoreApplication>
 #include <QDockWidget>
 #include <QFileDialog>
@@ -82,7 +81,7 @@ void EditorWindow::UpdateSceneContext() {
 void EditorWindow::OnUpdate() {
   Horse::Time::Update();
 
-  if (m_ActiveScene && m_ActiveScene->GetState() == Horse::SceneState::Play) {
+  if (m_ActiveScene) {
     m_ActiveScene->OnUpdate(Horse::Time::GetDeltaTime());
   }
 
