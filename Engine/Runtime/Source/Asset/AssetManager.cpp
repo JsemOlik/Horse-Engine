@@ -147,8 +147,16 @@ AssetType AssetManager::DetermineAssetType(const std::filesystem::path &path) {
     return AssetType::Mesh;
   if (extension == ".horsemat")
     return AssetType::Material;
-  if (extension == ".horselevel")
-    return AssetType::Scene;
+  if (extension == ".horselevel" || extension == ".json") {
+    // Check if in Scenes folder
+    if (path.parent_path().filename() == "Scenes" ||
+        path.filename().string().find(".horselevel") != std::string::npos)
+      return AssetType::Scene;
+    // Check if in Materials folder for generic .json materials if we ever use
+    // them
+    if (path.parent_path().filename() == "Materials")
+      return AssetType::Material;
+  }
   if (extension == ".lua")
     return AssetType::Script;
 

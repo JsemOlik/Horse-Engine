@@ -24,6 +24,10 @@ bool ProjectCooker::Cook(const std::filesystem::path &sourcePath,
   ProjectCookedHeader header;
   if (j.contains("DefaultLevel")) {
     header.DefaultLevelGUID = j["DefaultLevel"].get<uint64_t>();
+  } else if (j.contains("defaultScene")) {
+    std::string scenePath = j["defaultScene"].get<std::string>();
+    // Store hashed filename as GUID to match manifest
+    header.DefaultLevelGUID = std::hash<std::string>{}(scenePath);
   }
 
   std::filesystem::path outputPath = context.OutputDir / "Game.project.bin";
