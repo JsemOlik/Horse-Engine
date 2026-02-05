@@ -4,8 +4,17 @@
 #include "HorseEngine/Scene/Scene.h"
 
 #include <QAction>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QMenu>
+#include <QMimeData>
+#include <QUrl>
 #include <QVBoxLayout>
+#include <filesystem>
+
+#include "HorseEngine/Asset/AssetManager.h"
+#include "HorseEngine/Scene/Prefab.h"
+#include "HorseEngine/Scene/PrefabSerializer.h"
 
 HierarchyPanel::HierarchyPanel(QWidget *parent) : QWidget(parent) {
 
@@ -20,6 +29,11 @@ HierarchyPanel::HierarchyPanel(QWidget *parent) : QWidget(parent) {
           &HierarchyPanel::OnItemSelectionChanged);
   connect(m_TreeWidget, &QTreeWidget::customContextMenuRequested, this,
           &HierarchyPanel::OnContextMenuRequested);
+
+  m_TreeWidget->setAcceptDrops(true);
+  m_TreeWidget->setDragEnabled(true);
+  m_TreeWidget->setDragDropMode(QAbstractItemView::DragDrop);
+  m_TreeWidget->installEventFilter(this);
 
   layout->addWidget(m_TreeWidget);
 }
@@ -193,4 +207,56 @@ void HierarchyPanel::OnDeleteEntity() {
   m_Scene->DestroyEntity(entity);
   RefreshHierarchy();
   emit EntitySelected({});
+}
+
+bool HierarchyPanel::eventFilter(QObject *watched, QEvent *event) {
+  if (watched == m_TreeWidget) {
+    if (event->type() == QEvent::DragEnter) {
+      QDragEnterEvent *dragEvent = static_cast<QDragEnterEvent *>(event);
+      if (dragEvent->mimeData()->hasUrls()) {
+        dragEvent->acceptProposedAction();
+        return true;
+      }
+    } else if (event->type() == QEvent::DragMove) {
+      QDragMoveEvent *dragEvent = static_cast<QDragMoveEvent *>(event);
+      if (dragEvent->mimeData()->hasUrls()) {
+        dragEvent->acceptProposedAction();
+        return true;
+      }
+    } else if (event->type() == QEvent::Drop) {
+      QDropEvent *dropEvent = static_cast<QDropEvent *>(event);
+      const QMimeData *mimeData = dropEvent->mimeData();
+
+      if (mimeData->hasUrls()) {
+        for (const QUrl &url : mimeData->urls()) {
+          std::filesystem::path path = url.toLocalFile().toStdString();
+          // Check for .horseprefab extension manually since AssetManager might
+          // be slow or we just want a quick check
+          if (path.extension() == ".horseprefab") {
+            // Load prefab
+            auto prefab =
+                Horse::PrefabSerializer::DeserializeFromJSON(path.string());
+            if (prefab) {
+              // Check drop target item
+              QPoint pos = dropEvent->pos();
+              QTreeWidgetItem *item = m_TreeWidget->itemAt(pos);
+              Horse::Entity parentEntity = {};
+
+              if (item) {
+                quint32 entityHandle = item->data(0, Qt::UserRole).toUInt();
+                parentEntity = Horse::Entity(
+                    static_cast<entt::entity>(entityHandle), m_Scene.get());
+              }
+
+              m_Scene->InstantiatePrefab(prefab, parentEntity);
+              RefreshHierarchy(); // Important to show the key change
+            }
+          }
+        }
+        dropEvent->acceptProposedAction();
+        return true;
+      }
+    }
+  }
+  return QWidget::eventFilter(watched, event);
 }

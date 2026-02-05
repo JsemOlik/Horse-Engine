@@ -6,6 +6,8 @@
 #include "HorseEngine/Render/MaterialRegistry.h"
 #include "HorseEngine/Render/MaterialSerializer.h"
 #include "HorseEngine/Scene/Components.h"
+#include "HorseEngine/Scene/Prefab.h"
+#include "HorseEngine/Scene/PrefabSerializer.h"
 #include "HorseEngine/Scene/Scene.h"
 #include <DirectXMath.h>
 #include <QApplication>
@@ -19,7 +21,6 @@
 #include <QStyle>
 #include <QStyleFactory>
 #include <QUrl>
-
 
 SceneViewport::SceneViewport(QWidget *parent) : D3D11ViewportWidget(parent) {
   setFocusPolicy(Qt::StrongFocus);
@@ -149,8 +150,18 @@ void SceneViewport::dropEvent(QDropEvent *event) {
           auto &renderer = entity.AddComponent<Horse::MeshRendererComponent>();
           renderer.MeshGUID = std::to_string((uint64_t)metadata.Handle);
           HORSE_LOG_CORE_INFO("Dropped mesh: {0}", path.string());
+        } else if (metadata.Type == Horse::AssetType::Prefab) {
+          // Instantiate prefab
+          std::string guid = std::to_string((uint64_t)metadata.Handle);
+
+          // Use PrefabSerializer to load it
+          auto prefab =
+              Horse::PrefabSerializer::DeserializeFromJSON(path.string());
+          if (prefab) {
+            m_Scene->InstantiatePrefab(prefab);
+            HORSE_LOG_CORE_INFO("Dropped prefab: {0}", path.string());
+          }
         }
-        // TODO: Handle Materials (apply to selected)
       }
     }
     event->acceptProposedAction();

@@ -6,7 +6,15 @@
 
 namespace Horse {
 
-enum class AssetType { None = 0, Texture, Mesh, Material, Scene, Script };
+enum class AssetType {
+  None = 0,
+  Texture,
+  Mesh,
+  Material,
+  Scene,
+  Script,
+  Prefab
+};
 
 struct AssetMetadata {
   UUID Handle;
@@ -28,6 +36,8 @@ inline std::string AssetTypeToString(AssetType type) {
     return "Scene";
   case AssetType::Script:
     return "Script";
+  case AssetType::Prefab:
+    return "Prefab";
   case AssetType::None:
     return "None";
   }
@@ -45,6 +55,8 @@ inline AssetType AssetTypeFromString(const std::string &assetType) {
     return AssetType::Scene;
   if (assetType == "Script")
     return AssetType::Script;
+  if (assetType == "Prefab")
+    return AssetType::Prefab;
   return AssetType::None;
 }
 

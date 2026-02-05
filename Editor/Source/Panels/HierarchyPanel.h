@@ -19,6 +19,9 @@ public:
   void SetScene(std::shared_ptr<Horse::Scene> scene);
   void RefreshHierarchy();
 
+protected:
+  bool eventFilter(QObject *watched, QEvent *event) override;
+
 signals:
   void EntitySelected(Horse::Entity entity);
   void CreatePrefabRequested(Horse::Entity entity);
