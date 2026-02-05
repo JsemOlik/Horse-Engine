@@ -2,9 +2,11 @@
 
 #include "HorseEngine/Core.h"
 #include "HorseEngine/Scene/UUID.h"
+#include <DirectXMath.h>
 #include <array>
 #include <entt/entt.hpp>
 #include <string>
+
 
 namespace Horse {
 
@@ -28,6 +30,10 @@ struct TransformComponent {
   std::array<float, 3> Position = {0.0f, 0.0f, 0.0f};
   std::array<float, 3> Rotation = {0.0f, 0.0f, 0.0f}; // Euler angles in degrees
   std::array<float, 3> Scale = {1.0f, 1.0f, 1.0f};
+
+  DirectX::XMFLOAT4X4 WorldTransform = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+                                        0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+                                        0.0f, 0.0f, 0.0f, 1.0f};
 
   TransformComponent() = default;
 };
