@@ -157,6 +157,10 @@ void LuaScriptEngine::OnUpdateEntity(Entity entity, float deltaTime) {
   }
 
   sol::table &self = s_ScriptInstances[id];
+  // Heartbeat log (commented out by default to avoid overwhelming, but useful
+  // for initial check) HORSE_LOG_CORE_INFO("LuaScriptEngine: Ticking script for
+  // entity: {}", entity.GetName());
+
   if (self["OnUpdate"].valid()) {
     self["OnUpdate"](self, entity, deltaTime);
   }

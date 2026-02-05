@@ -1,4 +1,5 @@
 #include "D3D11ViewportWidget.h"
+#include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Core/Time.h"
 #include "HorseEngine/Render/D3D11Renderer.h"
 
@@ -99,6 +100,9 @@ void D3D11ViewportWidget::keyReleaseEvent(QKeyEvent *event) {
 }
 
 void D3D11ViewportWidget::mousePressEvent(QMouseEvent *event) {
+  setFocus(); // Force focus on click
+  HORSE_LOG_CORE_INFO("Editor: Mouse Pressed: {} (Focus Gained)",
+                      (int)event->button());
   if (event->button() == Qt::LeftButton)
     Horse::Input::UpdateMouseButtonState(Horse::KEY_LBUTTON, true);
   else if (event->button() == Qt::RightButton)
@@ -108,6 +112,7 @@ void D3D11ViewportWidget::mousePressEvent(QMouseEvent *event) {
 }
 
 void D3D11ViewportWidget::mouseReleaseEvent(QMouseEvent *event) {
+  HORSE_LOG_CORE_INFO("Editor: Mouse Released: {}", (int)event->button());
   if (event->button() == Qt::LeftButton)
     Horse::Input::UpdateMouseButtonState(Horse::KEY_LBUTTON, false);
   else if (event->button() == Qt::RightButton)
@@ -119,4 +124,12 @@ void D3D11ViewportWidget::mouseReleaseEvent(QMouseEvent *event) {
 void D3D11ViewportWidget::mouseMoveEvent(QMouseEvent *event) {
   Horse::Input::UpdateMousePosition(static_cast<float>(event->pos().x()),
                                     static_cast<float>(event->pos().y()));
+}
+
+void D3D11ViewportWidget::focusInEvent(QFocusEvent *event) {
+  HORSE_LOG_CORE_INFO("Editor: Viewport Focus IN");
+}
+
+void D3D11ViewportWidget::focusOutEvent(QFocusEvent *event) {
+  HORSE_LOG_CORE_INFO("Editor: Viewport Focus OUT");
 }

@@ -1,4 +1,5 @@
 #include "HorseEngine/Core/Input.h"
+#include "HorseEngine/Core/Logging.h"
 #include <string>
 #include <unordered_map>
 
@@ -73,6 +74,8 @@ float Input::GetAxisValue(const std::string &name) {
 }
 
 void Input::UpdateKeyState(int keycode, bool pressed) {
+  HORSE_LOG_CORE_INFO("Input: UpdateKeyState: {} -> {} (StatesAddr: {})",
+                      keycode, pressed, (void *)&s_KeyStates);
   s_KeyStates[keycode] = pressed;
 }
 
