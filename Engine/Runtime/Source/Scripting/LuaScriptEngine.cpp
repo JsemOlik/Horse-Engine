@@ -1,11 +1,14 @@
 #include "HorseEngine/Scripting/LuaScriptEngine.h"
 #include "HorseEngine/Core/Logging.h"
+#include "HorseEngine/Project/Project.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Scene.h"
+#include <filesystem>
 
 namespace Horse {
 
 sol::state *LuaScriptEngine::s_LuaState = nullptr;
+std::unordered_map<UUID, sol::table> LuaScriptEngine::s_ScriptInstances;
 
 void LuaScriptEngine::Init() {
   s_LuaState = new sol::state();
@@ -99,44 +102,56 @@ void LuaScriptEngine::OnCreateEntity(Entity entity) {
   if (sc.ScriptPath.empty())
     return;
 
+  namespace fs = std::filesystem;
+  fs::path scriptPath = sc.ScriptPath;
+
+  // Resolve relative path
+  if (scriptPath.is_relative()) {
+    auto projectDir = Project::GetProjectDirectory();
+    if (!projectDir.empty()) {
+      scriptPath = projectDir / scriptPath;
+    }
+  }
+
+  if (!fs::exists(scriptPath)) {
+    HORSE_LOG_CORE_ERROR("Lua script not found: {}", scriptPath.string());
+    return;
+  }
+
   auto result =
-      s_LuaState->script_file(sc.ScriptPath, sol::script_pass_on_error);
+      s_LuaState->script_file(scriptPath.string(), sol::script_pass_on_error);
   if (!result.valid()) {
     sol::error err = result;
-    HORSE_LOG_CORE_ERROR("Failed to load Lua script {}: {}", sc.ScriptPath,
-                         err.what());
+    HORSE_LOG_CORE_ERROR("Failed to load Lua script {}: {}",
+                         scriptPath.string(), err.what());
     return;
   }
 
   sol::table self = result;
+  s_ScriptInstances[entity.GetUUID()] = self;
+
   if (self["OnCreate"].valid()) {
     self["OnCreate"](self, entity);
   }
-
-  // Store the table in the component for future calls?
-  // We'll need a way to keep the instance alive.
-  // For now let's just use globals or re-run, but that's not ideal.
-  // Let's assume the script returns a table representing the "script instance".
 }
 
 void LuaScriptEngine::OnUpdateEntity(Entity entity, float deltaTime) {
-  if (!entity.HasComponent<ScriptComponent>())
-    return;
-
-  auto &sc = entity.GetComponent<ScriptComponent>();
-  if (sc.ScriptPath.empty())
-    return;
-
-  // This is very slow (re-parsing every frame), but let's get it working first.
-  // We'll optimize with a cache mapping entities to sol::table instances.
-  auto result =
-      s_LuaState->script_file(sc.ScriptPath, sol::script_pass_on_error);
-  if (result.valid()) {
-    sol::table self = result;
-    if (self["OnUpdate"].valid()) {
-      self["OnUpdate"](self, entity, deltaTime);
-    }
+  UUID id = entity.GetUUID();
+  if (s_ScriptInstances.find(id) == s_ScriptInstances.end()) {
+    // Try to initialize if not cached (might happen on hot-reload or load)
+    OnCreateEntity(entity);
+    if (s_ScriptInstances.find(id) == s_ScriptInstances.end())
+      return;
   }
+
+  sol::table &self = s_ScriptInstances[id];
+  if (self["OnUpdate"].valid()) {
+    self["OnUpdate"](self, entity, deltaTime);
+  }
+}
+
+void LuaScriptEngine::OnDestroyEntity(Entity entity) {
+  s_ScriptInstances.erase(entity.GetUUID());
 }
 
 } // namespace Horse

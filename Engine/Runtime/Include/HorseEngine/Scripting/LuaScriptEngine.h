@@ -14,6 +14,7 @@ public:
 
   static void OnCreateEntity(Entity entity);
   static void OnUpdateEntity(Entity entity, float deltaTime);
+  static void OnDestroyEntity(Entity entity);
 
   static sol::state &GetState() { return *s_LuaState; }
 
@@ -23,6 +24,7 @@ private:
 
 private:
   static sol::state *s_LuaState;
+  static std::unordered_map<UUID, sol::table> s_ScriptInstances;
 };
 
 } // namespace Horse

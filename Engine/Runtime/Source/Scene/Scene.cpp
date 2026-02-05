@@ -262,7 +262,7 @@ void Scene::OnRuntimeStop() {
       auto &script = view.get<ScriptComponent>(entity);
       script.AwakeCalled = false;
       script.StartCalled = false;
-      // TODO: ScriptEngine::OnDestroy(entity)
+      LuaScriptEngine::OnDestroyEntity({entity, this});
     }
   }
 
