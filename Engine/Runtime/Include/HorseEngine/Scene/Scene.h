@@ -31,10 +31,6 @@ public:
   Entity CreateEntityWithUUID(UUID uuid, const std::string &name = "Entity");
   void DestroyEntity(Entity entity);
 
-  // Prefabs
-  Entity InstantiatePrefab(std::shared_ptr<class Prefab> prefab,
-                           Entity parent = {});
-
   Entity GetEntityByUUID(UUID uuid);
   Entity GetEntityByName(const std::string &name);
 

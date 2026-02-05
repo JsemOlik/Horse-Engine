@@ -3,7 +3,7 @@
 #include <QScrollArea>
 #include <QVBoxLayout>
 #include <QWidget>
-#include <nlohmann/json.hpp>
+
 
 #include "HorseEngine/Scene/Entity.h"
 
@@ -18,11 +18,6 @@ public:
 private:
   void RefreshInspector();
   void DrawComponents();
-  void DrawPrefabComponent();
-
-  void RecordOverride(const std::string &componentName,
-                      const std::string &fieldName,
-                      const nlohmann::json &value);
 
   QScrollArea *m_ScrollArea;
   QWidget *m_ContentWidget;

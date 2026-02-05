@@ -144,15 +144,6 @@ static void DeserializeScriptComponent(const json &j, ScriptComponent &comp) {
   comp.ScriptGUID = j.value("scriptGuid", "");
 }
 
-static json SerializePrefabComponent(const PrefabComponent &comp) {
-  return {{"prefabGuid", comp.PrefabGUID}, {"overrides", comp.Overrides}};
-}
-
-static void DeserializePrefabComponent(const json &j, PrefabComponent &comp) {
-  comp.PrefabGUID = j.value("prefabGuid", "");
-  comp.Overrides = j.value("overrides", "");
-}
-
 // Helper functions for full scene serialization
 static json SerializeSceneToJson(const Scene *scene) {
   json sceneJson;
@@ -208,11 +199,6 @@ static json SerializeSceneToJson(const Scene *scene) {
     if (entity.HasComponent<ScriptComponent>()) {
       componentsJson["ScriptComponent"] =
           SerializeScriptComponent(entity.GetComponent<ScriptComponent>());
-    }
-
-    if (entity.HasComponent<PrefabComponent>()) {
-      componentsJson["PrefabComponent"] =
-          SerializePrefabComponent(entity.GetComponent<PrefabComponent>());
     }
 
     entityJson["components"] = componentsJson;
@@ -283,12 +269,6 @@ static std::shared_ptr<Scene> DeserializeSceneFromJson(const json &sceneJson) {
     if (componentsJson.contains("ScriptComponent")) {
       auto &script = entity.AddComponent<ScriptComponent>();
       DeserializeScriptComponent(componentsJson["ScriptComponent"], script);
-    }
-
-    // Prefab Component
-    if (componentsJson.contains("PrefabComponent")) {
-      auto &prefab = entity.AddComponent<PrefabComponent>();
-      DeserializePrefabComponent(componentsJson["PrefabComponent"], prefab);
     }
   }
 

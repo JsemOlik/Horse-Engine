@@ -13,7 +13,6 @@ add_library(HorseRuntime STATIC
     Source/Scene/Entity.cpp
     Source/Scene/Scene.cpp
     Source/Scene/SceneSerializer.cpp
-    Source/Scene/PrefabSerializer.cpp
     Source/Project/ProjectSerializer.cpp
     Source/Engine.cpp
     Source/Material.cpp

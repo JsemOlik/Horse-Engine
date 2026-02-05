@@ -1,8 +1,6 @@
 #include "ThemeManager.h"
 #include <QApplication>
-#include <QColor>
 #include <QPalette>
-#include <QStyle>
 #include <QStyleFactory>
 
 namespace Horse {

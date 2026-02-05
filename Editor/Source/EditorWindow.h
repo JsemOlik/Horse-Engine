@@ -50,9 +50,6 @@ private slots:
   void OnPause();
   void OnStop();
 
-  void OnCreatePrefab();
-  void OnInstantiatePrefab();
-
 private:
   void CreateMenus();
   void CreatePanels();

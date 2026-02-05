@@ -81,12 +81,4 @@ struct ScriptComponent {
   ScriptComponent() = default;
 };
 
-struct PrefabComponent {
-  std::string PrefabGUID;
-  std::string PrefabAssetPath; // Path to the source .horseprefab.json
-  std::string Overrides;       // JSON string containing property overrides
-
-  PrefabComponent() = default;
-};
-
 } // namespace Horse
