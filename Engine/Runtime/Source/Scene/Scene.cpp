@@ -76,11 +76,14 @@ Entity Scene::GetEntityByName(const std::string &name) {
 }
 
 void Scene::SetEntityParent(Entity child, Entity parent) {
-  if (!child || !parent)
+  if (!child)
     return;
 
   // Remove from current parent first
   RemoveParent(child);
+
+  if (!parent)
+    return;
 
   auto &childRel = child.GetComponent<RelationshipComponent>();
   auto &parentRel = parent.GetComponent<RelationshipComponent>();
