@@ -18,6 +18,9 @@ add_library(HorseRuntime STATIC
     Source/Material.cpp
     Source/MaterialSerializer.cpp
     Source/MaterialRegistry.cpp
+    Source/Asset/AssetManager.cpp
+    Source/Asset/TextureImporter.cpp
+    Source/Asset/MeshImporter.cpp
 )
 
 target_include_directories(HorseRuntime
@@ -31,6 +34,7 @@ target_link_libraries(HorseRuntime
         fmt::fmt
         EnTT::EnTT
         nlohmann_json::nlohmann_json
+        glm::glm
         d3d11.lib
         dxgi.lib
         dxguid.lib

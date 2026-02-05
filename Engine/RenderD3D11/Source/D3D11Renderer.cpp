@@ -10,7 +10,10 @@
 #include "HorseEngine/Scene/Scene.h"
 #include <DirectXMath.h>
 #include <algorithm>
+#include <d3dcompiler.h>
 #include <dxgi1_2.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 using namespace DirectX;
 
@@ -300,33 +303,29 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
     auto [transform, mesh] =
         meshView.get<TransformComponent, MeshRendererComponent>(entity);
 
-    // Calculate Rotation Matrix
-    XMMATRIX rotation =
-        XMMatrixRotationRollPitchYaw(XMConvertToRadians(transform.Rotation[0]),
-                                     XMConvertToRadians(transform.Rotation[1]),
-                                     XMConvertToRadians(transform.Rotation[2]));
+    // Calculate Rotation Matrix from WorldTransform decomposition or directly
+    // use rows/cols Since WorldTransform (GLM) is Col-Major, it matches DirectX
+    // Row-Major memory layout. XMMATRIX world = S * R * T. The columns of GLM
+    // (rows of DX) are the basis vectors * scale.
+
+    // Load World Matrix
+    XMMATRIX worldMat = DirectX::XMLoadFloat4x4(
+        (const DirectX::XMFLOAT4X4 *)glm::value_ptr(transform.WorldTransform));
 
     // Calculate World Space AABB Extents
-    // Transform local extents (1.0 * Scale) into world space axes
-    // Note: Vertices are -1 to 1, so the half-size (extent) is 1.0.
-    XMVECTOR localExtentsX =
-        XMVectorSet(transform.Scale[0] * 1.0f, 0.0f, 0.0f, 0.0f);
-    XMVECTOR localExtentsY =
-        XMVectorSet(0.0f, transform.Scale[1] * 1.0f, 0.0f, 0.0f);
-    XMVECTOR localExtentsZ =
-        XMVectorSet(0.0f, 0.0f, transform.Scale[2] * 1.0f, 0.0f);
-
-    XMVECTOR rotExtentsX = XMVector3TransformNormal(localExtentsX, rotation);
-    XMVECTOR rotExtentsY = XMVector3TransformNormal(localExtentsY, rotation);
-    XMVECTOR rotExtentsZ = XMVector3TransformNormal(localExtentsZ, rotation);
+    // Start with local extents of 1.0 (assuming unit cube/mesh)
+    XMVECTOR dirX =
+        worldMat.r[0]; // (ScaleX * RightX, ScaleX * RightY, ScaleX * RightZ)
+    XMVECTOR dirY = worldMat.r[1];
+    XMVECTOR dirZ = worldMat.r[2];
 
     // Sum absolute values to get the bounding box extents
-    XMVECTOR worldExtents = XMVectorAbs(rotExtentsX) +
-                            XMVectorAbs(rotExtentsY) + XMVectorAbs(rotExtentsZ);
+    XMVECTOR worldExtents =
+        XMVectorAbs(dirX) + XMVectorAbs(dirY) + XMVectorAbs(dirZ);
 
     AABB aabb;
-    aabb.Center = {transform.Position[0], transform.Position[1],
-                   transform.Position[2]};
+    // Position is at the last row (3)
+    XMStoreFloat3(&aabb.Center, worldMat.r[3]);
     XMStoreFloat3(&aabb.Extents, worldExtents);
 
     if (frustum.Intersects(aabb)) {
@@ -365,15 +364,8 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
     auto [transform, mesh] =
         meshView.get<TransformComponent, MeshRendererComponent>(item.Entity);
 
-    XMMATRIX world =
-        XMMatrixScaling(transform.Scale[0], transform.Scale[1],
-                        transform.Scale[2]) *
-        XMMatrixRotationRollPitchYaw(
-            XMConvertToRadians(transform.Rotation[0]),
-            XMConvertToRadians(transform.Rotation[1]),
-            XMConvertToRadians(transform.Rotation[2])) *
-        XMMatrixTranslation(transform.Position[0], transform.Position[1],
-                            transform.Position[2]);
+    XMMATRIX world = DirectX::XMLoadFloat4x4(
+        (const DirectX::XMFLOAT4X4 *)glm::value_ptr(transform.WorldTransform));
 
     XMMATRIX wvp = world * view * projection;
 

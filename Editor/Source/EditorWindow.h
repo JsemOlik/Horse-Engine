@@ -46,6 +46,10 @@ private slots:
   void OnResetLayout();
   void OnExit();
 
+  void OnPlay();
+  void OnPause();
+  void OnStop();
+
 private:
   void CreateMenus();
   void CreatePanels();
@@ -56,6 +60,7 @@ private:
   void NewScene();
   void OpenScene(const std::string &filepath);
   void SaveScene(const std::string &filepath);
+  void UpdateSceneContext();
 
   SceneViewport *m_SceneViewport = nullptr;
   GameViewport *m_GameViewport = nullptr;
@@ -65,6 +70,8 @@ private:
   ConsolePanel *m_ConsolePanel = nullptr;
 
   std::shared_ptr<Horse::Scene> m_ActiveScene;
+  std::shared_ptr<Horse::Scene> m_EditorScene;
+  std::shared_ptr<Horse::Scene> m_RuntimeScene;
   Horse::Entity m_SelectedEntity;
   std::string m_CurrentScenePath;
 };

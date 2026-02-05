@@ -5,10 +5,8 @@
 #include "HorseEngine/Scene/Scene.h"
 #include "HorseEngine/Scene/UUID.h"
 
-
 #include <fstream>
 #include <nlohmann/json.hpp>
-
 
 using json = nlohmann::json;
 
@@ -138,6 +136,164 @@ static void DeserializeMeshRendererComponent(const json &j,
   comp.MaterialGUID = j.value("materialGuid", "");
 }
 
+static json SerializeScriptComponent(const ScriptComponent &comp) {
+  return {{"scriptGuid", comp.ScriptGUID}};
+}
+
+static void DeserializeScriptComponent(const json &j, ScriptComponent &comp) {
+  comp.ScriptGUID = j.value("scriptGuid", "");
+}
+
+// Helper functions for full scene serialization
+static json SerializeSceneToJson(const Scene *scene) {
+  json sceneJson;
+  sceneJson["name"] = scene->GetName();
+  sceneJson["version"] = "1.0.0";
+  sceneJson["entities"] = json::array();
+
+  auto &registry = scene->GetRegistry();
+  auto view = registry.view<UUIDComponent>();
+
+  for (auto entityHandle : view) {
+    Entity entity(entityHandle, const_cast<Scene *>(scene));
+    json entityJson;
+
+    // Serialize UUID
+    auto &uuid = entity.GetComponent<UUIDComponent>();
+    entityJson["uuid"] = std::to_string(uuid.ID);
+
+    // Serialize components
+    json componentsJson;
+
+    if (entity.HasComponent<TagComponent>()) {
+      componentsJson["TagComponent"] =
+          SerializeTagComponent(entity.GetComponent<TagComponent>());
+    }
+
+    if (entity.HasComponent<TransformComponent>()) {
+      componentsJson["TransformComponent"] = SerializeTransformComponent(
+          entity.GetComponent<TransformComponent>());
+    }
+
+    if (entity.HasComponent<RelationshipComponent>()) {
+      componentsJson["RelationshipComponent"] = SerializeRelationshipComponent(
+          entity.GetComponent<RelationshipComponent>(),
+          const_cast<Scene *>(scene));
+    }
+
+    if (entity.HasComponent<CameraComponent>()) {
+      componentsJson["CameraComponent"] =
+          SerializeCameraComponent(entity.GetComponent<CameraComponent>());
+    }
+
+    if (entity.HasComponent<LightComponent>()) {
+      componentsJson["LightComponent"] =
+          SerializeLightComponent(entity.GetComponent<LightComponent>());
+    }
+
+    if (entity.HasComponent<MeshRendererComponent>()) {
+      componentsJson["MeshRendererComponent"] = SerializeMeshRendererComponent(
+          entity.GetComponent<MeshRendererComponent>());
+    }
+
+    if (entity.HasComponent<ScriptComponent>()) {
+      componentsJson["ScriptComponent"] =
+          SerializeScriptComponent(entity.GetComponent<ScriptComponent>());
+    }
+
+    entityJson["components"] = componentsJson;
+    sceneJson["entities"].push_back(entityJson);
+  }
+  return sceneJson;
+}
+
+static std::shared_ptr<Scene> DeserializeSceneFromJson(const json &sceneJson) {
+  // Create scene
+  std::string sceneName = sceneJson.value("name", "Untitled Scene");
+  auto scene = std::make_shared<Scene>(sceneName);
+
+  // First pass: Create all entities with UUIDs
+  std::unordered_map<UUID, entt::entity> uuidToEntity;
+
+  for (const auto &entityJson : sceneJson["entities"]) {
+    UUID uuid(std::stoull(entityJson["uuid"].get<std::string>()));
+
+    // Create entity with specific UUID
+    auto entity = scene->CreateEntityWithUUID(uuid, "Temp");
+    uuidToEntity[uuid] = entity.GetHandle();
+  }
+
+  // Second pass: Deserialize components
+  for (const auto &entityJson : sceneJson["entities"]) {
+    UUID uuid(std::stoull(entityJson["uuid"].get<std::string>()));
+    Entity entity(uuidToEntity[uuid], scene.get());
+
+    const auto &componentsJson = entityJson["components"];
+
+    // Tag Component (always present)
+    if (componentsJson.contains("TagComponent")) {
+      auto &tag = entity.GetComponent<TagComponent>();
+      DeserializeTagComponent(componentsJson["TagComponent"], tag);
+    }
+
+    // Transform Component
+    if (componentsJson.contains("TransformComponent")) {
+      if (!entity.HasComponent<TransformComponent>()) {
+        entity.AddComponent<TransformComponent>();
+      }
+      auto &transform = entity.GetComponent<TransformComponent>();
+      DeserializeTransformComponent(componentsJson["TransformComponent"],
+                                    transform);
+    }
+
+    // Camera Component
+    if (componentsJson.contains("CameraComponent")) {
+      auto &camera = entity.AddComponent<CameraComponent>();
+      DeserializeCameraComponent(componentsJson["CameraComponent"], camera);
+    }
+
+    // Light Component
+    if (componentsJson.contains("LightComponent")) {
+      auto &light = entity.AddComponent<LightComponent>();
+      DeserializeLightComponent(componentsJson["LightComponent"], light);
+    }
+
+    // MeshRenderer Component
+    if (componentsJson.contains("MeshRendererComponent")) {
+      auto &meshRenderer = entity.AddComponent<MeshRendererComponent>();
+      DeserializeMeshRendererComponent(componentsJson["MeshRendererComponent"],
+                                       meshRenderer);
+    }
+
+    // Script Component
+    if (componentsJson.contains("ScriptComponent")) {
+      auto &script = entity.AddComponent<ScriptComponent>();
+      DeserializeScriptComponent(componentsJson["ScriptComponent"], script);
+    }
+  }
+
+  // Third pass: Restore relationships
+  for (const auto &entityJson : sceneJson["entities"]) {
+    if (!entityJson["components"].contains("RelationshipComponent"))
+      continue;
+
+    UUID uuid(std::stoull(entityJson["uuid"].get<std::string>()));
+    Entity entity(uuidToEntity[uuid], scene.get());
+
+    const auto &relJson = entityJson["components"]["RelationshipComponent"];
+
+    // Restore parent relationship
+    if (!relJson["parent"].is_null()) {
+      UUID parentUUID(std::stoull(relJson["parent"].get<std::string>()));
+      if (uuidToEntity.find(parentUUID) != uuidToEntity.end()) {
+        Entity parent(uuidToEntity[parentUUID], scene.get());
+        scene->SetEntityParent(entity, parent);
+      }
+    }
+  }
+  return scene;
+}
+
 // Main serialization functions
 bool SceneSerializer::SerializeToJSON(const Scene *scene,
                                       const std::string &filepath) {
@@ -147,61 +303,7 @@ bool SceneSerializer::SerializeToJSON(const Scene *scene,
   }
 
   try {
-    json sceneJson;
-    sceneJson["name"] = scene->GetName();
-    sceneJson["version"] = "1.0.0";
-    sceneJson["entities"] = json::array();
-
-    auto &registry = scene->GetRegistry();
-    auto view = registry.view<UUIDComponent>();
-
-    for (auto entityHandle : view) {
-      Entity entity(entityHandle, const_cast<Scene *>(scene));
-      json entityJson;
-
-      // Serialize UUID
-      auto &uuid = entity.GetComponent<UUIDComponent>();
-      entityJson["uuid"] = std::to_string(uuid.ID);
-
-      // Serialize components
-      json componentsJson;
-
-      if (entity.HasComponent<TagComponent>()) {
-        componentsJson["TagComponent"] =
-            SerializeTagComponent(entity.GetComponent<TagComponent>());
-      }
-
-      if (entity.HasComponent<TransformComponent>()) {
-        componentsJson["TransformComponent"] = SerializeTransformComponent(
-            entity.GetComponent<TransformComponent>());
-      }
-
-      if (entity.HasComponent<RelationshipComponent>()) {
-        componentsJson["RelationshipComponent"] =
-            SerializeRelationshipComponent(
-                entity.GetComponent<RelationshipComponent>(),
-                const_cast<Scene *>(scene));
-      }
-
-      if (entity.HasComponent<CameraComponent>()) {
-        componentsJson["CameraComponent"] =
-            SerializeCameraComponent(entity.GetComponent<CameraComponent>());
-      }
-
-      if (entity.HasComponent<LightComponent>()) {
-        componentsJson["LightComponent"] =
-            SerializeLightComponent(entity.GetComponent<LightComponent>());
-      }
-
-      if (entity.HasComponent<MeshRendererComponent>()) {
-        componentsJson["MeshRendererComponent"] =
-            SerializeMeshRendererComponent(
-                entity.GetComponent<MeshRendererComponent>());
-      }
-
-      entityJson["components"] = componentsJson;
-      sceneJson["entities"].push_back(entityJson);
-    }
+    json sceneJson = SerializeSceneToJson(scene);
 
     // Write to file
     std::ofstream file(filepath);
@@ -222,6 +324,16 @@ bool SceneSerializer::SerializeToJSON(const Scene *scene,
   }
 }
 
+std::string SceneSerializer::SerializeToJSONString(const Scene *scene) {
+  if (!scene)
+    return "";
+  try {
+    return SerializeSceneToJson(scene).dump();
+  } catch (...) {
+    return "";
+  }
+}
+
 std::shared_ptr<Scene>
 SceneSerializer::DeserializeFromJSON(const std::string &filepath) {
   try {
@@ -235,89 +347,22 @@ SceneSerializer::DeserializeFromJSON(const std::string &filepath) {
     file >> sceneJson;
     file.close();
 
-    // Create scene
-    std::string sceneName = sceneJson.value("name", "Untitled Scene");
-    auto scene = std::make_shared<Scene>(sceneName);
-
-    // First pass: Create all entities with UUIDs
-    std::unordered_map<UUID, entt::entity> uuidToEntity;
-
-    for (const auto &entityJson : sceneJson["entities"]) {
-      UUID uuid(std::stoull(entityJson["uuid"].get<std::string>()));
-
-      // Create entity with specific UUID
-      auto entity = scene->CreateEntityWithUUID(uuid, "Temp");
-      uuidToEntity[uuid] = entity.GetHandle();
-    }
-
-    // Second pass: Deserialize components
-    for (const auto &entityJson : sceneJson["entities"]) {
-      UUID uuid(std::stoull(entityJson["uuid"].get<std::string>()));
-      Entity entity(uuidToEntity[uuid], scene.get());
-
-      const auto &componentsJson = entityJson["components"];
-
-      // Tag Component (always present)
-      if (componentsJson.contains("TagComponent")) {
-        auto &tag = entity.GetComponent<TagComponent>();
-        DeserializeTagComponent(componentsJson["TagComponent"], tag);
-      }
-
-      // Transform Component
-      if (componentsJson.contains("TransformComponent")) {
-        if (!entity.HasComponent<TransformComponent>()) {
-          entity.AddComponent<TransformComponent>();
-        }
-        auto &transform = entity.GetComponent<TransformComponent>();
-        DeserializeTransformComponent(componentsJson["TransformComponent"],
-                                      transform);
-      }
-
-      // Camera Component
-      if (componentsJson.contains("CameraComponent")) {
-        auto &camera = entity.AddComponent<CameraComponent>();
-        DeserializeCameraComponent(componentsJson["CameraComponent"], camera);
-      }
-
-      // Light Component
-      if (componentsJson.contains("LightComponent")) {
-        auto &light = entity.AddComponent<LightComponent>();
-        DeserializeLightComponent(componentsJson["LightComponent"], light);
-      }
-
-      // MeshRenderer Component
-      if (componentsJson.contains("MeshRendererComponent")) {
-        auto &meshRenderer = entity.AddComponent<MeshRendererComponent>();
-        DeserializeMeshRendererComponent(
-            componentsJson["MeshRendererComponent"], meshRenderer);
-      }
-    }
-
-    // Third pass: Restore relationships
-    for (const auto &entityJson : sceneJson["entities"]) {
-      if (!entityJson["components"].contains("RelationshipComponent"))
-        continue;
-
-      UUID uuid(std::stoull(entityJson["uuid"].get<std::string>()));
-      Entity entity(uuidToEntity[uuid], scene.get());
-
-      const auto &relJson = entityJson["components"]["RelationshipComponent"];
-
-      // Restore parent relationship
-      if (!relJson["parent"].is_null()) {
-        UUID parentUUID(std::stoull(relJson["parent"].get<std::string>()));
-        if (uuidToEntity.find(parentUUID) != uuidToEntity.end()) {
-          Entity parent(uuidToEntity[parentUUID], scene.get());
-          scene->SetEntityParent(entity, parent);
-        }
-      }
-    }
-
+    auto scene = DeserializeSceneFromJson(sceneJson);
     HORSE_LOG_CORE_INFO("Scene deserialized successfully from: {}", filepath);
     return scene;
 
   } catch (const std::exception &e) {
     HORSE_LOG_CORE_ERROR("Failed to deserialize scene: {}", e.what());
+    return nullptr;
+  }
+}
+
+std::shared_ptr<Scene>
+SceneSerializer::DeserializeFromJSONString(const std::string &jsonString) {
+  try {
+    json sceneJson = json::parse(jsonString);
+    return DeserializeSceneFromJson(sceneJson);
+  } catch (...) {
     return nullptr;
   }
 }

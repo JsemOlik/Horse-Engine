@@ -1,9 +1,12 @@
 #pragma once
 
-#include "HorseEngine/Core.h"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#define GLM_ENABLE_EXPERIMENTAL
 #include "HorseEngine/Scene/UUID.h"
 #include <array>
 #include <entt/entt.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <string>
 
 
@@ -29,6 +32,8 @@ struct TransformComponent {
   std::array<float, 3> Position = {0.0f, 0.0f, 0.0f};
   std::array<float, 3> Rotation = {0.0f, 0.0f, 0.0f}; // Euler angles in degrees
   std::array<float, 3> Scale = {1.0f, 1.0f, 1.0f};
+
+  glm::mat4 WorldTransform = glm::mat4(1.0f);
 
   TransformComponent() = default;
 };
@@ -72,6 +77,14 @@ struct MeshRendererComponent {
   std::string MaterialGUID;
 
   MeshRendererComponent() = default;
+};
+
+struct ScriptComponent {
+  std::string ScriptGUID;
+  bool AwakeCalled = false;
+  bool StartCalled = false;
+
+  ScriptComponent() = default;
 };
 
 } // namespace Horse

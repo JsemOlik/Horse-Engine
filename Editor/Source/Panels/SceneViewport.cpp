@@ -1,12 +1,21 @@
 #include "SceneViewport.h"
+#include "HorseEngine/Asset/AssetManager.h"
+#include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Core/Time.h"
 #include "HorseEngine/Render/D3D11Renderer.h"
+#include "HorseEngine/Scene/Components.h"
+#include "HorseEngine/Scene/Scene.h"
 #include <DirectXMath.h>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QKeyEvent>
+#include <QMimeData>
 #include <QMouseEvent>
+#include <QUrl>
 
 SceneViewport::SceneViewport(QWidget *parent) : D3D11ViewportWidget(parent) {
   setFocusPolicy(Qt::StrongFocus);
+  setAcceptDrops(true);
 }
 
 void SceneViewport::mousePressEvent(QMouseEvent *event) {
@@ -93,6 +102,8 @@ void SceneViewport::Render() {
   m_Renderer->Clear(m_ClearColor[0], m_ClearColor[1], m_ClearColor[2]);
 
   if (m_Scene) {
+    m_Scene->OnUpdate(Horse::Time::GetDeltaTime());
+
     DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationRollPitchYaw(
         DirectX::XMConvertToRadians(m_Pitch),
         DirectX::XMConvertToRadians(m_Yaw), 0.0f);
@@ -111,4 +122,31 @@ void SceneViewport::Render() {
 
   m_Renderer->EndFrame();
   m_Renderer->Present();
+}
+void SceneViewport::dragEnterEvent(QDragEnterEvent *event) {
+  if (event->mimeData()->hasUrls()) {
+    event->acceptProposedAction();
+  }
+}
+
+void SceneViewport::dropEvent(QDropEvent *event) {
+  const QMimeData *mimeData = event->mimeData();
+  if (mimeData->hasUrls()) {
+    for (const QUrl &url : mimeData->urls()) {
+      std::filesystem::path path = url.toLocalFile().toStdString();
+      auto &metadata = Horse::AssetManager::Get().GetMetadata(path);
+
+      if (metadata.IsValid()) {
+        if (metadata.Type == Horse::AssetType::Mesh) {
+          // Instantiate mesh
+          auto entity = m_Scene->CreateEntity(path.stem().string());
+          auto &renderer = entity.AddComponent<Horse::MeshRendererComponent>();
+          renderer.MeshGUID = std::to_string((uint64_t)metadata.Handle);
+          HORSE_LOG_CORE_INFO("Dropped mesh: {0}", path.string());
+        }
+        // TODO: Handle Materials (apply to selected)
+      }
+    }
+    event->acceptProposedAction();
+  }
 }

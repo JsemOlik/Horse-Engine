@@ -16,6 +16,8 @@ class HierarchyPanel : public QWidget {
 public:
   explicit HierarchyPanel(QWidget *parent = nullptr);
 
+  bool eventFilter(QObject *watched, QEvent *event) override;
+
   void SetScene(std::shared_ptr<Horse::Scene> scene);
   void RefreshHierarchy();
 

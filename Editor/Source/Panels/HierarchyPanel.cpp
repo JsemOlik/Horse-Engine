@@ -4,8 +4,16 @@
 #include "HorseEngine/Scene/Scene.h"
 
 #include <QAction>
+#include <QDragEnterEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
 #include <QMenu>
+#include <QMimeData>
+#include <QUrl>
 #include <QVBoxLayout>
+#include <filesystem>
+
+#include "HorseEngine/Asset/AssetManager.h"
 
 HierarchyPanel::HierarchyPanel(QWidget *parent) : QWidget(parent) {
 
@@ -15,6 +23,14 @@ HierarchyPanel::HierarchyPanel(QWidget *parent) : QWidget(parent) {
   m_TreeWidget = new QTreeWidget(this);
   m_TreeWidget->setHeaderLabel("Scene");
   m_TreeWidget->setContextMenuPolicy(Qt::CustomContextMenu);
+
+  // Enable Drag and Drop
+  m_TreeWidget->setDragEnabled(true);
+  m_TreeWidget->setAcceptDrops(true);
+  m_TreeWidget->setDragDropMode(QAbstractItemView::DragDrop);
+  m_TreeWidget->setDefaultDropAction(Qt::MoveAction);
+  m_TreeWidget->installEventFilter(this);
+  m_TreeWidget->viewport()->installEventFilter(this);
 
   connect(m_TreeWidget, &QTreeWidget::itemSelectionChanged, this,
           &HierarchyPanel::OnItemSelectionChanged);
@@ -27,6 +43,94 @@ HierarchyPanel::HierarchyPanel(QWidget *parent) : QWidget(parent) {
 void HierarchyPanel::SetScene(std::shared_ptr<Horse::Scene> scene) {
   m_Scene = scene;
   RefreshHierarchy();
+}
+
+bool HierarchyPanel::eventFilter(QObject *watched, QEvent *event) {
+  if (watched == m_TreeWidget || watched == m_TreeWidget->viewport()) {
+    if (event->type() == QEvent::DragEnter) {
+      QDragEnterEvent *dragEvent = static_cast<QDragEnterEvent *>(event);
+      if (dragEvent->mimeData()->hasUrls() ||
+          dragEvent->source() == m_TreeWidget) {
+        dragEvent->acceptProposedAction();
+        return true;
+      }
+    } else if (event->type() == QEvent::DragMove) {
+      QDragMoveEvent *moveEvent = static_cast<QDragMoveEvent *>(event);
+      if (moveEvent->mimeData()->hasUrls() ||
+          moveEvent->source() == m_TreeWidget) {
+        moveEvent->acceptProposedAction();
+        return true;
+      }
+    } else if (event->type() == QEvent::Drop) {
+      QDropEvent *dropEvent = static_cast<QDropEvent *>(event);
+      const QMimeData *mimeData = dropEvent->mimeData();
+
+      // Handle Internal Move (Reparenting)
+      if (dropEvent->source() == m_TreeWidget) {
+        auto selectedItems = m_TreeWidget->selectedItems();
+        QTreeWidgetItem *targetItem = m_TreeWidget->itemAt(dropEvent->pos());
+
+        // Loop through all selected items to reparent them
+        for (auto item : selectedItems) {
+          quint32 childHandle = item->data(0, Qt::UserRole).toUInt();
+          Horse::Entity child(static_cast<entt::entity>(childHandle),
+                              m_Scene.get());
+
+          if (targetItem) {
+            // Reparent to target
+            quint32 parentHandle = targetItem->data(0, Qt::UserRole).toUInt();
+            Horse::Entity parent(static_cast<entt::entity>(parentHandle),
+                                 m_Scene.get());
+
+            // Avoid circular parenting or parenting to self (basic check)
+            if (child != parent) {
+              m_Scene->SetEntityParent(child, parent);
+            }
+          } else {
+            // Reparent to Root (remove parent)
+            m_Scene->SetEntityParent(child, {});
+          }
+        }
+        RefreshHierarchy();
+        dropEvent->acceptProposedAction();
+        return true;
+      }
+
+      // Handle External Asset Drop (Prefabs/Meshes)
+      if (mimeData->hasUrls()) {
+        QTreeWidgetItem *targetItem = m_TreeWidget->itemAt(dropEvent->pos());
+        Horse::Entity parentEntity;
+        if (targetItem) {
+          quint32 parentHandle = targetItem->data(0, Qt::UserRole).toUInt();
+          parentEntity = Horse::Entity(static_cast<entt::entity>(parentHandle),
+                                       m_Scene.get());
+        }
+
+        for (const QUrl &url : mimeData->urls()) {
+          std::filesystem::path path = url.toLocalFile().toStdString();
+
+          if (path.extension() == ".obj" || path.extension() == ".fbx" ||
+              path.extension() == ".gltf" || path.extension() == ".glb") {
+            auto entity = m_Scene->CreateEntity(path.stem().string());
+            auto &renderer =
+                entity.AddComponent<Horse::MeshRendererComponent>();
+            auto &metadata = Horse::AssetManager::Get().GetMetadata(path);
+            if (metadata.IsValid()) {
+              renderer.MeshGUID = std::to_string((uint64_t)metadata.Handle);
+            }
+
+            if (parentEntity) {
+              m_Scene->SetEntityParent(entity, parentEntity);
+            }
+          }
+        }
+        RefreshHierarchy();
+        dropEvent->acceptProposedAction();
+        return true;
+      }
+    }
+  }
+  return QObject::eventFilter(watched, event);
 }
 
 void HierarchyPanel::RefreshHierarchy() {
@@ -66,6 +170,7 @@ void HierarchyPanel::AddEntityToTree(Horse::Entity entity,
   QTreeWidgetItem *item = new QTreeWidgetItem();
   item->setText(0, QString::fromStdString(tag.Name));
   item->setData(0, Qt::UserRole, static_cast<quint32>(entity.GetHandle()));
+  item->setFlags(item->flags() | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled);
 
   if (parentItem) {
     parentItem->addChild(item);
@@ -135,7 +240,17 @@ void HierarchyPanel::OnCreateEmptyEntity() {
   if (!m_Scene)
     return;
 
-  m_Scene->CreateEntity("Entity");
+  auto entity = m_Scene->CreateEntity("Empty Entity");
+
+  auto selectedItems = m_TreeWidget->selectedItems();
+  if (!selectedItems.isEmpty()) {
+    quint32 parentHandle =
+        selectedItems.first()->data(0, Qt::UserRole).toUInt();
+    Horse::Entity parent(static_cast<entt::entity>(parentHandle),
+                         m_Scene.get());
+    m_Scene->SetEntityParent(entity, parent);
+  }
+
   RefreshHierarchy();
 }
 
@@ -144,10 +259,18 @@ void HierarchyPanel::OnCreateCube() {
     return;
 
   auto entity = m_Scene->CreateEntity("Cube");
+
+  auto selectedItems = m_TreeWidget->selectedItems();
+  if (!selectedItems.isEmpty()) {
+    quint32 parentHandle =
+        selectedItems.first()->data(0, Qt::UserRole).toUInt();
+    Horse::Entity parent(static_cast<entt::entity>(parentHandle),
+                         m_Scene.get());
+    m_Scene->SetEntityParent(entity, parent);
+  }
+
   auto &meshRenderer = entity.AddComponent<Horse::MeshRendererComponent>();
   meshRenderer.MaterialGUID = "";
-  // Transform is added by default in CreateEntity (usually, checking
-  // components.h)
   RefreshHierarchy();
 }
 
@@ -156,6 +279,16 @@ void HierarchyPanel::OnCreateCamera() {
     return;
 
   auto entity = m_Scene->CreateEntity("Camera");
+
+  auto selectedItems = m_TreeWidget->selectedItems();
+  if (!selectedItems.isEmpty()) {
+    quint32 parentHandle =
+        selectedItems.first()->data(0, Qt::UserRole).toUInt();
+    Horse::Entity parent(static_cast<entt::entity>(parentHandle),
+                         m_Scene.get());
+    m_Scene->SetEntityParent(entity, parent);
+  }
+
   entity.AddComponent<Horse::CameraComponent>();
   RefreshHierarchy();
 }
@@ -165,6 +298,16 @@ void HierarchyPanel::OnCreateLight() {
     return;
 
   auto entity = m_Scene->CreateEntity("Light");
+
+  auto selectedItems = m_TreeWidget->selectedItems();
+  if (!selectedItems.isEmpty()) {
+    quint32 parentHandle =
+        selectedItems.first()->data(0, Qt::UserRole).toUInt();
+    Horse::Entity parent(static_cast<entt::entity>(parentHandle),
+                         m_Scene.get());
+    m_Scene->SetEntityParent(entity, parent);
+  }
+
   entity.AddComponent<Horse::LightComponent>();
   RefreshHierarchy();
 }

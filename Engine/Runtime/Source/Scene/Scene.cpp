@@ -1,8 +1,21 @@
 #include "HorseEngine/Scene/Scene.h"
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Scene/Components.h"
+#include "HorseEngine/Scene/SceneSerializer.h"
+
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 namespace Horse {
+
+std::shared_ptr<Scene> Scene::Copy(const std::shared_ptr<Scene> &other) {
+  if (!other)
+    return nullptr;
+
+  std::string json = SceneSerializer::SerializeToJSONString(other.get());
+  return SceneSerializer::DeserializeFromJSONString(json);
+}
 
 Scene::Scene(const std::string &name) : m_Name(name) {}
 
@@ -67,11 +80,14 @@ Entity Scene::GetEntityByName(const std::string &name) {
 }
 
 void Scene::SetEntityParent(Entity child, Entity parent) {
-  if (!child || !parent)
+  if (!child)
     return;
 
   // Remove from current parent first
   RemoveParent(child);
+
+  if (!parent)
+    return;
 
   auto &childRel = child.GetComponent<RelationshipComponent>();
   auto &parentRel = parent.GetComponent<RelationshipComponent>();
@@ -144,14 +160,147 @@ Entity Scene::GetParent(Entity entity) {
   return {rel.Parent, this};
 }
 
-void Scene::OnUpdate(float deltaTime) {
-  // Update transform hierarchy
+void Scene::OnRuntimeStart() {
+  m_State = SceneState::Loading;
+  m_LoadingStage = LoadingStage::Assets;
+  TriggerAssetLoads();
+}
+
+void Scene::TriggerAssetLoads() {
+  m_LoadingQueue.clear();
+
+  m_Registry.view<MeshRendererComponent>().each([&](auto entity, auto &mesh) {
+    if (!mesh.MeshGUID.empty()) {
+      m_LoadingQueue.push_back(mesh.MeshGUID);
+    }
+  });
+
+  HORSE_LOG_CORE_INFO("Triggered asset loading for {} assets.",
+                      m_LoadingQueue.size());
+}
+
+void Scene::UpdateStagedLoad() {
+  switch (m_LoadingStage) {
+  case LoadingStage::Assets:
+    // Check if all queued assets are ready (simulated for now)
+    if (m_LoadingQueue.empty()) {
+      m_LoadingStage = LoadingStage::Components;
+      HORSE_LOG_CORE_INFO(
+          "Asset loading complete. Transitioning to Components stage.");
+    } else {
+      // Simulate asynchronous loading by popping one asset per update
+      m_LoadingQueue.pop_back();
+    }
+    break;
+
+  case LoadingStage::Components:
+    // Initialize components if needed
+    m_LoadingStage = LoadingStage::Scripts;
+    HORSE_LOG_CORE_INFO(
+        "Component initialization complete. Transitioning to Scripts stage.");
+    break;
+
+  case LoadingStage::Scripts:
+    // 1. Awake
+    m_Registry.view<ScriptComponent>().each([&](auto entity, auto &script) {
+      if (!script.AwakeCalled) {
+        HORSE_LOG_CORE_INFO("Awaking entity {}...",
+                            m_Registry.get<TagComponent>(entity).Name);
+        script.AwakeCalled = true;
+        // TODO: ScriptEngine::OnAwake(entity)
+      }
+    });
+
+    // 2. Start
+    m_Registry.view<ScriptComponent>().each([&](auto entity, auto &script) {
+      if (!script.StartCalled) {
+        HORSE_LOG_CORE_INFO("Starting entity {}...",
+                            m_Registry.get<TagComponent>(entity).Name);
+        script.StartCalled = true;
+        // TODO: ScriptEngine::OnStart(entity)
+      }
+    });
+
+    m_LoadingStage = LoadingStage::Ready;
+    m_State = SceneState::Play;
+    HORSE_LOG_CORE_INFO("Scene stage Ready. State transitioned to Play.");
+    break;
+  }
+}
+
+void Scene::OnRuntimeStop() {
+  m_State = SceneState::Edit;
+
+  // Reset script states
+  m_Registry.view<ScriptComponent>().each([&](auto entity, auto &script) {
+    script.AwakeCalled = false;
+    script.StartCalled = false;
+    // TODO: ScriptEngine::OnDestroy(entity)
+  });
+}
+
+void Scene::OnRuntimeUpdate(float deltaTime) {
+  if (m_State == SceneState::Play) {
+    // 3. Update scripts
+    m_Registry.view<ScriptComponent>().each([&](auto entity, auto &script) {
+      // TODO: ScriptEngine::OnUpdate(entity, deltaTime)
+    });
+  }
+
   UpdateTransformHierarchy();
 }
 
+void Scene::OnUpdate(float deltaTime) {
+  if (m_State == SceneState::Edit) {
+    UpdateTransformHierarchy();
+  } else if (m_State == SceneState::Loading) {
+    UpdateStagedLoad();
+  } else if (m_State == SceneState::Play) {
+    OnRuntimeUpdate(deltaTime);
+  }
+}
+
 void Scene::UpdateTransformHierarchy() {
-  // TODO: Implement transform propagation from parent to children
-  // This will be needed when we add actual rendering
+  m_Registry.view<TransformComponent, RelationshipComponent>().each(
+      [&](auto entity, auto &transform, auto &relationship) {
+        // Find roots (entities with no parent)
+        if (relationship.Parent == entt::null) {
+          UpdateEntityTransform({entity, this}, glm::mat4(1.0f));
+        }
+      });
+}
+
+void Scene::UpdateEntityTransform(Entity entity,
+                                  const glm::mat4 &parentTransform) {
+  if (!entity.HasComponent<TransformComponent>())
+    return;
+
+  auto &transform = entity.GetComponent<TransformComponent>();
+
+  // Calculate Local Matrix
+  glm::mat4 model = glm::mat4(1.0f);
+  model = glm::translate(model, glm::make_vec3(transform.Position.data()));
+  model = glm::rotate(model, glm::radians(transform.Rotation[0]),
+                      glm::vec3(1, 0, 0));
+  model = glm::rotate(model, glm::radians(transform.Rotation[1]),
+                      glm::vec3(0, 1, 0));
+  model = glm::rotate(model, glm::radians(transform.Rotation[2]),
+                      glm::vec3(0, 0, 1));
+  model = glm::scale(model, glm::make_vec3(transform.Scale.data()));
+
+  // Calculate World Matrix
+  transform.WorldTransform = parentTransform * model;
+
+  // Propagate to children
+  if (entity.HasComponent<RelationshipComponent>()) {
+    auto &rel = entity.GetComponent<RelationshipComponent>();
+    entt::entity childHandle = rel.FirstChild;
+    while (childHandle != entt::null) {
+      Entity child(childHandle, this);
+      UpdateEntityTransform(child, transform.WorldTransform);
+      childHandle = child.GetComponent<RelationshipComponent>().NextSibling;
+    }
+  }
 }
 
 } // namespace Horse

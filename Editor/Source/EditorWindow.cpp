@@ -9,12 +9,12 @@
 
 #include "Dialogs/PreferencesDialog.h"
 #include "EditorPreferences.h"
+#include "HorseEngine/Asset/AssetManager.h"
 #include "HorseEngine/Render/MaterialRegistry.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Entity.h"
 #include "HorseEngine/Scene/Scene.h"
 #include "ThemeManager.h"
-
 
 #include <QCoreApplication>
 #include <QDockWidget>
@@ -52,6 +52,21 @@ void EditorWindow::SetSelectedEntity(Horse::Entity entity) {
   // Update inspector panel
   if (m_InspectorPanel) {
     m_InspectorPanel->SetSelectedEntity(entity);
+  }
+}
+
+void EditorWindow::UpdateSceneContext() {
+  if (m_HierarchyPanel) {
+    m_HierarchyPanel->SetScene(m_ActiveScene);
+  }
+  if (m_SceneViewport) {
+    m_SceneViewport->SetScene(m_ActiveScene);
+  }
+  if (m_GameViewport) {
+    m_GameViewport->SetScene(m_ActiveScene);
+  }
+  if (m_InspectorPanel) {
+    m_InspectorPanel->SetSelectedEntity({});
   }
 }
 
@@ -170,13 +185,20 @@ void EditorWindow::CreatePanels() {
 
 void EditorWindow::CreateToolBar() {
   QToolBar *toolbar = addToolBar("Main Toolbar");
-  toolbar->addAction("Play");
-  toolbar->addAction("Pause");
-  toolbar->addAction("Stop");
+
+  QAction *playAction = toolbar->addAction("Play");
+  connect(playAction, &QAction::triggered, this, &EditorWindow::OnPlay);
+
+  QAction *pauseAction = toolbar->addAction("Pause");
+  connect(pauseAction, &QAction::triggered, this, &EditorWindow::OnPause);
+
+  QAction *stopAction = toolbar->addAction("Stop");
+  connect(stopAction, &QAction::triggered, this, &EditorWindow::OnStop);
 }
 
 void EditorWindow::NewScene() {
-  m_ActiveScene = std::make_shared<Horse::Scene>("Untitled Scene");
+  m_EditorScene = std::make_shared<Horse::Scene>("Untitled Scene");
+  m_ActiveScene = m_EditorScene;
   m_CurrentScenePath.clear();
   m_SelectedEntity = {};
 
@@ -187,19 +209,7 @@ void EditorWindow::NewScene() {
   auto &transform = cameraEntity.GetComponent<Horse::TransformComponent>();
   transform.Position = {0.0f, 2.0f, -5.0f};
 
-  // Update panels
-  if (m_HierarchyPanel) {
-    m_HierarchyPanel->SetScene(m_ActiveScene);
-  }
-  if (m_SceneViewport) {
-    m_SceneViewport->SetScene(m_ActiveScene);
-  }
-  if (m_GameViewport) {
-    m_GameViewport->SetScene(m_ActiveScene);
-  }
-  if (m_InspectorPanel) {
-    m_InspectorPanel->SetSelectedEntity({});
-  }
+  UpdateSceneContext();
 
   setWindowTitle("Horse Engine Editor - Untitled Scene*");
 }
@@ -209,22 +219,12 @@ void EditorWindow::NewScene() {
 void EditorWindow::OpenScene(const std::string &filepath) {
   auto scene = Horse::SceneSerializer::DeserializeFromJSON(filepath);
   if (scene) {
-    m_ActiveScene = scene;
+    m_EditorScene = scene;
+    m_ActiveScene = m_EditorScene;
     m_CurrentScenePath = filepath;
     m_SelectedEntity = {};
 
-    if (m_HierarchyPanel) {
-      m_HierarchyPanel->SetScene(m_ActiveScene);
-    }
-    if (m_SceneViewport) {
-      m_SceneViewport->SetScene(m_ActiveScene);
-    }
-    if (m_GameViewport) {
-      m_GameViewport->SetScene(m_ActiveScene);
-    }
-    if (m_InspectorPanel) {
-      m_InspectorPanel->SetSelectedEntity({});
-    }
+    UpdateSceneContext();
 
     setWindowTitle(QString("Horse Engine Editor - %1")
                        .arg(QString::fromStdString(filepath)));
@@ -335,7 +335,12 @@ void EditorWindow::NewProject(const std::string &filepath) {
                                       "Materials");
 
   Horse::Project::SetActive(project);
+  Horse::Project::SetActive(project);
   SaveProject(filepath);
+
+  // Initialize Asset Manager
+  Horse::AssetManager::Get().Initialize(project->GetConfig().ProjectDirectory /
+                                        project->GetConfig().AssetDirectory);
 
   if (m_ContentBrowserPanel) {
     m_ContentBrowserPanel->Refresh();
@@ -349,6 +354,11 @@ void EditorWindow::OpenProject(const std::string &filepath) {
   Horse::ProjectSerializer serializer(project);
   if (serializer.DeserializeFromJSON(filepath)) {
     Horse::Project::SetActive(project);
+
+    // Initialize Asset Manager
+    Horse::AssetManager::Get().Initialize(
+        project->GetConfig().ProjectDirectory /
+        project->GetConfig().AssetDirectory);
 
     // Load materials
     std::filesystem::path materialPath = project->GetConfig().ProjectDirectory /
@@ -481,4 +491,33 @@ void EditorWindow::OnResetLayout() {
   QMessageBox::information(this, "Reset Layout",
                            "Restart the editor with the layout.ini deleted to "
                            "fully reset to default.");
+}
+
+void EditorWindow::OnPlay() {
+  if (m_ActiveScene && m_ActiveScene->GetState() == Horse::SceneState::Edit) {
+    m_EditorScene = m_ActiveScene;
+    m_RuntimeScene = Horse::Scene::Copy(m_EditorScene);
+    m_ActiveScene = m_RuntimeScene;
+    UpdateSceneContext();
+    m_ActiveScene->OnRuntimeStart();
+  }
+}
+
+void EditorWindow::OnPause() {
+  if (m_ActiveScene) {
+    if (m_ActiveScene->GetState() == Horse::SceneState::Play) {
+      m_ActiveScene->SetState(Horse::SceneState::Pause);
+    } else if (m_ActiveScene->GetState() == Horse::SceneState::Pause) {
+      m_ActiveScene->SetState(Horse::SceneState::Play);
+    }
+  }
+}
+
+void EditorWindow::OnStop() {
+  if (m_ActiveScene && m_ActiveScene->GetState() != Horse::SceneState::Edit) {
+    m_ActiveScene->OnRuntimeStop();
+    m_ActiveScene = m_EditorScene;
+    m_RuntimeScene.reset();
+    UpdateSceneContext();
+  }
 }
