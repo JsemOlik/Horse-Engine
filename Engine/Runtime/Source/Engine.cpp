@@ -2,7 +2,6 @@
 #include "HorseEngine/Core/Memory.h"
 #include "HorseEngine/Game/GameModule.h"
 #include "HorseEngine/Scripting/LuaScriptEngine.h"
-#include <filesystem>
 #include <iostream>
 
 namespace Horse {
@@ -81,28 +80,11 @@ void Engine::RunFrame() {
 void Engine::LoadGameDLL(const std::string &dllPath) {
   HORSE_LOG_CORE_INFO("Loading Game DLL: {}", dllPath);
 
-  m_LoadedDLLPath = dllPath;
-
-  if (!std::filesystem::exists(dllPath)) {
-    HORSE_LOG_CORE_ERROR("Game DLL not found: {}", dllPath);
-    return;
-  }
-
-  // Copy DLL to temp file to avoid locking the original
-  std::string tempPath = dllPath + ".temp";
-  try {
-    std::filesystem::copy_file(
-        dllPath, tempPath, std::filesystem::copy_options::overwrite_existing);
-  } catch (std::filesystem::filesystem_error &e) {
-    HORSE_LOG_CORE_ERROR("Failed to copy Game DLL: {}", e.what());
-    // Fallback? or return?
-    // Let's try loading original if copy fails? No, better fail.
-    return;
-  }
-
-  m_GameDLL = LoadLibraryA(tempPath.c_str());
+  // Copy DLL to avoid locking the original (hot reloading prep)
+  // For now, straight load
+  m_GameDLL = LoadLibraryA(dllPath.c_str());
   if (!m_GameDLL) {
-    HORSE_LOG_CORE_ERROR("Failed to load Game DLL: {}", tempPath);
+    HORSE_LOG_CORE_ERROR("Failed to load Game DLL: {}", dllPath);
     return;
   }
 
@@ -122,17 +104,6 @@ void Engine::LoadGameDLL(const std::string &dllPath) {
   } else {
     HORSE_LOG_CORE_ERROR("Failed to create Game Module");
   }
-}
-
-void Engine::ReloadGameDLL() {
-  if (m_LoadedDLLPath.empty()) {
-    HORSE_LOG_CORE_WARN("Cannot reload Game DLL: No DLL loaded previously.");
-    return;
-  }
-
-  HORSE_LOG_CORE_INFO("Reloading Game Module...");
-  UnloadGameDLL();
-  LoadGameDLL(m_LoadedDLLPath);
 }
 
 void Engine::UnloadGameDLL() {
