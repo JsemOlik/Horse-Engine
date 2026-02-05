@@ -5,6 +5,7 @@
 #include <QDir>
 #include <QDragEnterEvent>
 #include <QDropEvent>
+#include <QFileDialog>
 #include <QFileIconProvider>
 #include <QFileInfo>
 #include <QInputDialog>
@@ -34,6 +35,9 @@ ContentBrowserPanel::ContentBrowserPanel(QWidget *parent) : QWidget(parent) {
           &ContentBrowserPanel::OnContextMenu);
 
   m_ListWidget->setAcceptDrops(true);
+  m_ListWidget->setDragEnabled(true);
+  m_ListWidget->setDragDropMode(QAbstractItemView::DragDrop);
+  m_ListWidget->setDefaultDropAction(Qt::CopyAction);
   m_ListWidget->installEventFilter(this);
 
   Refresh();
@@ -163,6 +167,31 @@ void ContentBrowserPanel::OnContextMenu(const QPoint &pos) {
     menu.addAction("Delete", this, &ContentBrowserPanel::OnDeleteItem);
     menu.addSeparator();
   }
+
+  menu.addAction("Import...", this, [this]() {
+    QStringList files = QFileDialog::getOpenFileNames(
+        this, "Import Assets", "",
+        "All Files (*.*);;Images (*.png *.jpg *.jpeg *.tga);;Models (*.obj "
+        "*.fbx *.gltf *.glb)");
+    for (const QString &file : files) {
+      std::filesystem::path sourcePath = file.toStdString();
+      std::filesystem::path destPath =
+          m_CurrentDirectory / sourcePath.filename();
+      try {
+        if (std::filesystem::exists(destPath)) {
+          std::filesystem::copy_file(
+              sourcePath, destPath,
+              std::filesystem::copy_options::overwrite_existing);
+        } else {
+          std::filesystem::copy_file(sourcePath, destPath);
+        }
+        Horse::AssetManager::Get().ImportAsset(destPath);
+      } catch (...) {
+      }
+    }
+    Refresh();
+  });
+  menu.addSeparator();
 
   menu.addAction("Create Folder", this, &ContentBrowserPanel::OnCreateFolder);
   menu.addAction("Create Material", this,
