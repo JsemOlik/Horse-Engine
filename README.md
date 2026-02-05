@@ -46,6 +46,7 @@ cd C:\vcpkg
 ### Building the Engine
 
 **In CLion:**
+
 1. Open CLion
 2. Open Folder → Select `Horse-Engine` directory
 3. CLion will auto-detect `CMakePresets.json`
@@ -54,6 +55,7 @@ cd C:\vcpkg
 6. Run → HorseEditor
 
 **Via Command Line:**
+
 ```powershell
 # Clone the repository
 git clone https://github.com/JsemOlik/Horse-Engine.git Horse-Engine
@@ -79,6 +81,22 @@ cmake --build Build/DevRelease
 # Or for DevRelease
 .\Build\DevRelease\Editor\HorseEditor.exe
 ```
+
+### Asset Cooking
+
+The Asset Cooker is a standalone tool used to convert authoring assets (textures, meshes, materials, levels) into optimized binary formats for runtime.
+
+```powershell
+# Run the cooker for a project
+# Usage: HorseCooker <AssetsDir> <OutputDir> [Platform]
+.\Build\Debug\Tools\HorseCooker.exe .\MyProject\Assets .\MyProject\Cooked Windows
+```
+
+The cooker produces:
+
+- Individual cooked binary files (e.g., `.horsetex`, `.horsemat.bin`)
+- `Game.manifest.json`: A mapping of asset GUIDs to cooked file paths
+- `Game.project.bin`: Optimized project settings file
 
 ---
 
@@ -247,6 +265,13 @@ float m_ClearColor[3] = {0.2f, 0.3f, 0.4f}; // RGB values
 - Console output: See terminal/Visual Studio output window
 - File output: Check `HorseEngine.log` in working directory
 
+### Cook Assets for Distribution
+
+1. Build the **HorseCooker** target.
+2. Open a terminal and navigate to the build output directory.
+3. Run `HorseCooker.exe <AssetsPath> <OutputPath> <Platform>`.
+4. Ensure the generated `Game.manifest.json` and cooked assets are included in your runtime distribution.
+
 ---
 
 ## Development Guidelines
@@ -289,9 +314,9 @@ HORSE_LOG_CORE_WARN("Missing asset: {}", assetPath);
 ## Roadmap
 
 - [x] **Phase 1** - Bootstrap and foundations (Week 1-2)
-- [ ] **Phase 2** - ECS, scenes, serialization (Week 3)
-- [ ] **Phase 3** - Renderer core and materials (Week 4-5)
-- [ ] **Phase 4** - Asset pipeline and cooker (Week 6)
+- [x] **Phase 2** - ECS, scenes, serialization (Week 3)
+- [x] **Phase 3** - Renderer core and materials (Week 4-5)
+- [/] **Phase 4** - Asset pipeline and cooker (Week 6)
 - [ ] **Phase 5** - Level system and PIE (Week 7)
 - [ ] **Phase 6** - Game coding system (Week 8)
 - [ ] **Phase 7** - Packaging system (Week 9)
@@ -351,4 +376,4 @@ This project follows the TODO_LIST.md roadmap strictly. Phase 1 is complete. Nex
 
 ---
 
-**Last Updated:** Phase 1 Complete - 2026-02-04
+**Last Updated:** Asset Cooking Implementation - 2026-02-05
