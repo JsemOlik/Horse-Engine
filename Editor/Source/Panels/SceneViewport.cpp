@@ -1,5 +1,6 @@
 #include "SceneViewport.h"
 #include "HorseEngine/Asset/AssetManager.h"
+#include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Core/Time.h"
 #include "HorseEngine/Render/D3D11Renderer.h"
 #include "HorseEngine/Scene/Components.h"
@@ -11,7 +12,6 @@
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QUrl>
-
 
 SceneViewport::SceneViewport(QWidget *parent) : D3D11ViewportWidget(parent) {
   setFocusPolicy(Qt::StrongFocus);
