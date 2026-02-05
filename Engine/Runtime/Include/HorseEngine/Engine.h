@@ -33,12 +33,15 @@ public:
 
   static Engine *Get() { return s_Instance; }
 
+  void ReloadGameDLL();
+
 private:
   std::unique_ptr<Window> m_Window;
   bool m_Running = true;
 
   GameModule *m_GameModule = nullptr;
   HMODULE m_GameDLL = nullptr;
+  std::string m_LoadedDLLPath;
 
   static Engine *s_Instance;
 };

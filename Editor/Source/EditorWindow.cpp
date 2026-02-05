@@ -11,6 +11,7 @@
 #include "EditorPreferences.h"
 #include "HorseEngine/Asset/AssetManager.h"
 #include "HorseEngine/Core/Time.h"
+#include "HorseEngine/Engine.h"
 #include "HorseEngine/Render/MaterialRegistry.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Entity.h"
@@ -18,10 +19,12 @@
 #include "ThemeManager.h"
 
 #include <QCoreApplication>
+#include <QDir>
 #include <QDockWidget>
 #include <QFileDialog>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QProcess>
 #include <QSettings>
 #include <QToolBar>
 
@@ -217,6 +220,12 @@ void EditorWindow::CreateToolBar() {
 
   QAction *stopAction = toolbar->addAction("Stop");
   connect(stopAction, &QAction::triggered, this, &EditorWindow::OnStop);
+
+  toolbar->addSeparator();
+
+  QAction *compileAction = toolbar->addAction("Compile C++");
+  connect(compileAction, &QAction::triggered, this,
+          &EditorWindow::OnCompileGame);
 }
 
 void EditorWindow::NewScene() {
@@ -545,5 +554,54 @@ void EditorWindow::OnStop() {
     m_ActiveScene = m_EditorScene;
     m_RuntimeScene.reset();
     UpdateSceneContext();
+  }
+}
+
+void EditorWindow::OnCompileGame() {
+  if (m_BuildProcess) {
+    if (m_BuildProcess->state() != QProcess::NotRunning) {
+      HORSE_LOG_CORE_WARN("Build already in progress...");
+      return;
+    }
+  } else {
+    m_BuildProcess = new QProcess(this);
+    connect(m_BuildProcess,
+            QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this,
+            &EditorWindow::OnBuildFinished);
+  }
+
+  // Find project root from executable path
+  QDir dir(QCoreApplication::applicationDirPath());
+  // .../Build/Editor/Debug -> .../Horse-Engine
+  dir.cdUp();
+  dir.cdUp();
+  dir.cdUp();
+
+  QString program = "cmake";
+  QStringList arguments;
+  arguments << "--build" << "Build" << "--config" << "Debug" << "--target"
+            << "HorseGame";
+
+  m_BuildProcess->setWorkingDirectory(dir.absolutePath());
+  m_BuildProcess->start(program, arguments);
+
+  HORSE_LOG_CORE_INFO("Compiling C++ Game Module...");
+}
+
+void EditorWindow::OnBuildFinished(int exitCode,
+                                   QProcess::ExitStatus exitStatus) {
+  if (exitStatus == QProcess::NormalExit && exitCode == 0) {
+    HORSE_LOG_CORE_INFO("Build Successful!");
+    Horse::Engine::Get()->ReloadGameDLL();
+  } else {
+    HORSE_LOG_CORE_ERROR("Build Failed! (Exit Code: {})", exitCode);
+    QString errorOutput = m_BuildProcess->readAllStandardError();
+    if (!errorOutput.isEmpty()) {
+      HORSE_LOG_CORE_ERROR("Build Error: {}", errorOutput.toStdString());
+    }
+    QString stdOutput = m_BuildProcess->readAllStandardOutput();
+    if (!stdOutput.isEmpty()) {
+      HORSE_LOG_CORE_INFO("Build Output: {}", stdOutput.toStdString());
+    }
   }
 }

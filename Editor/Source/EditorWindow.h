@@ -2,6 +2,7 @@
 
 #include <QDockWidget>
 #include <QMainWindow>
+#include <QProcess>
 #include <QTimer>
 #include <memory>
 
@@ -51,6 +52,8 @@ private slots:
   void OnPlay();
   void OnPause();
   void OnStop();
+  void OnCompileGame();
+  void OnBuildFinished(int exitCode, QProcess::ExitStatus exitStatus);
 
 private:
   void CreateMenus();
@@ -66,6 +69,7 @@ private:
   void OnUpdate();
 
   QTimer *m_UpdateTimer = nullptr;
+  QProcess *m_BuildProcess = nullptr;
 
   SceneViewport *m_SceneViewport = nullptr;
   GameViewport *m_GameViewport = nullptr;
