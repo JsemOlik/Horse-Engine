@@ -1,4 +1,5 @@
 #include "HorseEngine/Scripting/LuaScriptEngine.h"
+#include "HorseEngine/Core/Input.h"
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Project/Project.h"
 #include "HorseEngine/Scene/Components.h"
@@ -16,6 +17,7 @@ void LuaScriptEngine::Init() {
                              sol::lib::table);
 
   BindLogging();
+  BindInput();
   BindEntity();
 
   HORSE_LOG_CORE_INFO("LuaScriptEngine initialized.");
@@ -38,6 +40,16 @@ void LuaScriptEngine::BindLogging() {
   horse.set_function("LogError", [](const std::string &message) {
     HORSE_LOG_CORE_ERROR("[Lua] {}", message);
   });
+}
+
+void LuaScriptEngine::BindInput() {
+  sol::table horse = (*s_LuaState)["Horse"];
+  sol::table input = s_LuaState->create_table();
+  horse["Input"] = input;
+
+  input.set_function("IsActionPressed", &Input::IsActionPressed);
+  input.set_function("GetAxisValue", &Input::GetAxisValue);
+  input.set_function("IsKeyPressed", &Input::IsKeyPressed);
 }
 
 void LuaScriptEngine::BindEntity() {

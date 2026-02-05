@@ -21,6 +21,7 @@ public:
 private:
   static void BindEntity();
   static void BindLogging();
+  static void BindInput();
 
 private:
   static sol::state *s_LuaState;

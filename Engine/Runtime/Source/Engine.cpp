@@ -1,8 +1,10 @@
 #include "HorseEngine/Engine.h"
+#include "HorseEngine/Core/Input.h"
 #include "HorseEngine/Core/Memory.h"
 #include "HorseEngine/Game/GameModule.h"
 #include "HorseEngine/Scripting/LuaScriptEngine.h"
 #include <iostream>
+
 
 namespace Horse {
 
@@ -39,6 +41,11 @@ bool Engine::Initialize(bool headless) {
   HORSE_LOG_CORE_INFO("Engine initialized successfully");
 
   LuaScriptEngine::Init();
+
+  // Default Input Mappings
+  Input::RegisterAction("Jump", {KEY_SPACE});
+  Input::RegisterAxis("Forward", {KEY_W}, {KEY_S});
+  Input::RegisterAxis("Right", {KEY_D}, {KEY_A});
 
   LoadGameDLL("HorseGame.dll");
 
