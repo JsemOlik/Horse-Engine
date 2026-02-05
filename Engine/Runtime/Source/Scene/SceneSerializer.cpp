@@ -1,5 +1,6 @@
 #include "HorseEngine/Scene/SceneSerializer.h"
 #include "HorseEngine/Core/Logging.h"
+#include "HorseEngine/Engine.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Entity.h"
 #include "HorseEngine/Scene/Scene.h"
@@ -137,11 +138,21 @@ static void DeserializeMeshRendererComponent(const json &j,
 }
 
 static json SerializeScriptComponent(const ScriptComponent &comp) {
-  return {{"scriptGuid", comp.ScriptGUID}};
+  return {{"scriptGuid", comp.ScriptGUID}, {"scriptPath", comp.ScriptPath}};
 }
 
 static void DeserializeScriptComponent(const json &j, ScriptComponent &comp) {
   comp.ScriptGUID = j.value("scriptGuid", "");
+  comp.ScriptPath = j.value("scriptPath", "");
+}
+
+static json SerializeNativeScriptComponent(const NativeScriptComponent &comp) {
+  return {{"className", comp.ClassName}};
+}
+
+static void DeserializeNativeScriptComponent(const json &j,
+                                             NativeScriptComponent &comp) {
+  comp.ClassName = j.value("className", "");
 }
 
 // Helper functions for full scene serialization
@@ -199,6 +210,11 @@ static json SerializeSceneToJson(const Scene *scene) {
     if (entity.HasComponent<ScriptComponent>()) {
       componentsJson["ScriptComponent"] =
           SerializeScriptComponent(entity.GetComponent<ScriptComponent>());
+    }
+
+    if (entity.HasComponent<NativeScriptComponent>()) {
+      componentsJson["NativeScriptComponent"] = SerializeNativeScriptComponent(
+          entity.GetComponent<NativeScriptComponent>());
     }
 
     entityJson["components"] = componentsJson;
@@ -269,6 +285,20 @@ static std::shared_ptr<Scene> DeserializeSceneFromJson(const json &sceneJson) {
     if (componentsJson.contains("ScriptComponent")) {
       auto &script = entity.AddComponent<ScriptComponent>();
       DeserializeScriptComponent(componentsJson["ScriptComponent"], script);
+    }
+
+    // Native Script Component
+    if (componentsJson.contains("NativeScriptComponent")) {
+      auto &nsc = entity.AddComponent<NativeScriptComponent>();
+      DeserializeNativeScriptComponent(componentsJson["NativeScriptComponent"],
+                                       nsc);
+
+      // Re-bind if we have a game module
+      auto engine = Engine::Get();
+      auto gameModule = engine ? engine->GetGameModule() : nullptr;
+      if (gameModule && !nsc.ClassName.empty()) {
+        gameModule->CreateScript(nsc.ClassName, entity);
+      }
     }
   }
 

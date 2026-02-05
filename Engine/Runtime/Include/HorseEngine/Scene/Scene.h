@@ -14,7 +14,7 @@ namespace Horse {
 enum class SceneState { Edit = 0, Play, Pause, Loading };
 enum class LoadingStage { None = 0, Assets, Components, Scripts, Ready };
 
-class Scene {
+class HORSE_API Scene {
 public:
   Scene(const std::string &name = "Untitled Scene");
   ~Scene();

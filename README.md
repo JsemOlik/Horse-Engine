@@ -117,7 +117,7 @@ Horse-Engine/
 ├── Tools/
 │   ├── Cooker/           # Asset cooker (Phase 4)
 │   └── Packager/         # Game packager (Phase 7)
-├── Docs/                 # Documentation and schemas
+├── Docs/                 # Documentation ([Lua Scripting](Docs/Lua-Scripting.md))
 ├── ThirdParty/           # Optional vendor drops
 └── Build/                # Build output (git-ignored)
 ```
@@ -265,6 +265,10 @@ float m_ClearColor[3] = {0.2f, 0.3f, 0.4f}; // RGB values
 - Console output: See terminal/Visual Studio output window
 - File output: Check `HorseEngine.log` in working directory
 
+### Script with Lua
+
+For a complete guide on how to use Lua in the Horse Engine, see the [Lua Scripting Documentation](Docs/Lua-Scripting.md).
+
 ### Cook Assets for Distribution
 
 1. Build the **HorseCooker** target.
@@ -376,4 +380,4 @@ This project follows the TODO_LIST.md roadmap strictly. Phase 1 is complete. Nex
 
 ---
 
-**Last Updated:** Asset Cooking Implementation - 2026-02-05
+**Last Updated:** Input System and Lua Documentation - 2026-02-05

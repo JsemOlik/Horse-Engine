@@ -1,12 +1,13 @@
 #pragma once
 
+#include "HorseEngine/Core.h"
 #include <memory>
 #include <string>
 
 namespace Horse {
 class Scene;
 
-class SceneSerializer {
+class HORSE_API SceneSerializer {
 public:
   SceneSerializer() = delete;
 

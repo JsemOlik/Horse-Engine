@@ -1,13 +1,13 @@
 #pragma once
 
+#include "HorseEngine/Core.h"
 #include <filesystem>
 #include <memory>
 #include <string>
 
-
 namespace Horse {
 
-struct ProjectConfig {
+struct HORSE_API ProjectConfig {
   std::string Name = "Untitled Project";
   std::string GUID;
   std::string EngineVersion = "0.1.0";
@@ -19,7 +19,7 @@ struct ProjectConfig {
   std::filesystem::path ProjectDirectory;
 };
 
-class Project {
+class HORSE_API Project {
 public:
   Project() = default;
   ~Project() = default;

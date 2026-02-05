@@ -1,5 +1,6 @@
 #pragma once
 
+#include "HorseEngine/Core.h"
 #include <array>
 #include <memory>
 #include <string>
@@ -7,10 +8,10 @@
 
 namespace Horse {
 
-class Material {
+class HORSE_API MaterialInstance {
 public:
-  Material(const std::string &name = "Untitled Material");
-  ~Material() = default;
+  MaterialInstance(const std::string &name = "Untitled Material");
+  ~MaterialInstance() = default;
 
   const std::string &GetName() const { return m_Name; }
   void SetName(const std::string &name) { m_Name = name; }

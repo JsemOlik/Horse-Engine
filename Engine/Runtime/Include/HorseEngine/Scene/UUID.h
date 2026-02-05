@@ -4,11 +4,10 @@
 #include <functional>
 #include <string>
 
-
 namespace Horse {
 
 // 64-bit UUID for entities and assets
-class UUID {
+class HORSE_API UUID {
 public:
   UUID();
   explicit UUID(u64 uuid);

@@ -12,14 +12,14 @@ MaterialRegistry &MaterialRegistry::Get() {
 
 MaterialRegistry::MaterialRegistry() {
   // Create Default Material
-  auto defaultMat = std::make_shared<Material>("Default");
+  auto defaultMat = std::make_shared<MaterialInstance>("Default");
   defaultMat->SetColor("Albedo", {1.0f, 1.0f, 1.0f, 1.0f});
   defaultMat->SetFloat("Roughness", 0.5f);
   defaultMat->SetFloat("Metalness", 0.0f);
   m_Materials["Default"] = defaultMat;
 }
 
-std::shared_ptr<Material>
+std::shared_ptr<MaterialInstance>
 MaterialRegistry::GetMaterial(const std::string &name) {
   auto it = m_Materials.find(name);
   if (it != m_Materials.end()) {
@@ -28,7 +28,7 @@ MaterialRegistry::GetMaterial(const std::string &name) {
   return m_Materials["Default"];
 }
 
-std::shared_ptr<Material>
+std::shared_ptr<MaterialInstance>
 MaterialRegistry::CreateMaterial(const std::string &name) {
   if (m_Materials.find(name) != m_Materials.end()) {
     HORSE_LOG_CORE_WARN(
@@ -36,7 +36,7 @@ MaterialRegistry::CreateMaterial(const std::string &name) {
     return m_Materials[name];
   }
 
-  auto newMat = std::make_shared<Material>(name);
+  auto newMat = std::make_shared<MaterialInstance>(name);
   // Default values
   newMat->SetColor("Albedo", {1.0f, 1.0f, 1.0f, 1.0f});
   newMat->SetFloat("Roughness", 0.5f);
@@ -46,9 +46,9 @@ MaterialRegistry::CreateMaterial(const std::string &name) {
   return newMat;
 }
 
-std::shared_ptr<Material>
+std::shared_ptr<MaterialInstance>
 MaterialRegistry::LoadMaterial(const std::string &filepath) {
-  auto material = std::make_shared<Material>("Temp");
+  auto material = std::make_shared<MaterialInstance>("Temp");
   if (MaterialSerializer::Deserialize(filepath, *material)) {
     material->SetFilePath(filepath);
 

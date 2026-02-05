@@ -2,6 +2,8 @@
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/SceneSerializer.h"
+#include "HorseEngine/Scene/ScriptableEntity.h"
+#include "HorseEngine/Scripting/LuaScriptEngine.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -169,11 +171,13 @@ void Scene::OnRuntimeStart() {
 void Scene::TriggerAssetLoads() {
   m_LoadingQueue.clear();
 
-  m_Registry.view<MeshRendererComponent>().each([&](auto entity, auto &mesh) {
+  auto view = m_Registry.view<MeshRendererComponent>();
+  for (auto entity : view) {
+    auto &mesh = view.get<MeshRendererComponent>(entity);
     if (!mesh.MeshGUID.empty()) {
       m_LoadingQueue.push_back(mesh.MeshGUID);
     }
-  });
+  }
 
   HORSE_LOG_CORE_INFO("Triggered asset loading for {} assets.",
                       m_LoadingQueue.size());
@@ -202,24 +206,44 @@ void Scene::UpdateStagedLoad() {
 
   case LoadingStage::Scripts:
     // 1. Awake
-    m_Registry.view<ScriptComponent>().each([&](auto entity, auto &script) {
-      if (!script.AwakeCalled) {
-        HORSE_LOG_CORE_INFO("Awaking entity {}...",
-                            m_Registry.get<TagComponent>(entity).Name);
-        script.AwakeCalled = true;
-        // TODO: ScriptEngine::OnAwake(entity)
+    {
+      auto view = m_Registry.view<ScriptComponent>();
+      for (auto entity : view) {
+        auto &script = view.get<ScriptComponent>(entity);
+        if (!script.AwakeCalled) {
+          HORSE_LOG_CORE_INFO("Awaking entity {}...",
+                              m_Registry.get<TagComponent>(entity).Name);
+          script.AwakeCalled = true;
+          LuaScriptEngine::OnCreateEntity({entity, this});
+        }
       }
-    });
+    }
 
     // 2. Start
-    m_Registry.view<ScriptComponent>().each([&](auto entity, auto &script) {
-      if (!script.StartCalled) {
-        HORSE_LOG_CORE_INFO("Starting entity {}...",
-                            m_Registry.get<TagComponent>(entity).Name);
-        script.StartCalled = true;
-        // TODO: ScriptEngine::OnStart(entity)
+    {
+      auto view = m_Registry.view<ScriptComponent>();
+      for (auto entity : view) {
+        auto &script = view.get<ScriptComponent>(entity);
+        if (!script.StartCalled) {
+          HORSE_LOG_CORE_INFO("Starting entity {}...",
+                              m_Registry.get<TagComponent>(entity).Name);
+          script.StartCalled = true;
+          // TODO: ScriptEngine::OnStart(entity)
+        }
       }
-    });
+    }
+
+    {
+      auto view = m_Registry.view<NativeScriptComponent>();
+      for (auto entity : view) {
+        auto &script = view.get<NativeScriptComponent>(entity);
+        if (!script.Instance && script.InstantiateScript) {
+          script.Instance = script.InstantiateScript();
+          script.Instance->m_Entity = Entity{entity, this};
+          script.Instance->OnCreate();
+        }
+      }
+    }
 
     m_LoadingStage = LoadingStage::Ready;
     m_State = SceneState::Play;
@@ -232,19 +256,48 @@ void Scene::OnRuntimeStop() {
   m_State = SceneState::Edit;
 
   // Reset script states
-  m_Registry.view<ScriptComponent>().each([&](auto entity, auto &script) {
-    script.AwakeCalled = false;
-    script.StartCalled = false;
-    // TODO: ScriptEngine::OnDestroy(entity)
-  });
+  {
+    auto view = m_Registry.view<ScriptComponent>();
+    for (auto entity : view) {
+      auto &script = view.get<ScriptComponent>(entity);
+      script.AwakeCalled = false;
+      script.StartCalled = false;
+      LuaScriptEngine::OnDestroyEntity({entity, this});
+    }
+  }
+
+  // Native Scripts
+  {
+    auto view = m_Registry.view<NativeScriptComponent>();
+    for (auto entity : view) {
+      auto &nsc = view.get<NativeScriptComponent>(entity);
+      if (nsc.Instance) {
+        nsc.Instance->OnDestroy();
+        nsc.DestroyScript(&nsc);
+      }
+    }
+  }
 }
 
 void Scene::OnRuntimeUpdate(float deltaTime) {
   if (m_State == SceneState::Play) {
     // 3. Update scripts
-    m_Registry.view<ScriptComponent>().each([&](auto entity, auto &script) {
-      // TODO: ScriptEngine::OnUpdate(entity, deltaTime)
-    });
+    {
+      auto view = m_Registry.view<ScriptComponent>();
+      for (auto entity : view) {
+        LuaScriptEngine::OnUpdateEntity({entity, this}, deltaTime);
+      }
+    }
+
+    {
+      auto view = m_Registry.view<NativeScriptComponent>();
+      for (auto entity : view) {
+        auto &nsc = view.get<NativeScriptComponent>(entity);
+        if (nsc.Instance) {
+          nsc.Instance->OnUpdate(deltaTime);
+        }
+      }
+    }
   }
 
   UpdateTransformHierarchy();
@@ -261,13 +314,14 @@ void Scene::OnUpdate(float deltaTime) {
 }
 
 void Scene::UpdateTransformHierarchy() {
-  m_Registry.view<TransformComponent, RelationshipComponent>().each(
-      [&](auto entity, auto &transform, auto &relationship) {
-        // Find roots (entities with no parent)
-        if (relationship.Parent == entt::null) {
-          UpdateEntityTransform({entity, this}, glm::mat4(1.0f));
-        }
-      });
+  auto view = m_Registry.view<TransformComponent, RelationshipComponent>();
+  for (auto entity : view) {
+    auto &relationship = view.get<RelationshipComponent>(entity);
+    // Find roots (entities with no parent)
+    if (relationship.Parent == entt::null) {
+      UpdateEntityTransform({entity, this}, glm::mat4(1.0f));
+    }
+  }
 }
 
 void Scene::UpdateEntityTransform(Entity entity,

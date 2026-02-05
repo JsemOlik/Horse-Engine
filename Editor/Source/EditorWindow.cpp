@@ -10,6 +10,7 @@
 #include "Dialogs/PreferencesDialog.h"
 #include "EditorPreferences.h"
 #include "HorseEngine/Asset/AssetManager.h"
+#include "HorseEngine/Core/Time.h"
 #include "HorseEngine/Render/MaterialRegistry.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Entity.h"
@@ -24,7 +25,8 @@
 #include <QSettings>
 #include <QToolBar>
 
-EditorWindow::EditorWindow(QWidget *parent) : QMainWindow(parent) {
+EditorWindow::EditorWindow(std::shared_ptr<void> logSink, QWidget *parent)
+    : QMainWindow(parent), m_LogSink(logSink) {
 
   setWindowTitle("Horse Engine Editor");
   resize(1600, 900);
@@ -41,7 +43,13 @@ EditorWindow::EditorWindow(QWidget *parent) : QMainWindow(parent) {
   NewScene();
 
   // Load layout if it exists
+  // Load layout if it exists
   OnLoadLayout();
+
+  // Create update timer (60 FPS)
+  m_UpdateTimer = new QTimer(this);
+  connect(m_UpdateTimer, &QTimer::timeout, this, &EditorWindow::OnUpdate);
+  m_UpdateTimer->start(16);
 }
 
 EditorWindow::~EditorWindow() {}
@@ -68,6 +76,19 @@ void EditorWindow::UpdateSceneContext() {
   if (m_InspectorPanel) {
     m_InspectorPanel->SetSelectedEntity({});
   }
+}
+
+void EditorWindow::OnUpdate() {
+  Horse::Time::Update();
+
+  if (m_ActiveScene) {
+    m_ActiveScene->OnUpdate(Horse::Time::GetDeltaTime());
+  }
+
+  if (m_SceneViewport)
+    m_SceneViewport->update();
+  if (m_GameViewport)
+    m_GameViewport->update();
 }
 
 void EditorWindow::CreateMenus() {
@@ -177,6 +198,8 @@ void EditorWindow::CreatePanels() {
 
   QDockWidget *consoleDock = new QDockWidget("Console", this);
   m_ConsolePanel = new ConsolePanel(consoleDock);
+  if (m_LogSink)
+    m_ConsolePanel->SetSink(m_LogSink);
   consoleDock->setWidget(m_ConsolePanel);
   addDockWidget(Qt::BottomDockWidgetArea, consoleDock);
 
@@ -333,6 +356,9 @@ void EditorWindow::NewProject(const std::string &filepath) {
   std::filesystem::create_directories(project->GetConfig().ProjectDirectory /
                                       project->GetConfig().AssetDirectory /
                                       "Materials");
+  std::filesystem::create_directories(project->GetConfig().ProjectDirectory /
+                                      project->GetConfig().AssetDirectory /
+                                      "Scripts");
 
   Horse::Project::SetActive(project);
   Horse::Project::SetActive(project);

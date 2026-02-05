@@ -1,13 +1,14 @@
 #pragma once
 
 #include "HorseEngine/Core.h"
+#include "HorseEngine/Scene/UUID.h"
 #include <entt/entt.hpp>
 
 namespace Horse {
 
 class Scene;
 
-class Entity {
+class HORSE_API Entity {
 public:
   Entity() = default;
   Entity(entt::entity handle, Scene *scene);
@@ -34,6 +35,7 @@ public:
 
   entt::entity GetHandle() const { return m_EntityHandle; }
   Scene *GetScene() const { return m_Scene; }
+  UUID GetUUID();
 
 private:
   entt::entity m_EntityHandle = entt::null;
