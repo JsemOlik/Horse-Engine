@@ -336,6 +336,9 @@ void EditorWindow::NewProject(const std::string &filepath) {
   std::filesystem::create_directories(project->GetConfig().ProjectDirectory /
                                       project->GetConfig().AssetDirectory /
                                       "Materials");
+  std::filesystem::create_directories(project->GetConfig().ProjectDirectory /
+                                      project->GetConfig().AssetDirectory /
+                                      "Scripts");
 
   Horse::Project::SetActive(project);
   Horse::Project::SetActive(project);

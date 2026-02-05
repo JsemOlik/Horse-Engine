@@ -11,7 +11,9 @@
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDesktopServices>
 #include <QDoubleSpinBox>
+#include <QFileDialog>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QLabel>
@@ -19,7 +21,9 @@
 #include <QMenu>
 #include <QPushButton>
 #include <QTimer>
+#include <QUrl>
 #include <QVBoxLayout>
+
 
 InspectorPanel::InspectorPanel(QWidget *parent) : QWidget(parent) {
 
@@ -436,29 +440,61 @@ void InspectorPanel::DrawComponents() {
     });
     m_ContentLayout->addWidget(addScriptBtn);
 
-    // Add Component Menu for Lua Scripts
+    // Lua Script Component
     if (m_SelectedEntity.HasComponent<Horse::ScriptComponent>()) {
       auto &script = m_SelectedEntity.GetComponent<Horse::ScriptComponent>();
-      QGroupBox *luaGroup = new QGroupBox("Lua Script");
-      QFormLayout *luaLayout = new QFormLayout(luaGroup);
-      luaLayout->addRow("Script GUID:",
-                        new QLabel(QString::fromStdString(script.ScriptGUID)));
+      QGroupBox *group = new QGroupBox("Lua Script", this);
+      QVBoxLayout *vbox = new QVBoxLayout(group);
 
-      QPushButton *removeLuaBtn = new QPushButton("Remove Lua Script");
-      connect(removeLuaBtn, &QPushButton::clicked, this, [this]() {
+      QHBoxLayout *hbox = new QHBoxLayout();
+      hbox->addWidget(new QLabel("Path:"));
+      QLineEdit *pathEdit =
+          new QLineEdit(QString::fromStdString(script.ScriptPath));
+      pathEdit->setReadOnly(true);
+      hbox->addWidget(pathEdit);
+
+      QPushButton *browseBtn = new QPushButton("...");
+      browseBtn->setFixedWidth(30);
+      hbox->addWidget(browseBtn);
+
+      connect(browseBtn, &QPushButton::clicked, this,
+              [this, &script, pathEdit]() {
+                QString path = QFileDialog::getOpenFileName(
+                    this, "Select Lua Script", "", "Lua Scripts (*.lua)");
+                if (!path.isEmpty()) {
+                  script.ScriptPath = path.toStdString();
+                  pathEdit->setText(path);
+                }
+              });
+
+      vbox->addLayout(hbox);
+
+      QHBoxLayout *btnHBox = new QHBoxLayout();
+      QPushButton *openBtn = new QPushButton("Open Script");
+      connect(openBtn, &QPushButton::clicked, this, [&script]() {
+        if (!script.ScriptPath.empty()) {
+          QDesktopServices::openUrl(
+              QUrl::fromLocalFile(QString::fromStdString(script.ScriptPath)));
+        }
+      });
+      btnHBox->addWidget(openBtn);
+
+      QPushButton *removeBtn = new QPushButton("Remove");
+      connect(removeBtn, &QPushButton::clicked, this, [this]() {
         if (m_SelectedEntity) {
           m_SelectedEntity.RemoveComponent<Horse::ScriptComponent>();
           RefreshInspector();
         }
       });
-      luaLayout->addRow(removeLuaBtn);
-      m_ContentLayout->addWidget(luaGroup);
+      btnHBox->addWidget(removeBtn);
+
+      vbox->addLayout(btnHBox);
+      m_ContentLayout->addWidget(group);
     } else {
       QPushButton *addLuaBtn = new QPushButton("Attach Lua Script");
       connect(addLuaBtn, &QPushButton::clicked, this, [this]() {
         if (m_SelectedEntity) {
-          auto &sc = m_SelectedEntity.AddComponent<Horse::ScriptComponent>();
-          sc.ScriptGUID = "placeholder-lua-script";
+          m_SelectedEntity.AddComponent<Horse::ScriptComponent>();
           RefreshInspector();
         }
       });

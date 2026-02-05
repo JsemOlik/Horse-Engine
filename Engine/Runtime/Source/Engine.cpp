@@ -1,4 +1,8 @@
 #include "HorseEngine/Engine.h"
+#include "HorseEngine/Core/Memory.h"
+#include "HorseEngine/Game/GameModule.h"
+#include "HorseEngine/Scripting/LuaScriptEngine.h"
+#include <iostream>
 
 namespace Horse {
 
@@ -34,6 +38,8 @@ bool Engine::Initialize(bool headless) {
 
   HORSE_LOG_CORE_INFO("Engine initialized successfully");
 
+  LuaScriptEngine::Init();
+
   LoadGameDLL("HorseGame.dll");
 
   return true;
@@ -41,6 +47,8 @@ bool Engine::Initialize(bool headless) {
 
 void Engine::Shutdown() {
   HORSE_LOG_CORE_INFO("Shutting down...");
+
+  LuaScriptEngine::Shutdown();
 
   UnloadGameDLL();
 

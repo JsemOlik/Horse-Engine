@@ -23,6 +23,7 @@ private slots:
   void OnContextMenu(const QPoint &pos);
   void OnCreateFolder();
   void OnCreateMaterial();
+  void OnCreateLuaScript();
   void OnRenameItem();
   void OnDeleteItem();
 
