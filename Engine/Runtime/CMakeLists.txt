@@ -64,3 +64,16 @@ target_compile_definitions(HorseRuntime
     PRIVATE
         HORSE_BUILD_DLL=1
 )
+
+# Copy Assets to build directory
+add_custom_command(TARGET HorseRuntime POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${CMAKE_CURRENT_SOURCE_DIR}/Shaders"
+    "$<TARGET_FILE_DIR:HorseRuntime>/Engine/Runtime/Shaders"
+)
+
+add_custom_command(TARGET HorseRuntime POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${CMAKE_CURRENT_SOURCE_DIR}/Textures"
+    "$<TARGET_FILE_DIR:HorseRuntime>/Engine/Runtime/Textures"
+)
