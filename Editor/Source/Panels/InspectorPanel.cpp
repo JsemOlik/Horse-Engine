@@ -23,6 +23,8 @@
 #include "HorseEngine/Render/MaterialSerializer.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Entity.h"
+#include "HorseEngine/Scene/Prefab.h"
+#include "HorseEngine/Scene/PrefabSerializer.h"
 #include "InspectorPanel.h"
 #include "Panels/SceneViewport.h"
 
@@ -105,10 +107,27 @@ void InspectorPanel::DrawPrefabComponent() {
   QPushButton *applyBtn = new QPushButton("Apply to Prefab");
   QPushButton *revertBtn = new QPushButton("Revert Overrides");
 
-  connect(applyBtn, &QPushButton::clicked, this, [this]() {
-    // TODO: Implement Apply to Prefab
-    QMessageBox::information(this, "Prefab",
-                             "Apply to Prefab not yet implemented.");
+  connect(applyBtn, &QPushButton::clicked, this, [this, &prefabComp]() {
+    if (prefabComp.PrefabAssetPath.empty()) {
+      QMessageBox::warning(this, "Apply to Prefab",
+                           "No source prefab path found.");
+      return;
+    }
+
+    std::string name =
+        m_SelectedEntity.GetComponent<Horse::TagComponent>().Name;
+    auto prefab =
+        Horse::PrefabSerializer::CreateFromEntity(m_SelectedEntity, name);
+    if (Horse::PrefabSerializer::SerializeToJSON(prefab.get(),
+                                                 prefabComp.PrefabAssetPath)) {
+      prefabComp.Overrides = "";
+      RefreshInspector();
+      QMessageBox::information(this, "Apply to Prefab",
+                               "Prefab updated successfully.");
+    } else {
+      QMessageBox::critical(this, "Apply to Prefab",
+                            "Failed to update prefab.");
+    }
   });
 
   connect(revertBtn, &QPushButton::clicked, this, [this, &prefabComp]() {

@@ -58,6 +58,13 @@ static json SerializeEntityTemplate(Entity entity) {
     componentsJson["ScriptComponent"] = {{"scriptGuid", c.ScriptGUID}};
   }
 
+  if (entity.HasComponent<PrefabComponent>()) {
+    auto &c = entity.GetComponent<PrefabComponent>();
+    componentsJson["PrefabComponent"] = {{"prefabGuid", c.PrefabGUID},
+                                         {"assetPath", c.PrefabAssetPath},
+                                         {"overrides", c.Overrides}};
+  }
+
   // Note: We don't serialize RelationshipComponent directly in the template
   // Instead we serialize children recursively.
   entityJson["components"] = componentsJson;

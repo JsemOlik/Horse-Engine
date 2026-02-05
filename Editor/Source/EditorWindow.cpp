@@ -25,6 +25,7 @@
 #include <QMessageBox>
 #include <QSettings>
 #include <QToolBar>
+#include <filesystem>
 
 EditorWindow::EditorWindow(QWidget *parent) : QMainWindow(parent) {
 
@@ -564,7 +565,10 @@ void EditorWindow::OnCreatePrefab() {
     // Add PrefabComponent to mark it as an instance
     if (!m_SelectedEntity.HasComponent<Horse::PrefabComponent>()) {
       auto &comp = m_SelectedEntity.AddComponent<Horse::PrefabComponent>();
-      // comp.PrefabGUID = ...; // We'll need to assign a GUID here
+      comp.PrefabAssetPath = filepath.toStdString();
+    } else {
+      auto &comp = m_SelectedEntity.GetComponent<Horse::PrefabComponent>();
+      comp.PrefabAssetPath = filepath.toStdString();
     }
     QMessageBox::information(this, "Create Prefab",
                              "Prefab created successfully.");
@@ -585,8 +589,14 @@ void EditorWindow::OnInstantiatePrefab() {
   auto prefab =
       Horse::PrefabSerializer::DeserializeFromJSON(filepath.toStdString());
   if (prefab) {
+    std::filesystem::path p(filepath.toStdString());
+    std::string name = p.stem().string(); // Get filename without extension
     auto entity = m_ActiveScene->InstantiatePrefab(prefab);
-    SetSelectedEntity(entity);
+    if (entity) {
+      auto &comp = entity.AddComponent<Horse::PrefabComponent>();
+      comp.PrefabAssetPath = filepath.toStdString();
+      SetSelectedEntity(entity);
+    }
     UpdateSceneContext();
   } else {
     QMessageBox::critical(this, "Instantiate Prefab", "Failed to load prefab.");

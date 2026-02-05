@@ -5,7 +5,6 @@
 #include "HorseEngine/Scene/SceneSerializer.h"
 #include <nlohmann/json.hpp>
 
-
 namespace Horse {
 
 using json = nlohmann::json;
@@ -61,6 +60,14 @@ static Entity InstantiateEntityRecursive(Scene *scene, const json &entityJson,
       auto &sc = entity.AddComponent<ScriptComponent>();
       const auto &scc = componentsJson["ScriptComponent"];
       sc.ScriptGUID = scc.value("scriptGuid", "");
+    }
+
+    if (componentsJson.contains("PrefabComponent")) {
+      auto &pc = entity.AddComponent<PrefabComponent>();
+      const auto &pcc = componentsJson["PrefabComponent"];
+      pc.PrefabGUID = pcc.value("prefabGuid", "");
+      pc.PrefabAssetPath = pcc.value("assetPath", "");
+      pc.Overrides = pcc.value("overrides", "");
     }
   }
 
