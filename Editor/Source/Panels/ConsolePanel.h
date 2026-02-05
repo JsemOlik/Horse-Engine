@@ -26,4 +26,5 @@ private:
   QTextEdit *m_TextEdit;
   class QCheckBox *m_AutoScrollCheck;
   bool m_AutoScroll = true;
+  std::shared_ptr<void> m_Sink;
 };

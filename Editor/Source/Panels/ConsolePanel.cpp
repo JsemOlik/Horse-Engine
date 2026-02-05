@@ -7,7 +7,6 @@
 #include <QScrollBar>
 #include <QVBoxLayout>
 
-
 // Removed internal QtLogSink implementation
 
 ConsolePanel::ConsolePanel(QWidget *parent) : QWidget(parent) {
@@ -43,9 +42,17 @@ ConsolePanel::ConsolePanel(QWidget *parent) : QWidget(parent) {
   layout->addWidget(m_TextEdit);
 }
 
-ConsolePanel::~ConsolePanel() {}
+ConsolePanel::~ConsolePanel() {
+  if (m_Sink) {
+    auto castedSink = std::static_pointer_cast<EditorLogSink_mt>(m_Sink);
+    if (castedSink) {
+      castedSink->SetPanel(nullptr);
+    }
+  }
+}
 
 void ConsolePanel::SetSink(std::shared_ptr<void> sink) {
+  m_Sink = sink;
   auto castedSink = std::static_pointer_cast<EditorLogSink_mt>(sink);
   if (castedSink) {
     castedSink->SetPanel(this);

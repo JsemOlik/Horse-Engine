@@ -12,6 +12,7 @@ class HORSE_API Logger {
 public:
   static void Initialize();
   static void Shutdown();
+  static void AddSink(std::shared_ptr<spdlog::sinks::sink> sink);
 
   static std::shared_ptr<spdlog::logger> GetLogger(LogChannel channel);
 

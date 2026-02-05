@@ -3,7 +3,6 @@
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Core/Time.h"
 
-
 #include <QApplication>
 
 #include "HorseEngine/Engine.h"
@@ -19,13 +18,7 @@ int main(int argc, char *argv[]) {
   sink->set_pattern("[%H:%M:%S] [%n] %v");
 
   // Attach sink
-  auto coreLogger = Horse::Logger::GetLogger(Horse::LogChannel::Core);
-  if (coreLogger)
-    coreLogger->sinks().push_back(sink);
-
-  auto renderLogger = Horse::Logger::GetLogger(Horse::LogChannel::Render);
-  if (renderLogger)
-    renderLogger->sinks().push_back(sink);
+  Horse::Logger::AddSink(sink);
 
   // Initialize Engine in Headless mode (Editor handles the window)
   Horse::Engine engine;
