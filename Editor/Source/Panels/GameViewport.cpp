@@ -5,8 +5,6 @@
 GameViewport::GameViewport(QWidget *parent) : D3D11ViewportWidget(parent) {}
 
 void GameViewport::Render() {
-  Horse::Time::Update();
-
   m_Renderer->BeginFrame();
   m_Renderer->Clear(m_ClearColor[0], m_ClearColor[1], m_ClearColor[2]);
 

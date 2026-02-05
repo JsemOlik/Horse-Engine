@@ -96,13 +96,10 @@ void SceneViewport::UpdateCamera() {
 void SceneViewport::Render() {
   UpdateCamera();
 
-  Horse::Time::Update();
-
   m_Renderer->BeginFrame();
   m_Renderer->Clear(m_ClearColor[0], m_ClearColor[1], m_ClearColor[2]);
 
   if (m_Scene) {
-    m_Scene->OnUpdate(Horse::Time::GetDeltaTime());
 
     DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationRollPitchYaw(
         DirectX::XMConvertToRadians(m_Pitch),

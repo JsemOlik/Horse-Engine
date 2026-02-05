@@ -16,6 +16,7 @@
 #include <QFileDialog>
 #include <QFormLayout>
 #include <QGroupBox>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
@@ -440,102 +441,13 @@ void InspectorPanel::DrawComponents() {
     m_ContentLayout->addWidget(addScriptBtn);
 
     // Lua Script Component
+    // Lua Script Component
     if (m_SelectedEntity.HasComponent<Horse::ScriptComponent>()) {
-      auto &script = m_SelectedEntity.GetComponent<Horse::ScriptComponent>();
-      QGroupBox *group = new QGroupBox("Lua Script", this);
-      QFormLayout *layout = new QFormLayout(group);
-
-      // 1. Scan for scripts
-      QComboBox *scriptCombo = new QComboBox();
-      scriptCombo->addItem("None", "");
-
-      namespace fs = std::filesystem;
-      auto assetDir = Horse::Project::GetAssetDirectory();
-      auto scriptsDir = assetDir / "Scripts";
-
-      std::vector<std::pair<QString, QString>> availableScripts;
-
-      if (fs::exists(scriptsDir)) {
-        for (const auto &entry : fs::recursive_directory_iterator(scriptsDir)) {
-          if (entry.is_regular_file() && entry.path().extension() == ".lua") {
-            auto relPath = fs::relative(entry.path(),
-                                        Horse::Project::GetProjectDirectory());
-            QString fullRelPath = QString::fromStdString(relPath.string());
-            QString baseName =
-                QString::fromStdString(entry.path().stem().string());
-            availableScripts.push_back({baseName, fullRelPath});
-          }
-        }
-      }
-
-      std::sort(availableScripts.begin(), availableScripts.end());
-
-      int currentIndex = 0; // "None"
-      for (int i = 0; i < availableScripts.size(); ++i) {
-        scriptCombo->addItem(availableScripts[i].first,
-                             availableScripts[i].second);
-        if (availableScripts[i].second.toStdString() == script.ScriptPath) {
-          currentIndex = i + 1;
-        }
-      }
-
-      // If manually set to an absolute path or something not in Scripts/, add
-      // it
-      if (!script.ScriptPath.empty() && currentIndex == 0) {
-        QString currentPath = QString::fromStdString(script.ScriptPath);
-        scriptCombo->addItem(currentPath + " (External)", currentPath);
-        currentIndex = scriptCombo->count() - 1;
-      }
-
-      scriptCombo->setCurrentIndex(currentIndex);
-
-      connect(scriptCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-              this, [this, scriptCombo](int index) {
-                if (m_SelectedEntity) {
-                  QString path = scriptCombo->itemData(index).toString();
-                  m_SelectedEntity.GetComponent<Horse::ScriptComponent>()
-                      .ScriptPath = path.toStdString();
-                }
-              });
-
-      layout->addRow("Script:", scriptCombo);
-
-      QHBoxLayout *btnHBox = new QHBoxLayout();
-      QPushButton *openBtn = new QPushButton("Open Script");
-      connect(openBtn, &QPushButton::clicked, this, [this, scriptCombo]() {
-        QString path =
-            scriptCombo->itemData(scriptCombo->currentIndex()).toString();
-        if (!path.isEmpty()) {
-          fs::path fullPath = path.toStdString();
-          if (fullPath.is_relative()) {
-            fullPath = Horse::Project::GetProjectDirectory() / fullPath;
-          }
-          QDesktopServices::openUrl(
-              QUrl::fromLocalFile(QString::fromStdString(fullPath.string())));
-        }
-      });
-      btnHBox->addWidget(openBtn);
-
-      QPushButton *removeBtn = new QPushButton("Remove Component");
-      connect(removeBtn, &QPushButton::clicked, this, [this]() {
-        if (m_SelectedEntity) {
-          m_SelectedEntity.RemoveComponent<Horse::ScriptComponent>();
-          RefreshInspector();
-        }
-      });
-      btnHBox->addWidget(removeBtn);
-
-      layout->addRow(btnHBox);
-      m_ContentLayout->addWidget(group);
+      m_ContentLayout->addWidget(
+          new QLabel("Lua Script Component (UI Temporarily Disabled)"));
     } else {
-      QPushButton *addLuaBtn = new QPushButton("Attach Lua Script");
-      connect(addLuaBtn, &QPushButton::clicked, this, [this]() {
-        if (m_SelectedEntity) {
-          m_SelectedEntity.AddComponent<Horse::ScriptComponent>();
-          RefreshInspector();
-        }
-      });
-      m_ContentLayout->addWidget(addLuaBtn);
+      m_ContentLayout->addWidget(
+          new QLabel("No Lua Script (UI Temporarily Disabled)"));
     }
   }
 }
