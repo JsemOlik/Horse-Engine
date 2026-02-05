@@ -46,6 +46,10 @@ private slots:
   void OnResetLayout();
   void OnExit();
 
+  void OnPlay();
+  void OnPause();
+  void OnStop();
+
 private:
   void CreateMenus();
   void CreatePanels();

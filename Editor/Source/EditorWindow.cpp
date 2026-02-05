@@ -170,9 +170,15 @@ void EditorWindow::CreatePanels() {
 
 void EditorWindow::CreateToolBar() {
   QToolBar *toolbar = addToolBar("Main Toolbar");
-  toolbar->addAction("Play");
-  toolbar->addAction("Pause");
-  toolbar->addAction("Stop");
+
+  QAction *playAction = toolbar->addAction("Play");
+  connect(playAction, &QAction::triggered, this, &EditorWindow::OnPlay);
+
+  QAction *pauseAction = toolbar->addAction("Pause");
+  connect(pauseAction, &QAction::triggered, this, &EditorWindow::OnPause);
+
+  QAction *stopAction = toolbar->addAction("Stop");
+  connect(stopAction, &QAction::triggered, this, &EditorWindow::OnStop);
 }
 
 void EditorWindow::NewScene() {
@@ -491,4 +497,26 @@ void EditorWindow::OnResetLayout() {
   QMessageBox::information(this, "Reset Layout",
                            "Restart the editor with the layout.ini deleted to "
                            "fully reset to default.");
+}
+
+void EditorWindow::OnPlay() {
+  if (m_ActiveScene) {
+    m_ActiveScene->OnRuntimeStart();
+  }
+}
+
+void EditorWindow::OnPause() {
+  if (m_ActiveScene) {
+    if (m_ActiveScene->GetState() == Horse::SceneState::Play) {
+      m_ActiveScene->SetState(Horse::SceneState::Pause);
+    } else if (m_ActiveScene->GetState() == Horse::SceneState::Pause) {
+      m_ActiveScene->SetState(Horse::SceneState::Play);
+    }
+  }
+}
+
+void EditorWindow::OnStop() {
+  if (m_ActiveScene) {
+    m_ActiveScene->OnRuntimeStop();
+  }
 }

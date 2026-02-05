@@ -9,10 +9,20 @@
 
 namespace Horse {
 
+enum class SceneState { Edit = 0, Play, Pause, Loading };
+enum class LoadingStage { None = 0, Assets, Components, Scripts, Ready };
+
 class Scene {
 public:
   Scene(const std::string &name = "Untitled Scene");
   ~Scene();
+
+  void OnRuntimeStart();
+  void OnRuntimeStop();
+  void OnRuntimeUpdate(float deltaTime);
+
+  SceneState GetState() const { return m_State; }
+  void SetState(SceneState state) { m_State = state; }
 
   Entity CreateEntity(const std::string &name = "Entity");
   Entity CreateEntityWithUUID(UUID uuid, const std::string &name = "Entity");
@@ -37,11 +47,16 @@ public:
 
 private:
   void UpdateTransformHierarchy();
+  void UpdateStagedLoad();
+  void TriggerAssetLoads();
 
 private:
   std::string m_Name;
   entt::registry m_Registry;
   std::unordered_map<UUID, entt::entity> m_EntityMap;
+  SceneState m_State = SceneState::Edit;
+  LoadingStage m_LoadingStage = LoadingStage::None;
+  std::vector<std::string> m_LoadingQueue;
 };
 
 } // namespace Horse

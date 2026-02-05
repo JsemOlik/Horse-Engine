@@ -5,10 +5,8 @@
 #include "HorseEngine/Scene/Scene.h"
 #include "HorseEngine/Scene/UUID.h"
 
-
 #include <fstream>
 #include <nlohmann/json.hpp>
-
 
 using json = nlohmann::json;
 
@@ -138,6 +136,14 @@ static void DeserializeMeshRendererComponent(const json &j,
   comp.MaterialGUID = j.value("materialGuid", "");
 }
 
+static json SerializeScriptComponent(const ScriptComponent &comp) {
+  return {{"scriptGuid", comp.ScriptGUID}};
+}
+
+static void DeserializeScriptComponent(const json &j, ScriptComponent &comp) {
+  comp.ScriptGUID = j.value("scriptGuid", "");
+}
+
 // Main serialization functions
 bool SceneSerializer::SerializeToJSON(const Scene *scene,
                                       const std::string &filepath) {
@@ -197,6 +203,11 @@ bool SceneSerializer::SerializeToJSON(const Scene *scene,
         componentsJson["MeshRendererComponent"] =
             SerializeMeshRendererComponent(
                 entity.GetComponent<MeshRendererComponent>());
+      }
+
+      if (entity.HasComponent<ScriptComponent>()) {
+        componentsJson["ScriptComponent"] =
+            SerializeScriptComponent(entity.GetComponent<ScriptComponent>());
       }
 
       entityJson["components"] = componentsJson;
@@ -290,6 +301,12 @@ SceneSerializer::DeserializeFromJSON(const std::string &filepath) {
         auto &meshRenderer = entity.AddComponent<MeshRendererComponent>();
         DeserializeMeshRendererComponent(
             componentsJson["MeshRendererComponent"], meshRenderer);
+      }
+
+      // Script Component
+      if (componentsJson.contains("ScriptComponent")) {
+        auto &script = entity.AddComponent<ScriptComponent>();
+        DeserializeScriptComponent(componentsJson["ScriptComponent"], script);
       }
     }
 

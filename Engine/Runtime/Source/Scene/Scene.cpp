@@ -144,9 +144,104 @@ Entity Scene::GetParent(Entity entity) {
   return {rel.Parent, this};
 }
 
-void Scene::OnUpdate(float deltaTime) {
-  // Update transform hierarchy
+void Scene::OnRuntimeStart() {
+  m_State = SceneState::Loading;
+  m_LoadingStage = LoadingStage::Assets;
+  TriggerAssetLoads();
+}
+
+void Scene::TriggerAssetLoads() {
+  m_LoadingQueue.clear();
+
+  m_Registry.view<MeshRendererComponent>().each([&](auto entity, auto &mesh) {
+    if (!mesh.MeshGUID.empty()) {
+      m_LoadingQueue.push_back(mesh.MeshGUID);
+    }
+  });
+
+  HORSE_LOG_CORE_INFO("Triggered asset loading for {} assets.",
+                      m_LoadingQueue.size());
+}
+
+void Scene::UpdateStagedLoad() {
+  switch (m_LoadingStage) {
+  case LoadingStage::Assets:
+    // Check if all queued assets are ready (simulated for now)
+    if (m_LoadingQueue.empty()) {
+      m_LoadingStage = LoadingStage::Components;
+      HORSE_LOG_CORE_INFO(
+          "Asset loading complete. Transitioning to Components stage.");
+    } else {
+      // Simulate asynchronous loading by popping one asset per update
+      m_LoadingQueue.pop_back();
+    }
+    break;
+
+  case LoadingStage::Components:
+    // Initialize components if needed
+    m_LoadingStage = LoadingStage::Scripts;
+    HORSE_LOG_CORE_INFO(
+        "Component initialization complete. Transitioning to Scripts stage.");
+    break;
+
+  case LoadingStage::Scripts:
+    // 1. Awake
+    m_Registry.view<ScriptComponent>().each([&](auto entity, auto &script) {
+      if (!script.AwakeCalled) {
+        HORSE_LOG_CORE_INFO("Awaking entity {}...",
+                            m_Registry.get<TagComponent>(entity).Name);
+        script.AwakeCalled = true;
+        // TODO: ScriptEngine::OnAwake(entity)
+      }
+    });
+
+    // 2. Start
+    m_Registry.view<ScriptComponent>().each([&](auto entity, auto &script) {
+      if (!script.StartCalled) {
+        HORSE_LOG_CORE_INFO("Starting entity {}...",
+                            m_Registry.get<TagComponent>(entity).Name);
+        script.StartCalled = true;
+        // TODO: ScriptEngine::OnStart(entity)
+      }
+    });
+
+    m_LoadingStage = LoadingStage::Ready;
+    m_State = SceneState::Play;
+    HORSE_LOG_CORE_INFO("Scene stage Ready. State transitioned to Play.");
+    break;
+  }
+}
+
+void Scene::OnRuntimeStop() {
+  m_State = SceneState::Edit;
+
+  // Reset script states
+  m_Registry.view<ScriptComponent>().each([&](auto entity, auto &script) {
+    script.AwakeCalled = false;
+    script.StartCalled = false;
+    // TODO: ScriptEngine::OnDestroy(entity)
+  });
+}
+
+void Scene::OnRuntimeUpdate(float deltaTime) {
+  if (m_State == SceneState::Play) {
+    // 3. Update scripts
+    m_Registry.view<ScriptComponent>().each([&](auto entity, auto &script) {
+      // TODO: ScriptEngine::OnUpdate(entity, deltaTime)
+    });
+  }
+
   UpdateTransformHierarchy();
+}
+
+void Scene::OnUpdate(float deltaTime) {
+  if (m_State == SceneState::Edit) {
+    UpdateTransformHierarchy();
+  } else if (m_State == SceneState::Loading) {
+    UpdateStagedLoad();
+  } else if (m_State == SceneState::Play) {
+    OnRuntimeUpdate(deltaTime);
+  }
 }
 
 void Scene::UpdateTransformHierarchy() {

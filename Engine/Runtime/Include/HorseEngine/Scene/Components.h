@@ -6,7 +6,6 @@
 #include <entt/entt.hpp>
 #include <string>
 
-
 namespace Horse {
 
 // UUID Component - Every entity has a unique identifier
@@ -72,6 +71,14 @@ struct MeshRendererComponent {
   std::string MaterialGUID;
 
   MeshRendererComponent() = default;
+};
+
+struct ScriptComponent {
+  std::string ScriptGUID;
+  bool AwakeCalled = false;
+  bool StartCalled = false;
+
+  ScriptComponent() = default;
 };
 
 } // namespace Horse
