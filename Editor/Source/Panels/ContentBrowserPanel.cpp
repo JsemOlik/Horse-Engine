@@ -10,7 +10,6 @@
 #include <QUrl>
 #include <QVBoxLayout>
 
-
 ContentBrowserPanel::ContentBrowserPanel(QWidget *parent) : QWidget(parent) {
 
   QVBoxLayout *layout = new QVBoxLayout(this);
@@ -105,8 +104,46 @@ void ContentBrowserPanel::OnContextMenu(const QPoint &pos) {
   }
 
   menu.addAction("Create Folder", this, &ContentBrowserPanel::OnCreateFolder);
+  menu.addAction("Create Material", this,
+                 &ContentBrowserPanel::OnCreateMaterial);
 
   menu.exec(m_ListWidget->mapToGlobal(pos));
+}
+
+#include "HorseEngine/Render/Material.h"
+#include "HorseEngine/Render/MaterialSerializer.h"
+
+void ContentBrowserPanel::OnCreateMaterial() {
+  bool ok;
+  QString name = QInputDialog::getText(this, "New Material",
+                                       "Material Name:", QLineEdit::Normal,
+                                       "NewMaterial", &ok);
+
+  if (ok && !name.isEmpty()) {
+    std::string filename = name.toStdString();
+    if (filename.find(".horsemat") == std::string::npos) {
+      filename += ".horsemat";
+    }
+    std::filesystem::path newPath = m_CurrentDirectory / filename;
+
+    if (!std::filesystem::exists(newPath)) {
+      // Create new material
+      Horse::Material material(name.toStdString());
+      // Default values
+      material.SetColor("Albedo", {1.0f, 1.0f, 1.0f, 1.0f});
+      material.SetFloat("Roughness", 0.5f);
+      material.SetFloat("Metalness", 0.0f);
+
+      // Serialize
+      if (Horse::MaterialSerializer::Serialize(material, newPath.string())) {
+        Refresh();
+      } else {
+        QMessageBox::critical(this, "Error", "Failed to save material file.");
+      }
+    } else {
+      QMessageBox::warning(this, "Error", "Material already exists!");
+    }
+  }
 }
 
 void ContentBrowserPanel::OnCreateFolder() {

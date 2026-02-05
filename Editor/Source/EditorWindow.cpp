@@ -9,10 +9,12 @@
 
 #include "Dialogs/PreferencesDialog.h"
 #include "EditorPreferences.h"
+#include "HorseEngine/Render/MaterialRegistry.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Entity.h"
 #include "HorseEngine/Scene/Scene.h"
 #include "ThemeManager.h"
+
 
 #include <QCoreApplication>
 #include <QDockWidget>
@@ -21,7 +23,6 @@
 #include <QMessageBox>
 #include <QSettings>
 #include <QToolBar>
-
 
 EditorWindow::EditorWindow(QWidget *parent) : QMainWindow(parent) {
 
@@ -329,6 +330,9 @@ void EditorWindow::NewProject(const std::string &filepath) {
   std::filesystem::create_directories(project->GetConfig().ProjectDirectory /
                                       project->GetConfig().AssetDirectory /
                                       "Scenes");
+  std::filesystem::create_directories(project->GetConfig().ProjectDirectory /
+                                      project->GetConfig().AssetDirectory /
+                                      "Materials");
 
   Horse::Project::SetActive(project);
   SaveProject(filepath);
@@ -345,6 +349,14 @@ void EditorWindow::OpenProject(const std::string &filepath) {
   Horse::ProjectSerializer serializer(project);
   if (serializer.DeserializeFromJSON(filepath)) {
     Horse::Project::SetActive(project);
+
+    // Load materials
+    std::filesystem::path materialPath = project->GetConfig().ProjectDirectory /
+                                         project->GetConfig().AssetDirectory /
+                                         "Materials";
+
+    Horse::MaterialRegistry::Get().LoadMaterialsFromDirectory(
+        materialPath.string());
 
     // Load default scene if available
     if (!project->GetConfig().DefaultScene.empty()) {

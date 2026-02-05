@@ -1,10 +1,9 @@
 #include "SceneViewport.h"
 #include "HorseEngine/Core/Time.h"
 #include "HorseEngine/Render/D3D11Renderer.h"
+#include <DirectXMath.h>
 #include <QKeyEvent>
 #include <QMouseEvent>
-
-using namespace DirectX;
 
 SceneViewport::SceneViewport(QWidget *parent) : D3D11ViewportWidget(parent) {
   setFocusPolicy(Qt::StrongFocus);
@@ -57,30 +56,32 @@ void SceneViewport::UpdateCamera() {
   if (m_KeysDown.count(Qt::Key_Shift))
     speed *= 2.0f;
 
-  XMMATRIX rotation = XMMatrixRotationRollPitchYaw(
-      XMConvertToRadians(m_Pitch), XMConvertToRadians(m_Yaw), 0.0f);
-  XMVECTOR forward =
-      XMVector3TransformCoord(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), rotation);
-  XMVECTOR right =
-      XMVector3TransformCoord(XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), rotation);
-  XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+  DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationRollPitchYaw(
+      DirectX::XMConvertToRadians(m_Pitch), DirectX::XMConvertToRadians(m_Yaw),
+      0.0f);
+  DirectX::XMVECTOR forward = DirectX::XMVector3TransformCoord(
+      DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), rotation);
+  DirectX::XMVECTOR right = DirectX::XMVector3TransformCoord(
+      DirectX::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), rotation);
+  DirectX::XMVECTOR up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
-  XMVECTOR pos = XMLoadFloat3(&m_CameraPos);
+  DirectX::XMVECTOR pos = DirectX::XMLoadFloat3(&m_CameraPos);
 
   if (m_KeysDown.count(Qt::Key_W))
-    pos += forward * speed;
+    pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(forward, speed));
   if (m_KeysDown.count(Qt::Key_S))
-    pos -= forward * speed;
+    pos =
+        DirectX::XMVectorSubtract(pos, DirectX::XMVectorScale(forward, speed));
   if (m_KeysDown.count(Qt::Key_A))
-    pos -= right * speed;
+    pos = DirectX::XMVectorSubtract(pos, DirectX::XMVectorScale(right, speed));
   if (m_KeysDown.count(Qt::Key_D))
-    pos += right * speed;
+    pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(right, speed));
   if (m_KeysDown.count(Qt::Key_E))
-    pos += up * speed;
+    pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(up, speed));
   if (m_KeysDown.count(Qt::Key_Q))
-    pos -= up * speed;
+    pos = DirectX::XMVectorSubtract(pos, DirectX::XMVectorScale(up, speed));
 
-  XMStoreFloat3(&m_CameraPos, pos);
+  DirectX::XMStoreFloat3(&m_CameraPos, pos);
 }
 
 void SceneViewport::Render() {
@@ -92,16 +93,18 @@ void SceneViewport::Render() {
   m_Renderer->Clear(m_ClearColor[0], m_ClearColor[1], m_ClearColor[2]);
 
   if (m_Scene) {
-    XMMATRIX rotation = XMMatrixRotationRollPitchYaw(
-        XMConvertToRadians(m_Pitch), XMConvertToRadians(m_Yaw), 0.0f);
-    XMVECTOR forward =
-        XMVector3TransformCoord(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), rotation);
-    XMVECTOR pos = XMLoadFloat3(&m_CameraPos);
+    DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationRollPitchYaw(
+        DirectX::XMConvertToRadians(m_Pitch),
+        DirectX::XMConvertToRadians(m_Yaw), 0.0f);
+    DirectX::XMVECTOR forward = DirectX::XMVector3TransformCoord(
+        DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), rotation);
+    DirectX::XMVECTOR pos = DirectX::XMLoadFloat3(&m_CameraPos);
 
-    XMMATRIX view = XMMatrixLookAtLH(pos, pos + forward,
-                                     XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
-    XMMATRIX projection = XMMatrixPerspectiveFovLH(
-        XM_PIDIV4, width() / (float)height(), 0.1f, 1000.0f);
+    DirectX::XMMATRIX view =
+        DirectX::XMMatrixLookAtLH(pos, DirectX::XMVectorAdd(pos, forward),
+                                  DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+    DirectX::XMMATRIX projection = DirectX::XMMatrixPerspectiveFovLH(
+        DirectX::XM_PIDIV4, width() / (float)height(), 0.1f, 1000.0f);
 
     m_Renderer->RenderScene(m_Scene.get(), &view, &projection);
   }

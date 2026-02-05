@@ -1,6 +1,7 @@
 # RenderD3D11 - Direct3D 11 Renderer Module
 add_library(HorseRenderD3D11 STATIC
     Source/D3D11Renderer.cpp
+    Source/D3D11Buffer.cpp
     Source/D3D11Shader.cpp
     Source/D3D11Texture.cpp
 )

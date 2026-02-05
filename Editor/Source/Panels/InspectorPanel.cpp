@@ -1,6 +1,11 @@
 #include "InspectorPanel.h"
+#include "HorseEngine/Render/Material.h"
+#include "HorseEngine/Render/MaterialRegistry.h"
+#include "HorseEngine/Render/MaterialSerializer.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Entity.h"
+#include <algorithm>
+#include <vector>
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -9,8 +14,10 @@
 #include <QGroupBox>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
+#include <QPushButton>
+#include <QTimer>
 #include <QVBoxLayout>
-
 
 InspectorPanel::InspectorPanel(QWidget *parent) : QWidget(parent) {
 
@@ -226,5 +233,152 @@ void InspectorPanel::DrawComponents() {
                         new QLabel(QString::number(light.Intensity)));
 
     m_ContentLayout->addWidget(lightGroup);
+  }
+
+  // Mesh Renderer Component (Material Inspector)
+  if (m_SelectedEntity.HasComponent<Horse::MeshRendererComponent>()) {
+    auto &mesh = m_SelectedEntity.GetComponent<Horse::MeshRendererComponent>();
+
+    QGroupBox *materialGroup = new QGroupBox("Material");
+    QFormLayout *materialLayout = new QFormLayout(materialGroup);
+
+    // Check if material is assigned
+    if (mesh.MaterialGUID.empty()) {
+      QPushButton *addMatBtn = new QPushButton("Add Material");
+      connect(addMatBtn, &QPushButton::clicked, this, [this]() {
+        QMenu menu;
+        auto materials = Horse::MaterialRegistry::Get().GetMaterials();
+        std::vector<std::string> names;
+        for (const auto &[name, mat] : materials) {
+          names.push_back(name);
+        }
+        std::sort(names.begin(), names.end());
+
+        for (const auto &name : names) {
+          menu.addAction(QString::fromStdString(name), [this, name]() {
+            if (m_SelectedEntity) {
+              m_SelectedEntity.GetComponent<Horse::MeshRendererComponent>()
+                  .MaterialGUID = name;
+              QTimer::singleShot(0, this, [this]() { RefreshInspector(); });
+            }
+          });
+        }
+        menu.exec(QCursor::pos());
+      });
+      materialLayout->addRow(addMatBtn);
+    } else {
+      // Material Selector
+      QComboBox *materialCombo = new QComboBox();
+      std::vector<std::string> materialNames;
+      for (const auto &[name, mat] :
+           Horse::MaterialRegistry::Get().GetMaterials()) {
+        materialNames.push_back(name);
+      }
+      std::sort(materialNames.begin(), materialNames.end());
+
+      int currentIndex = -1;
+      for (int i = 0; i < materialNames.size(); ++i) {
+        materialCombo->addItem(QString::fromStdString(materialNames[i]));
+        if (materialNames[i] == mesh.MaterialGUID) {
+          currentIndex = i;
+        }
+      }
+
+      // If current material not found in list, add it to end to show it exists
+      // but is missing?
+      if (currentIndex == -1) {
+        materialCombo->addItem(QString::fromStdString(mesh.MaterialGUID) +
+                               " (Missing)");
+        materialCombo->setCurrentIndex(materialCombo->count() - 1);
+      } else {
+        materialCombo->setCurrentIndex(currentIndex);
+      }
+
+      connect(materialCombo,
+              QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+              [this, materialNames](int index) {
+                if (m_SelectedEntity && index >= 0 &&
+                    index < materialNames.size()) {
+                  m_SelectedEntity.GetComponent<Horse::MeshRendererComponent>()
+                      .MaterialGUID = materialNames[index];
+                  QTimer::singleShot(0, this, [this]() { RefreshInspector(); });
+                }
+              });
+
+      materialLayout->addRow("Assignment:", materialCombo);
+
+      // Get Active Material
+      auto material =
+          Horse::MaterialRegistry::Get().GetMaterial(mesh.MaterialGUID);
+
+      if (material) {
+        // Albedo Color (RGB SpinBoxes for now)
+        QHBoxLayout *colorLayout = new QHBoxLayout();
+        auto color = material->GetColor("Albedo");
+        std::array<float, 3> rgb = {color[0], color[1], color[2]};
+
+        for (int i = 0; i < 3; ++i) {
+          QDoubleSpinBox *spin = new QDoubleSpinBox();
+          spin->setRange(0.0, 1.0);
+          spin->setSingleStep(0.01);
+          spin->setValue(rgb[i]);
+
+          // Connect Signal
+          connect(spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                  this, [this, material, i](double val) {
+                    if (material) {
+                      auto c = material->GetColor("Albedo");
+                      c[i] = static_cast<float>(val);
+                      material->SetColor("Albedo", c);
+
+                      // Save
+                      if (!material->GetFilePath().empty()) {
+                        Horse::MaterialSerializer::Serialize(
+                            *material, material->GetFilePath());
+                      }
+                    }
+                  });
+          colorLayout->addWidget(spin);
+        }
+        materialLayout->addRow("Albedo (RGB):", colorLayout);
+
+        // Roughness
+        QDoubleSpinBox *roughnessSpin = new QDoubleSpinBox();
+        roughnessSpin->setRange(0.0, 1.0);
+        roughnessSpin->setSingleStep(0.01);
+        roughnessSpin->setValue(material->GetFloat("Roughness"));
+        connect(roughnessSpin,
+                QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+                [this, material](double val) {
+                  if (material) {
+                    material->SetFloat("Roughness", static_cast<float>(val));
+                    if (!material->GetFilePath().empty()) {
+                      Horse::MaterialSerializer::Serialize(
+                          *material, material->GetFilePath());
+                    }
+                  }
+                });
+        materialLayout->addRow("Roughness:", roughnessSpin);
+
+        // Metalness
+        QDoubleSpinBox *metalnessSpin = new QDoubleSpinBox();
+        metalnessSpin->setRange(0.0, 1.0);
+        metalnessSpin->setSingleStep(0.01);
+        metalnessSpin->setValue(material->GetFloat("Metalness"));
+        connect(metalnessSpin,
+                QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+                [this, material](double val) {
+                  if (material) {
+                    material->SetFloat("Metalness", static_cast<float>(val));
+                    if (!material->GetFilePath().empty()) {
+                      Horse::MaterialSerializer::Serialize(
+                          *material, material->GetFilePath());
+                    }
+                  }
+                });
+        materialLayout->addRow("Metalness:", metalnessSpin);
+      }
+    }
+    m_ContentLayout->addWidget(materialGroup);
   }
 }

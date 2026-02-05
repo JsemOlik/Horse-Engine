@@ -1,11 +1,15 @@
 #pragma once
 
 #include "HorseEngine/Core.h"
+#include "HorseEngine/Render/D3D11Shader.h" // Add this
 #include "HorseEngine/Render/D3D11Texture.h"
+#include "HorseEngine/Render/Frustum.h"
 #include <DirectXMath.h>
 #include <d3d11.h>
 #include <dxgi.h>
+#include <entt/entt.hpp>
 #include <memory>
+#include <vector>
 #include <wrl/client.h>
 
 namespace Horse {
@@ -13,6 +17,12 @@ namespace Horse {
 using Microsoft::WRL::ComPtr;
 
 class Window;
+class Material;
+
+struct RenderItem {
+  entt::entity Entity;
+  float DistanceSq; // To camera
+};
 
 struct RendererDesc {
   HWND WindowHandle = nullptr;
@@ -24,7 +34,7 @@ struct RendererDesc {
 
 class D3D11Renderer {
 public:
-  D3D11Renderer() = default;
+  D3D11Renderer();
   ~D3D11Renderer();
 
   bool Initialize(const RendererDesc &desc);
@@ -67,9 +77,9 @@ private:
 
   // Cube members
   std::unique_ptr<class D3D11Texture> m_CubeTexture;
-  ComPtr<ID3D11Buffer> m_CubeVertexBuffer;
-  ComPtr<ID3D11Buffer> m_CubeIndexBuffer;
-  ComPtr<ID3D11Buffer> m_CubeConstantBuffer;
+  std::unique_ptr<class D3D11Buffer> m_CubeVertexBuffer;
+  std::unique_ptr<class D3D11Buffer> m_CubeIndexBuffer;
+  std::unique_ptr<class D3D11Buffer> m_CubeConstantBuffer;
   ComPtr<ID3D11InputLayout> m_CubeInputLayout;
   ComPtr<ID3D11VertexShader> m_CubeVS;
   ComPtr<ID3D11PixelShader> m_CubePS;
@@ -81,6 +91,24 @@ private:
   u32 m_Width = 0;
   u32 m_Height = 0;
   bool m_VSync = true;
+
+  // Material constants
+  struct MaterialConstantBuffer {
+    DirectX::XMFLOAT4 AlbedoColor;
+    f32 Roughness;
+    f32 Metalness;
+    f32 Padding[2]; // Align to 16 bytes
+  };
+
+  std::unique_ptr<class D3D11Buffer> m_MaterialConstantBuffer;
+  std::unordered_map<std::string, std::shared_ptr<class D3D11Shader>> m_Shaders;
+  std::shared_ptr<class D3D11Shader> m_DefaultShader;
+
+  std::shared_ptr<class D3D11Shader> GetShader(const std::string &shaderName,
+                                               const Material &material);
+
+  // Default white texture for when no texture is bound
+  std::shared_ptr<class D3D11Texture> m_WhiteTexture;
 };
 
 } // namespace Horse

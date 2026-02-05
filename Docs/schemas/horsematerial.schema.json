@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Horse Material",
+  "type": "object",
+  "properties": {
+    "Name": {
+      "type": "string",
+      "description": "Name of the material"
+    },
+    "Shader": {
+      "type": "string",
+      "description": "Name of the shader to use (e.g. StandardPBR)",
+      "default": "StandardPBR"
+    },
+    "FloatProperties": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      },
+      "description": "Float properties like Roughness, Metalness"
+    },
+    "ColorProperties": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        },
+        "minItems": 4,
+        "maxItems": 4
+      },
+      "description": "Color properties (RGBA)"
+    },
+    "TextureProperties": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Texture paths"
+    }
+  },
+  "required": ["Name", "Shader"]
+}

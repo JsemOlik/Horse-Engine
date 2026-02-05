@@ -1,6 +1,6 @@
 #pragma once
 
-#include "D3D11ViewportWidget.h"
+#include "../D3D11ViewportWidget.h"
 
 class GameViewport : public D3D11ViewportWidget {
   Q_OBJECT

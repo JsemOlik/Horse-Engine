@@ -1,15 +1,22 @@
 #include "HorseEngine/Render/D3D11Renderer.h"
 #include "HorseEngine/Core/Logging.h"
+#include "HorseEngine/Render/D3D11Buffer.h"
 #include "HorseEngine/Render/D3D11Shader.h"
 #include "HorseEngine/Render/D3D11Texture.h"
+#include "HorseEngine/Render/Frustum.h"
+#include "HorseEngine/Render/Material.h"
+#include "HorseEngine/Render/MaterialRegistry.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Scene.h"
 #include <DirectXMath.h>
+#include <algorithm>
 #include <dxgi1_2.h>
 
 using namespace DirectX;
 
 namespace Horse {
+
+D3D11Renderer::D3D11Renderer() = default;
 
 D3D11Renderer::~D3D11Renderer() { Shutdown(); }
 
@@ -33,6 +40,44 @@ bool D3D11Renderer::Initialize(const RendererDesc &desc) {
     return false;
   }
 
+  // Create Material Constant Buffer
+  m_MaterialConstantBuffer = std::make_unique<D3D11Buffer>();
+  if (!m_MaterialConstantBuffer->Initialize(
+          m_Device.Get(), BufferType::Constant, BufferUsage::Dynamic, nullptr,
+          sizeof(MaterialConstantBuffer))) {
+    HORSE_LOG_RENDER_ERROR("Failed to create Material Constant Buffer");
+    return false;
+  }
+
+  // Create Default White Texture
+  uint32_t whitePixel = 0xFFFFFFFF;
+  m_WhiteTexture = std::make_unique<D3D11Texture>();
+  if (!m_WhiteTexture->Create(m_Device.Get(), 1, 1, &whitePixel)) {
+    HORSE_LOG_RENDER_ERROR("Failed to create default white texture");
+    return false;
+  }
+
+  // Load Default Shader
+  m_DefaultShader = std::make_shared<D3D11Shader>();
+  if (!m_DefaultShader->CompileFromFile(m_Device.Get(),
+                                        L"Engine/Runtime/Shaders/Triangle.hlsl",
+                                        "VS", "vs_5_0")) {
+    HORSE_LOG_RENDER_ERROR("Failed to compile default vertex shader");
+    return false;
+  }
+  // Hack: Re-using the same object to compile pixel shader, assuming internal
+  // state handles it or we need separate calls? D3D11Shader logic:
+  // CompileFromFile stores GetVertexShader/GetPixelShader. Let's check
+  // D3D11Shader.h again. It has both members.
+  if (!m_DefaultShader->CompileFromFile(m_Device.Get(),
+                                        L"Engine/Runtime/Shaders/Triangle.hlsl",
+                                        "PS", "ps_5_0")) {
+    HORSE_LOG_RENDER_ERROR("Failed to compile default pixel shader");
+    return false;
+  }
+
+  m_Shaders["StandardPBR"] = m_DefaultShader;
+
   m_Viewport.TopLeftX = 0.0f;
   m_Viewport.TopLeftY = 0.0f;
   m_Viewport.Width = static_cast<f32>(m_Width);
@@ -46,9 +91,9 @@ bool D3D11Renderer::Initialize(const RendererDesc &desc) {
 
 void D3D11Renderer::Shutdown() {
   m_CubeTexture.reset();
-  m_CubeVertexBuffer.Reset();
-  m_CubeIndexBuffer.Reset();
-  m_CubeConstantBuffer.Reset();
+  m_CubeVertexBuffer.reset();
+  m_CubeIndexBuffer.reset();
+  m_CubeConstantBuffer.reset();
   m_CubeInputLayout.Reset();
   m_CubeVS.Reset();
   m_CubePS.Reset();
@@ -104,28 +149,69 @@ void D3D11Renderer::DrawCube() {
   // Update constant buffer
   XMFLOAT4X4 wvpData;
   XMStoreFloat4x4(&wvpData, XMMatrixTranspose(wvp));
-  m_Context->UpdateSubresource(m_CubeConstantBuffer.Get(), 0, nullptr, &wvpData,
-                               0, 0);
+  m_CubeConstantBuffer->UpdateData(m_Context.Get(), &wvpData, sizeof(wvpData));
 
   // Set pipeline state
-  UINT stride = sizeof(Vertex);
-  UINT offset = 0;
-  m_Context->IASetVertexBuffers(0, 1, m_CubeVertexBuffer.GetAddressOf(),
-                                &stride, &offset);
-  m_Context->IASetIndexBuffer(m_CubeIndexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
   m_Context->IASetInputLayout(m_CubeInputLayout.Get());
   m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+  m_CubeVertexBuffer->Bind(m_Context.Get(), 0);
+  m_CubeIndexBuffer->Bind(m_Context.Get(), 0);
 
-  m_Context->VSSetShader(m_CubeVS.Get(), nullptr, 0);
-  m_Context->VSSetConstantBuffers(0, 1, m_CubeConstantBuffer.GetAddressOf());
+  // Constants are updated in RenderScene
+  // m_Context->VSSetShader(m_CubeVS.Get(), nullptr, 0);
+  // m_Context->PSSetShader(m_CubePS.Get(), nullptr, 0);
+  // m_Context->DrawIndexed(36, 0, 0);
+}
 
-  if (m_CubeTexture) {
-    m_CubeTexture->Bind(m_Context.Get(), 0);
+std::shared_ptr<D3D11Shader>
+D3D11Renderer::GetShader(const std::string &shaderName,
+                         const Material &material) {
+  std::string key = shaderName;
+  std::vector<D3D_SHADER_MACRO> defines;
+
+  // Build Permutation Key & Defines
+  // TODO: This mapping should ideally be data-driven or based on shader
+  // metadata
+  if (material.HasTexture("AlbedoMap")) {
+    key += "_ALBEDO";
+    defines.push_back({"HAS_ALBEDO_MAP", "1"});
+  }
+  // Add other properties here (NormalMap, RoughnessMap, etc.)
+
+  // Check Cache
+  auto it = m_Shaders.find(key);
+  if (it != m_Shaders.end()) {
+    return it->second;
   }
 
-  m_Context->PSSetShader(m_CubePS.Get(), nullptr, 0);
+  // Compile New Variant
+  HORSE_LOG_RENDER_INFO("Compiling Shader Variant: {}", key);
+  auto shader = std::make_shared<D3D11Shader>();
 
-  m_Context->DrawIndexed(36, 0, 0);
+  // Resolve Path
+  // Hardcoded mapping for now
+  std::wstring path = L"Engine/Runtime/Shaders/Triangle.hlsl";
+  if (shaderName != "StandardPBR") {
+    // Fallback or specific paths
+  }
+
+  // Compile VS and PS (Assume same file for now)
+  // IMPORTANT: In production, Vertex Shader might not need the same
+  // permutations as Pixel Shader, or might need different ones (e.g. skinning).
+  // Current simple system assumes shared logic.
+  bool success = true;
+  if (!shader->CompileFromFile(m_Device.Get(), path, "VS", "vs_5_0", defines))
+    success = false;
+  if (!shader->CompileFromFile(m_Device.Get(), path, "PS", "ps_5_0", defines))
+    success = false;
+
+  if (!success) {
+    HORSE_LOG_RENDER_ERROR("Failed to compile shader variant: {}", key);
+    return m_DefaultShader;
+  }
+
+  m_Shaders[key] = shader;
+  return shader;
 }
 
 void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
@@ -171,9 +257,18 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
           XMVector3TransformCoord(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), rotMat);
 
       view = XMMatrixLookAtLH(pos, target, up);
-      projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(camera.FOV),
-                                            m_Width / (f32)m_Height,
+
+      if (camera.Type == CameraComponent::ProjectionType::Perspective) {
+        projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(camera.FOV),
+                                              m_Width / (f32)m_Height,
+                                              camera.NearClip, camera.FarClip);
+      } else {
+        float orthoWidth = camera.OrthographicSize * (m_Width / (f32)m_Height);
+        float orthoHeight = camera.OrthographicSize;
+        projection = XMMatrixOrthographicLH(orthoWidth, orthoHeight,
                                             camera.NearClip, camera.FarClip);
+      }
+
       cameraFound = true;
       break;
     }
@@ -187,17 +282,77 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
     view = XMMatrixLookAtLH(eye, at, up);
   }
 
+  // Create Frustum
+  Frustum frustum;
+  frustum.Update(view * projection);
+
+  XMVECTOR cameraPosVec = XMVectorSet(0, 0, 0, 1);
+  XMMATRIX invView = XMMatrixInverse(nullptr, view);
+  cameraPosVec = XMVector3TransformCoord(cameraPosVec, invView);
+  XMFLOAT3 cameraPos;
+  XMStoreFloat3(&cameraPos, cameraPosVec);
+
+  // Cull and Collect
+  std::vector<RenderItem> renderItems;
+  auto meshView = registry.view<TransformComponent, MeshRendererComponent>();
+
+  for (auto entity : meshView) {
+    auto [transform, mesh] =
+        meshView.get<TransformComponent, MeshRendererComponent>(entity);
+
+    // Calculate Rotation Matrix
+    XMMATRIX rotation =
+        XMMatrixRotationRollPitchYaw(XMConvertToRadians(transform.Rotation[0]),
+                                     XMConvertToRadians(transform.Rotation[1]),
+                                     XMConvertToRadians(transform.Rotation[2]));
+
+    // Calculate World Space AABB Extents
+    // Transform local extents (1.0 * Scale) into world space axes
+    // Note: Vertices are -1 to 1, so the half-size (extent) is 1.0.
+    XMVECTOR localExtentsX =
+        XMVectorSet(transform.Scale[0] * 1.0f, 0.0f, 0.0f, 0.0f);
+    XMVECTOR localExtentsY =
+        XMVectorSet(0.0f, transform.Scale[1] * 1.0f, 0.0f, 0.0f);
+    XMVECTOR localExtentsZ =
+        XMVectorSet(0.0f, 0.0f, transform.Scale[2] * 1.0f, 0.0f);
+
+    XMVECTOR rotExtentsX = XMVector3TransformNormal(localExtentsX, rotation);
+    XMVECTOR rotExtentsY = XMVector3TransformNormal(localExtentsY, rotation);
+    XMVECTOR rotExtentsZ = XMVector3TransformNormal(localExtentsZ, rotation);
+
+    // Sum absolute values to get the bounding box extents
+    XMVECTOR worldExtents = XMVectorAbs(rotExtentsX) +
+                            XMVectorAbs(rotExtentsY) + XMVectorAbs(rotExtentsZ);
+
+    AABB aabb;
+    aabb.Center = {transform.Position[0], transform.Position[1],
+                   transform.Position[2]};
+    XMStoreFloat3(&aabb.Extents, worldExtents);
+
+    if (frustum.Intersects(aabb)) {
+      float dx = transform.Position[0] - cameraPos.x;
+      float dy = transform.Position[1] - cameraPos.y;
+      float dz = transform.Position[2] - cameraPos.z;
+      float distSq = dx * dx + dy * dy + dz * dz;
+
+      renderItems.push_back({entity, distSq});
+    }
+  }
+
+  // Sort front-to-back (optimization for opaque objects to leverage early-Z)
+  std::sort(renderItems.begin(), renderItems.end(),
+            [](const RenderItem &a, const RenderItem &b) {
+              return a.DistanceSq < b.DistanceSq;
+            });
+
   // Set common pipeline state
-  UINT stride = sizeof(Vertex);
-  UINT offset = 0;
-  m_Context->IASetVertexBuffers(0, 1, m_CubeVertexBuffer.GetAddressOf(),
-                                &stride, &offset);
-  m_Context->IASetIndexBuffer(m_CubeIndexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+  m_CubeVertexBuffer->Bind(m_Context.Get(), 0);
+  m_CubeIndexBuffer->Bind(m_Context.Get(), 0);
   m_Context->IASetInputLayout(m_CubeInputLayout.Get());
   m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
   m_Context->VSSetShader(m_CubeVS.Get(), nullptr, 0);
-  m_Context->VSSetConstantBuffers(0, 1, m_CubeConstantBuffer.GetAddressOf());
+  m_CubeConstantBuffer->Bind(m_Context.Get(), 0);
 
   if (m_CubeTexture) {
     m_CubeTexture->Bind(m_Context.Get(), 0);
@@ -205,11 +360,10 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
 
   m_Context->PSSetShader(m_CubePS.Get(), nullptr, 0);
 
-  // Render meshes
-  auto meshView = registry.view<TransformComponent, MeshRendererComponent>();
-  for (auto entity : meshView) {
+  // Render Sorted Items
+  for (const auto &item : renderItems) {
     auto [transform, mesh] =
-        meshView.get<TransformComponent, MeshRendererComponent>(entity);
+        meshView.get<TransformComponent, MeshRendererComponent>(item.Entity);
 
     XMMATRIX world =
         XMMatrixScaling(transform.Scale[0], transform.Scale[1],
@@ -223,11 +377,53 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
 
     XMMATRIX wvp = world * view * projection;
 
-    // Update constant buffer
+    // Update Object Constant Buffer (WVP)
     XMFLOAT4X4 wvpData;
     XMStoreFloat4x4(&wvpData, XMMatrixTranspose(wvp));
-    m_Context->UpdateSubresource(m_CubeConstantBuffer.Get(), 0, nullptr,
-                                 &wvpData, 0, 0);
+    m_CubeConstantBuffer->UpdateData(m_Context.Get(), &wvpData,
+                                     sizeof(wvpData));
+    m_CubeConstantBuffer->Bind(m_Context.Get(), 0); // Slot 0: Object CBuffer
+
+    // Retrieve Material properties
+    // Use Material Registry to get the material for this entity
+    auto material = MaterialRegistry::Get().GetMaterial(mesh.MaterialGUID);
+    if (!material) {
+      material = MaterialRegistry::Get().GetMaterial("Default");
+    }
+
+    // Bind Shader (Permutation Aware)
+    auto shader = GetShader(material->GetShaderName(), *material);
+    if (!shader)
+      shader = m_DefaultShader;
+
+    if (shader) {
+      m_Context->VSSetShader(shader->GetVertexShader(), nullptr, 0);
+      m_Context->PSSetShader(shader->GetPixelShader(), nullptr, 0);
+    }
+
+    // Update Material Constant Buffer
+    MaterialConstantBuffer matCB;
+    auto color = material->GetColor("Albedo");
+    matCB.AlbedoColor = {color[0], color[1], color[2], color[3]};
+    matCB.Roughness = material->GetFloat("Roughness");
+    matCB.Metalness = material->GetFloat("Metalness");
+
+    m_MaterialConstantBuffer->UpdateData(m_Context.Get(), &matCB,
+                                         sizeof(MaterialConstantBuffer));
+    m_MaterialConstantBuffer->Bind(m_Context.Get(),
+                                   1); // Slot 1: Material CBuffer
+
+    // Bind Textures
+    // If material has an albedo texture, bind it. Else bind white texture.
+    std::string albedoPath = material->GetTexture("AlbedoMap");
+
+    // TODO: Texture Manager lookup. For now, just bind the white texture if
+    // nothing else Or reuse the checkerboard if we want to visualize it
+    if (m_CubeTexture) {
+      m_CubeTexture->Bind(m_Context.Get(), 0);
+    } else {
+      m_WhiteTexture->Bind(m_Context.Get(), 0);
+    }
 
     m_Context->DrawIndexed(36, 0, 0);
   }
@@ -360,15 +556,10 @@ bool D3D11Renderer::InitCube() {
       {-1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f},
   };
 
-  D3D11_BUFFER_DESC vbd = {};
-  vbd.Usage = D3D11_USAGE_DEFAULT;
-  vbd.ByteWidth = sizeof(vertices);
-  vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-
-  D3D11_SUBRESOURCE_DATA vsd = {};
-  vsd.pSysMem = vertices;
-  hr = m_Device->CreateBuffer(&vbd, &vsd, &m_CubeVertexBuffer);
-  if (FAILED(hr))
+  m_CubeVertexBuffer = std::make_unique<D3D11Buffer>();
+  if (!m_CubeVertexBuffer->Initialize(m_Device.Get(), BufferType::Vertex,
+                                      BufferUsage::Immutable, vertices,
+                                      sizeof(vertices), sizeof(Vertex)))
     return false;
 
   // Create index buffer
@@ -381,30 +572,24 @@ bool D3D11Renderer::InitCube() {
       20, 21, 22, 20, 22, 23, // Bottom
   };
 
-  D3D11_BUFFER_DESC ibd = {};
-  ibd.Usage = D3D11_USAGE_DEFAULT;
-  ibd.ByteWidth = sizeof(indices);
-  ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-
-  D3D11_SUBRESOURCE_DATA isd = {};
-  isd.pSysMem = indices;
-  hr = m_Device->CreateBuffer(&ibd, &isd, &m_CubeIndexBuffer);
-  if (FAILED(hr))
+  m_CubeIndexBuffer = std::make_unique<D3D11Buffer>();
+  if (!m_CubeIndexBuffer->Initialize(m_Device.Get(), BufferType::Index,
+                                     BufferUsage::Immutable, indices,
+                                     sizeof(indices)))
     return false;
 
   // Create constant buffer
-  D3D11_BUFFER_DESC cbd = {};
-  cbd.Usage = D3D11_USAGE_DEFAULT;
-  cbd.ByteWidth = sizeof(XMFLOAT4X4);
-  cbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-  hr = m_Device->CreateBuffer(&cbd, nullptr, &m_CubeConstantBuffer);
-  if (FAILED(hr))
+  m_CubeConstantBuffer = std::make_unique<D3D11Buffer>();
+  if (!m_CubeConstantBuffer->Initialize(m_Device.Get(), BufferType::Constant,
+                                        BufferUsage::Dynamic, nullptr,
+                                        sizeof(XMFLOAT4X4)))
     return false;
 
   // Load texture
   m_CubeTexture = std::make_unique<D3D11Texture>();
   if (!m_CubeTexture->LoadFromFile(
-          m_Device.Get(), "Engine/Runtime/Textures/Checkerboard.png")) {
+          m_Device.Get(), m_Context.Get(),
+          "Engine/Runtime/Textures/Checkerboard.png")) {
     HORSE_LOG_RENDER_WARN("Failed to load test texture, cube will be white");
   }
 
