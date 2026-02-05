@@ -218,7 +218,7 @@ void ContentBrowserPanel::OnCreateMaterial() {
 
     if (!std::filesystem::exists(newPath)) {
       // Create new material
-      Horse::Material material(name.toStdString());
+      Horse::MaterialInstance material(name.toStdString());
       // Default values
       material.SetColor("Albedo", {1.0f, 1.0f, 1.0f, 1.0f});
       material.SetFloat("Roughness", 0.5f);

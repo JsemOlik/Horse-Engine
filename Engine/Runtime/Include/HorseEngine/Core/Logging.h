@@ -4,12 +4,11 @@
 #include <memory>
 #include <spdlog/spdlog.h>
 
-
 namespace Horse {
 
 enum class LogChannel { Core, Render, Asset, Script };
 
-class Logger {
+class HORSE_API Logger {
 public:
   static void Initialize();
   static void Shutdown();

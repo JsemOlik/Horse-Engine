@@ -1,11 +1,13 @@
 #pragma once
 
 #include "HorseEngine/Asset/Asset.h"
+#include "HorseEngine/Core.h"
 #include <filesystem>
+
 
 namespace Horse {
 
-class AssetImporter {
+class HORSE_API AssetImporter {
 public:
   virtual ~AssetImporter() = default;
 

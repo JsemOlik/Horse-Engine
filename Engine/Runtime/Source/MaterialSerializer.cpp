@@ -5,7 +5,7 @@
 
 namespace Horse {
 
-bool MaterialSerializer::Serialize(const Material &material,
+bool MaterialSerializer::Serialize(const MaterialInstance &material,
                                    const std::string &filepath) {
   nlohmann::json out;
   out["Name"] = material.GetName();
@@ -40,7 +40,7 @@ bool MaterialSerializer::Serialize(const Material &material,
 }
 
 bool MaterialSerializer::Deserialize(const std::string &filepath,
-                                     Material &outMaterial) {
+                                     MaterialInstance &output) {
   std::ifstream stream(filepath);
   if (!stream.is_open()) {
     HORSE_LOG_CORE_ERROR("Could not open file for reading: {0}", filepath);
@@ -56,14 +56,14 @@ bool MaterialSerializer::Deserialize(const std::string &filepath,
   }
 
   if (data.contains("Name"))
-    outMaterial.SetName(data["Name"]);
+    output.SetName(data["Name"]);
 
   if (data.contains("Shader"))
-    outMaterial.SetShaderName(data["Shader"]);
+    output.SetShaderName(data["Shader"]);
 
   if (data.contains("FloatProperties")) {
     for (auto &[key, value] : data["FloatProperties"].items()) {
-      outMaterial.SetFloat(key, value);
+      output.SetFloat(key, value);
     }
   }
 
@@ -71,14 +71,14 @@ bool MaterialSerializer::Deserialize(const std::string &filepath,
     for (auto &[key, value] : data["ColorProperties"].items()) {
       if (value.is_array() && value.size() == 4) {
         std::array<float, 4> color = {value[0], value[1], value[2], value[3]};
-        outMaterial.SetColor(key, color);
+        output.SetColor(key, color);
       }
     }
   }
 
   if (data.contains("TextureProperties")) {
     for (auto &[key, value] : data["TextureProperties"].items()) {
-      outMaterial.SetTexture(key, value);
+      output.SetTexture(key, value);
     }
   }
 

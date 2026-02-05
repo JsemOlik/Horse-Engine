@@ -7,7 +7,7 @@ namespace Horse {
 
 class Scene;
 
-class Entity {
+class HORSE_API Entity {
 public:
   Entity() = default;
   Entity(entt::entity handle, Scene *scene);

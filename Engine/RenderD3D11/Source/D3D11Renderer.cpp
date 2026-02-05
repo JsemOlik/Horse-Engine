@@ -168,7 +168,7 @@ void D3D11Renderer::DrawCube() {
 
 std::shared_ptr<D3D11Shader>
 D3D11Renderer::GetShader(const std::string &shaderName,
-                         const Material &material) {
+                         const MaterialInstance &material) {
   std::string key = shaderName;
   std::vector<D3D_SHADER_MACRO> defines;
 

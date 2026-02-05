@@ -1,15 +1,24 @@
 #pragma once
 
+#ifdef HORSE_PLATFORM_WINDOWS
+#ifdef HORSE_BUILD_DLL
 #define HORSE_API __declspec(dllexport)
+#else
+#define HORSE_API __declspec(dllimport)
+#endif
+#else
+#define HORSE_API
+#endif
 
 // Platform detection
 #if !defined(HORSE_PLATFORM_WINDOWS)
-    #error "Only Windows is supported"
+#error "Only Windows is supported"
 #endif
 
 // Common types
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
+
 
 using u8 = uint8_t;
 using u16 = uint16_t;

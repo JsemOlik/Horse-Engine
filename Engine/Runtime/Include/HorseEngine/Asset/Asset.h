@@ -8,7 +8,7 @@ namespace Horse {
 
 enum class AssetType { None = 0, Texture, Mesh, Material, Scene, Script };
 
-struct AssetMetadata {
+struct HORSE_API AssetMetadata {
   UUID Handle;
   AssetType Type = AssetType::None;
   std::filesystem::path FilePath; // Relative to Assets directory

@@ -1,14 +1,14 @@
 #pragma once
 
+#include "HorseEngine/Core.h"
 #include <memory>
 #include <string>
-
 
 namespace Horse {
 
 class Project;
 
-class ProjectSerializer {
+class HORSE_API ProjectSerializer {
 public:
   ProjectSerializer(std::shared_ptr<Project> project);
 

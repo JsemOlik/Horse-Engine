@@ -2,7 +2,7 @@
 
 # Find required packages
 find_package(nlohmann_json CONFIG REQUIRED)
-add_library(HorseRuntime STATIC
+add_library(HorseRuntime SHARED
     Source/Platform/Win32Window.cpp
     Source/Platform/Win32Input.cpp
     Source/Core/Time.cpp
@@ -44,4 +44,6 @@ target_link_libraries(HorseRuntime
 target_compile_definitions(HorseRuntime
     PUBLIC
         HORSE_PLATFORM_WINDOWS=1
+    PRIVATE
+        HORSE_BUILD_DLL=1
 )

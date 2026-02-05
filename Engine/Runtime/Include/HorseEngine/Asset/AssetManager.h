@@ -6,7 +6,7 @@
 
 namespace Horse {
 
-class AssetManager {
+class HORSE_API AssetManager {
 public:
   static AssetManager &Get();
 

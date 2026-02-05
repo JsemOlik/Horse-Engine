@@ -4,7 +4,7 @@
 
 namespace Horse {
 
-class TextureImporter : public AssetImporter {
+class HORSE_API TextureImporter : public AssetImporter {
 public:
   bool Import(const std::filesystem::path &path) override;
   bool CanImport(const std::filesystem::path &path) const override;
