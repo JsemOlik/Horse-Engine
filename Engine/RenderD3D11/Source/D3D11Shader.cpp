@@ -1,8 +1,11 @@
 #include "HorseEngine/Render/D3D11Shader.h"
 #include "HorseEngine/Core/Logging.h"
 #include <d3dcompiler.h>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <vector>
+#include <windows.h>
 
 namespace Horse {
 
@@ -10,9 +13,48 @@ bool D3D11Shader::CompileFromFile(
     ID3D11Device *device, const std::wstring &filepath,
     const std::string &entryPoint, const std::string &profile,
     const std::vector<D3D_SHADER_MACRO> &defines) {
-  std::ifstream file(filepath);
+  namespace fs = std::filesystem;
+  fs::path shaderPath = filepath;
+
+  // 1. Try direct path
+  if (!fs::exists(shaderPath)) {
+    // 2. Try relative to executable
+    wchar_t exePath[MAX_PATH];
+    GetModuleFileNameW(NULL, exePath, MAX_PATH);
+    fs::path exeDir = fs::path(exePath).parent_path();
+    fs::path relativePath = exeDir / shaderPath;
+
+    if (fs::exists(relativePath)) {
+      shaderPath = relativePath;
+    } else {
+      // 3. Try climbing up from exe (for dev environments where exe is in
+      // Build/Debug/Editor)
+      fs::path searchDir = exeDir;
+      bool found = false;
+      for (int i = 0; i < 4; ++i) { // Search up to 4 levels
+        if (fs::exists(searchDir / shaderPath)) {
+          shaderPath = searchDir / shaderPath;
+          found = true;
+          break;
+        }
+        if (searchDir.has_parent_path())
+          searchDir = searchDir.parent_path();
+        else
+          break;
+      }
+
+      if (!found) {
+        HORSE_LOG_RENDER_ERROR("Failed to find shader file: {}",
+                               shaderPath.string());
+        return false;
+      }
+    }
+  }
+
+  std::ifstream file(shaderPath);
   if (!file.is_open()) {
-    HORSE_LOG_RENDER_ERROR("Failed to open shader file");
+    HORSE_LOG_RENDER_ERROR("Failed to open shader file: {}",
+                           shaderPath.string());
     return false;
   }
 

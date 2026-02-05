@@ -6,7 +6,6 @@
 #include "HorseEngine/Scene/Scene.h"
 #include "HorseEngine/Scene/UUID.h"
 
-
 #include <fstream>
 #include <nlohmann/json.hpp>
 
@@ -139,11 +138,12 @@ static void DeserializeMeshRendererComponent(const json &j,
 }
 
 static json SerializeScriptComponent(const ScriptComponent &comp) {
-  return {{"scriptGuid", comp.ScriptGUID}};
+  return {{"scriptGuid", comp.ScriptGUID}, {"scriptPath", comp.ScriptPath}};
 }
 
 static void DeserializeScriptComponent(const json &j, ScriptComponent &comp) {
   comp.ScriptGUID = j.value("scriptGuid", "");
+  comp.ScriptPath = j.value("scriptPath", "");
 }
 
 static json SerializeNativeScriptComponent(const NativeScriptComponent &comp) {

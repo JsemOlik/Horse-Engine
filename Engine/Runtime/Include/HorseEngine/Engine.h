@@ -11,6 +11,9 @@
 
 namespace Horse {
 
+class GameModule;
+class LuaScriptEngine;
+
 class HORSE_API Engine {
 public:
   Engine();

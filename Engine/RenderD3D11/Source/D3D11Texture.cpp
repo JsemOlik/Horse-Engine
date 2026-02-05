@@ -1,5 +1,9 @@
 #include "HorseEngine/Render/D3D11Texture.h"
 #include "HorseEngine/Core/Logging.h"
+#include <filesystem>
+#include <string>
+#include <vector>
+#include <windows.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -10,13 +14,50 @@ bool D3D11Texture::LoadFromFile(ID3D11Device *device,
                                 ID3D11DeviceContext *context,
                                 const std::string &filePath, bool srgb,
                                 bool generateMips) {
+  namespace fs = std::filesystem;
+  fs::path texturePath = filePath;
+
+  // 1. Try direct path
+  if (!fs::exists(texturePath)) {
+    // 2. Try relative to executable
+    wchar_t exePath[MAX_PATH];
+    GetModuleFileNameW(NULL, exePath, MAX_PATH);
+    fs::path exeDir = fs::path(exePath).parent_path();
+    fs::path relativePath = exeDir / texturePath;
+
+    if (fs::exists(relativePath)) {
+      texturePath = relativePath;
+    } else {
+      // 3. Try climbing up from exe
+      fs::path searchDir = exeDir;
+      bool found = false;
+      for (int i = 0; i < 4; ++i) { // Search up to 4 levels
+        if (fs::exists(searchDir / texturePath)) {
+          texturePath = searchDir / texturePath;
+          found = true;
+          break;
+        }
+        if (searchDir.has_parent_path())
+          searchDir = searchDir.parent_path();
+        else
+          break;
+      }
+
+      if (!found) {
+        HORSE_LOG_RENDER_ERROR("Failed to find texture file: {}",
+                               texturePath.string());
+        return false;
+      }
+    }
+  }
+
   int width, height, channels;
   stbi_set_flip_vertically_on_load(true);
   unsigned char *data =
-      stbi_load(filePath.c_str(), &width, &height, &channels, 4);
+      stbi_load(texturePath.string().c_str(), &width, &height, &channels, 4);
 
   if (!data) {
-    HORSE_LOG_RENDER_ERROR("Failed to load texture: {}", filePath);
+    HORSE_LOG_RENDER_ERROR("Failed to load texture: {}", texturePath.string());
     return false;
   }
 

@@ -2,6 +2,7 @@
 
 #include <QDockWidget>
 #include <QMainWindow>
+#include <QTimer>
 #include <memory>
 
 #include "HorseEngine/Scene/Entity.h"
@@ -62,6 +63,9 @@ private:
   void OpenScene(const std::string &filepath);
   void SaveScene(const std::string &filepath);
   void UpdateSceneContext();
+  void OnUpdate();
+
+  QTimer *m_UpdateTimer = nullptr;
 
   SceneViewport *m_SceneViewport = nullptr;
   GameViewport *m_GameViewport = nullptr;

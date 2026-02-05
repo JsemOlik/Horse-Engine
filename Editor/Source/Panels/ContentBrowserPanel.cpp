@@ -14,6 +14,7 @@
 #include <QMimeData>
 #include <QUrl>
 #include <QVBoxLayout>
+#include <fstream>
 
 ContentBrowserPanel::ContentBrowserPanel(QWidget *parent) : QWidget(parent) {
 
@@ -196,6 +197,8 @@ void ContentBrowserPanel::OnContextMenu(const QPoint &pos) {
   menu.addAction("Create Folder", this, &ContentBrowserPanel::OnCreateFolder);
   menu.addAction("Create Material", this,
                  &ContentBrowserPanel::OnCreateMaterial);
+  menu.addAction("Create Lua Script", this,
+                 &ContentBrowserPanel::OnCreateLuaScript);
 
   menu.exec(m_ListWidget->mapToGlobal(pos));
 }
@@ -301,6 +304,38 @@ void ContentBrowserPanel::OnDeleteItem() {
     } catch (const std::exception &e) {
       QMessageBox::critical(this, "Error",
                             QString("Failed to delete: %1").arg(e.what()));
+    }
+  }
+}
+void ContentBrowserPanel::OnCreateLuaScript() {
+  bool ok;
+  QString name = QInputDialog::getText(this, "New Lua Script",
+                                       "Script Name:", QLineEdit::Normal,
+                                       "NewScript", &ok);
+
+  if (ok && !name.isEmpty()) {
+    std::string filename = name.toStdString();
+    if (filename.find(".lua") == std::string::npos) {
+      filename += ".lua";
+    }
+    std::filesystem::path newPath = m_CurrentDirectory / filename;
+
+    if (!std::filesystem::exists(newPath)) {
+      std::ofstream file(newPath);
+      file
+          << "-- " << name.toStdString() << "\n\n"
+          << "local script = {}\n\n"
+          << "function script:OnCreate(entity)\n"
+          << "    Horse.LogInfo(\"Lua entity created: \" .. entity:GetName())\n"
+          << "end\n\n"
+          << "function script:OnUpdate(entity, deltaTime)\n"
+          << "    -- Add logic here\n"
+          << "end\n\n"
+          << "return script\n";
+      file.close();
+      Refresh();
+    } else {
+      QMessageBox::warning(this, "Error", "Script already exists!");
     }
   }
 }

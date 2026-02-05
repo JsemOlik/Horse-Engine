@@ -80,6 +80,7 @@ struct MeshRendererComponent {
 
 struct ScriptComponent {
   std::string ScriptGUID;
+  std::string ScriptPath;
   bool AwakeCalled = false;
   bool StartCalled = false;
 
