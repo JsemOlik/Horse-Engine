@@ -105,7 +105,7 @@ void AssetManager::ProcessDirectory(const std::filesystem::path &directory) {
           stream >> j;
 
           AssetMetadata metadata;
-          metadata.Handle = j["Handle"];
+          metadata.Handle = UUID(j["Handle"].get<uint64_t>());
           metadata.Type = AssetTypeFromString(j["Type"]);
           metadata.FilePath =
               std::filesystem::relative(path, m_AssetsDirectory);
