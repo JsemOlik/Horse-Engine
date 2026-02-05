@@ -1,4 +1,5 @@
 #include "InspectorPanel.h"
+#include "HorseEngine/Engine.h"
 #include "HorseEngine/Render/Material.h"
 #include "HorseEngine/Render/MaterialRegistry.h"
 #include "HorseEngine/Render/MaterialSerializer.h"
@@ -7,6 +8,7 @@
 #include "HorseEngine/Scene/Scene.h"
 #include <algorithm>
 #include <vector>
+
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -381,5 +383,58 @@ void InspectorPanel::DrawComponents() {
       }
     }
     m_ContentLayout->addWidget(materialGroup);
+  }
+
+  // Native Script Component
+  if (m_SelectedEntity.HasComponent<Horse::NativeScriptComponent>()) {
+    auto &script =
+        m_SelectedEntity.GetComponent<Horse::NativeScriptComponent>();
+
+    QGroupBox *scriptGroup = new QGroupBox("Native Script");
+    QFormLayout *scriptLayout = new QFormLayout(scriptGroup);
+
+    scriptLayout->addRow("Class:",
+                         new QLabel(QString::fromStdString(script.ClassName)));
+
+    QPushButton *removeBtn = new QPushButton("Remove Script");
+    connect(removeBtn, &QPushButton::clicked, this, [this]() {
+      if (m_SelectedEntity) {
+        m_SelectedEntity.RemoveComponent<Horse::NativeScriptComponent>();
+        RefreshInspector();
+      }
+    });
+    scriptLayout->addRow(removeBtn);
+
+    m_ContentLayout->addWidget(scriptGroup);
+  } else {
+    // Add Component Menu for Scripts
+    QPushButton *addScriptBtn = new QPushButton("Attach C++ Script");
+    connect(addScriptBtn, &QPushButton::clicked, this, [this]() {
+      auto engine = Horse::Engine::Get();
+      auto gameModule = engine ? engine->GetGameModule() : nullptr;
+      if (!gameModule) {
+        HORSE_LOG_CORE_ERROR("No Game Module loaded!");
+        return;
+      }
+
+      QMenu menu;
+      auto scriptNames = gameModule->GetAvailableScripts();
+      for (const auto &name : scriptNames) {
+        menu.addAction(QString::fromStdString(name),
+                       [this, gameModule, name]() {
+                         if (m_SelectedEntity) {
+                           gameModule->CreateScript(name, m_SelectedEntity);
+                           RefreshInspector();
+                         }
+                       });
+      }
+
+      if (scriptNames.empty()) {
+        menu.addAction("No scripts available")->setEnabled(false);
+      }
+
+      menu.exec(QCursor::pos());
+    });
+    m_ContentLayout->addWidget(addScriptBtn);
   }
 }

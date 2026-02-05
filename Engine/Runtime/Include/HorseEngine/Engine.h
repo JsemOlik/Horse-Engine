@@ -26,6 +26,7 @@ public:
   void RunFrame();
 
   Window *GetWindow() const { return m_Window.get(); }
+  GameModule *GetGameModule() const;
 
   static Engine *Get() { return s_Instance; }
 

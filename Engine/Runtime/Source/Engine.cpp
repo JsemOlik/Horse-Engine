@@ -112,4 +112,6 @@ void Engine::UnloadGameDLL() {
   }
 }
 
+GameModule *Engine::GetGameModule() const { return m_GameModule; }
+
 } // namespace Horse

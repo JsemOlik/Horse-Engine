@@ -2,11 +2,27 @@
 #include "HorseEngine/Game/GameModule.h"
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Engine.h"
+#include "HorseEngine/Scene/Components.h"
+#include "HorseEngine/Scene/Scene.h"
+#include "HorseEngine/Scene/ScriptableEntity.h"
 
 
+#include <cmath>
 #include <iostream>
 
 using namespace Horse;
+
+class VerticalMover : public ScriptableEntity {
+public:
+  virtual void OnUpdate(float deltaTime) override {
+    auto &transform = GetComponent<TransformComponent>();
+    m_Time += deltaTime;
+    transform.Position[1] = std::sin(m_Time) * 5.0f;
+  }
+
+private:
+  float m_Time = 0.0f;
+};
 
 class MyGameModule : public GameModule {
 public:
@@ -18,11 +34,18 @@ public:
     HORSE_LOG_CORE_INFO("MyGameModule::OnShutdown() called!");
   }
 
-  virtual void OnUpdate(float deltaTime) override {
-    // Simple log throttling or just log every frame for debug?
-    // Let's not log every frame to avoid spam, maybe just once in a while or
-    // implement a simple counter.
-    // For now, no log in Update to keep console clean.
+  virtual void OnUpdate(float deltaTime) override {}
+
+  virtual std::vector<std::string> GetAvailableScripts() const override {
+    return {"VerticalMover"};
+  }
+
+  virtual void CreateScript(const std::string &name, Entity entity) override {
+    if (name == "VerticalMover") {
+      auto &nsc = entity.AddComponent<NativeScriptComponent>();
+      nsc.Bind<VerticalMover>();
+      nsc.ClassName = "VerticalMover";
+    }
   }
 };
 

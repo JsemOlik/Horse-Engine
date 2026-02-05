@@ -9,7 +9,6 @@
 #include <glm/gtx/quaternion.hpp>
 #include <string>
 
-
 namespace Horse {
 
 // UUID Component - Every entity has a unique identifier
@@ -85,6 +84,26 @@ struct ScriptComponent {
   bool StartCalled = false;
 
   ScriptComponent() = default;
+};
+
+class ScriptableEntity;
+
+struct NativeScriptComponent {
+  ScriptableEntity *Instance = nullptr;
+  std::string ClassName;
+
+  ScriptableEntity *(*InstantiateScript)();
+  void (*DestroyScript)(NativeScriptComponent *);
+
+  template <typename T> void Bind() {
+    InstantiateScript = []() {
+      return static_cast<ScriptableEntity *>(new T());
+    };
+    DestroyScript = [](NativeScriptComponent *nsc) {
+      delete nsc->Instance;
+      nsc->Instance = nullptr;
+    };
+  }
 };
 
 } // namespace Horse

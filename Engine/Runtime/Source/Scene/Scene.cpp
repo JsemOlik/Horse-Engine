@@ -2,6 +2,7 @@
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/SceneSerializer.h"
+#include "HorseEngine/Scene/ScriptableEntity.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -221,6 +222,15 @@ void Scene::UpdateStagedLoad() {
       }
     });
 
+    m_Registry.view<NativeScriptComponent>().each(
+        [&](auto entity, auto &script) {
+          if (!script.Instance && script.InstantiateScript) {
+            script.Instance = script.InstantiateScript();
+            script.Instance->m_Entity = Entity{entity, this};
+            script.Instance->OnCreate();
+          }
+        });
+
     m_LoadingStage = LoadingStage::Ready;
     m_State = SceneState::Play;
     HORSE_LOG_CORE_INFO("Scene stage Ready. State transitioned to Play.");
@@ -237,6 +247,14 @@ void Scene::OnRuntimeStop() {
     script.StartCalled = false;
     // TODO: ScriptEngine::OnDestroy(entity)
   });
+
+  // Native Scripts
+  m_Registry.view<NativeScriptComponent>().each([&](auto entity, auto &nsc) {
+    if (nsc.Instance) {
+      nsc.Instance->OnDestroy();
+      nsc.DestroyScript(&nsc);
+    }
+  });
 }
 
 void Scene::OnRuntimeUpdate(float deltaTime) {
@@ -244,6 +262,12 @@ void Scene::OnRuntimeUpdate(float deltaTime) {
     // 3. Update scripts
     m_Registry.view<ScriptComponent>().each([&](auto entity, auto &script) {
       // TODO: ScriptEngine::OnUpdate(entity, deltaTime)
+    });
+
+    m_Registry.view<NativeScriptComponent>().each([&](auto entity, auto &nsc) {
+      if (nsc.Instance) {
+        nsc.Instance->OnUpdate(deltaTime);
+      }
     });
   }
 
