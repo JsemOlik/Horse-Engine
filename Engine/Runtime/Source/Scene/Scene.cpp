@@ -1,5 +1,6 @@
 #include "HorseEngine/Scene/Scene.h"
 #include "HorseEngine/Core/Logging.h"
+#include "HorseEngine/Physics/PhysicsSystem.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/SceneSerializer.h"
 #include "HorseEngine/Scene/ScriptableEntity.h"
@@ -19,9 +20,18 @@ std::shared_ptr<Scene> Scene::Copy(const std::shared_ptr<Scene> &other) {
   return SceneSerializer::DeserializeFromJSONString(json);
 }
 
-Scene::Scene(const std::string &name) : m_Name(name) {}
+Scene::Scene(const std::string &name) : m_Name(name) {
+  m_PhysicsSystem = new PhysicsSystem();
+  m_PhysicsSystem->Initialize();
+}
 
-Scene::~Scene() {}
+Scene::~Scene() {
+  if (m_PhysicsSystem) {
+    m_PhysicsSystem->Shutdown();
+    delete m_PhysicsSystem;
+    m_PhysicsSystem = nullptr;
+  }
+}
 
 Entity Scene::CreateEntity(const std::string &name) {
   return CreateEntityWithUUID(UUID(), name);
@@ -163,6 +173,9 @@ Entity Scene::GetParent(Entity entity) {
 }
 
 void Scene::OnRuntimeStart() {
+  if (m_PhysicsSystem)
+    m_PhysicsSystem->OnRuntimeStart(this);
+
   m_State = SceneState::Loading;
   m_LoadingStage = LoadingStage::Assets;
   TriggerAssetLoads();
@@ -253,6 +266,9 @@ void Scene::UpdateStagedLoad() {
 }
 
 void Scene::OnRuntimeStop() {
+  if (m_PhysicsSystem)
+    m_PhysicsSystem->OnRuntimeStop();
+
   m_State = SceneState::Edit;
 
   // Reset script states
@@ -297,6 +313,11 @@ void Scene::OnRuntimeUpdate(float deltaTime) {
           nsc.Instance->OnUpdate(deltaTime);
         }
       }
+    }
+
+    // 4. Physics Step
+    if (m_PhysicsSystem) {
+      m_PhysicsSystem->Step(deltaTime);
     }
   }
 

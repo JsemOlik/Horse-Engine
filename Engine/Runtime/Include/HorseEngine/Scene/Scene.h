@@ -11,6 +11,8 @@
 
 namespace Horse {
 
+class PhysicsSystem; // Forward declaration
+
 enum class SceneState { Edit = 0, Play, Pause, Loading };
 enum class LoadingStage { None = 0, Assets, Components, Scripts, Ready };
 
@@ -62,6 +64,9 @@ private:
   SceneState m_State = SceneState::Edit;
   LoadingStage m_LoadingStage = LoadingStage::None;
   std::vector<std::string> m_LoadingQueue;
+
+  // Physics
+  PhysicsSystem *m_PhysicsSystem = nullptr;
 };
 
 } // namespace Horse

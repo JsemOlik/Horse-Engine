@@ -155,6 +155,37 @@ static void DeserializeNativeScriptComponent(const json &j,
   comp.ClassName = j.value("className", "");
 }
 
+static json SerializeRigidBodyComponent(const RigidBodyComponent &comp) {
+  return {{"anchored", comp.Anchored},
+          {"useGravity", comp.UseGravity},
+          {"isSensor", comp.IsSensor},
+          {"linearVelocity", comp.LinearVelocity},
+          {"angularVelocity", comp.AngularVelocity}};
+}
+
+static void DeserializeRigidBodyComponent(const json &j,
+                                          RigidBodyComponent &comp) {
+  comp.Anchored = j.value("anchored", false);
+  comp.UseGravity = j.value("useGravity", true);
+  comp.IsSensor = j.value("isSensor", false);
+  if (j.contains("linearVelocity"))
+    comp.LinearVelocity = j["linearVelocity"].get<std::array<float, 3>>();
+  if (j.contains("angularVelocity"))
+    comp.AngularVelocity = j["angularVelocity"].get<std::array<float, 3>>();
+}
+
+static json SerializeBoxColliderComponent(const BoxColliderComponent &comp) {
+  return {{"size", comp.Size}, {"offset", comp.Offset}};
+}
+
+static void DeserializeBoxColliderComponent(const json &j,
+                                            BoxColliderComponent &comp) {
+  if (j.contains("size"))
+    comp.Size = j["size"].get<std::array<float, 3>>();
+  if (j.contains("offset"))
+    comp.Offset = j["offset"].get<std::array<float, 3>>();
+}
+
 // Helper functions for full scene serialization
 static json SerializeSceneToJson(const Scene *scene) {
   json sceneJson;
@@ -215,6 +246,16 @@ static json SerializeSceneToJson(const Scene *scene) {
     if (entity.HasComponent<NativeScriptComponent>()) {
       componentsJson["NativeScriptComponent"] = SerializeNativeScriptComponent(
           entity.GetComponent<NativeScriptComponent>());
+    }
+
+    if (entity.HasComponent<RigidBodyComponent>()) {
+      componentsJson["RigidBodyComponent"] = SerializeRigidBodyComponent(
+          entity.GetComponent<RigidBodyComponent>());
+    }
+
+    if (entity.HasComponent<BoxColliderComponent>()) {
+      componentsJson["BoxColliderComponent"] = SerializeBoxColliderComponent(
+          entity.GetComponent<BoxColliderComponent>());
     }
 
     entityJson["components"] = componentsJson;

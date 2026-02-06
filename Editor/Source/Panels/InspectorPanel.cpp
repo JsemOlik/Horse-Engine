@@ -1,5 +1,6 @@
 #include "InspectorPanel.h"
 #include "HorseEngine/Engine.h"
+#include "HorseEngine/Physics/PhysicsComponents.h"
 #include "HorseEngine/Project/Project.h"
 #include "HorseEngine/Render/Material.h"
 #include "HorseEngine/Render/MaterialRegistry.h"
@@ -552,7 +553,127 @@ void InspectorPanel::DrawComponents() {
           RefreshInspector();
         }
       });
-      m_ContentLayout->addWidget(addLuaBtn);
+      // RigidBody Component
+      if (m_SelectedEntity.HasComponent<Horse::RigidBodyComponent>()) {
+        auto &rb = m_SelectedEntity.GetComponent<Horse::RigidBodyComponent>();
+        QGroupBox *rbGroup = new QGroupBox("Rigid Body");
+        QFormLayout *rbLayout = new QFormLayout(rbGroup);
+
+        QCheckBox *anchoredCheck = new QCheckBox();
+        anchoredCheck->setChecked(rb.Anchored);
+        connect(anchoredCheck, &QCheckBox::toggled, this, [this](bool checked) {
+          if (m_SelectedEntity)
+            m_SelectedEntity.GetComponent<Horse::RigidBodyComponent>()
+                .Anchored = checked;
+        });
+        rbLayout->addRow("Anchored (Static):", anchoredCheck);
+
+        QCheckBox *gravityCheck = new QCheckBox();
+        gravityCheck->setChecked(rb.UseGravity);
+        connect(gravityCheck, &QCheckBox::toggled, this, [this](bool checked) {
+          if (m_SelectedEntity)
+            m_SelectedEntity.GetComponent<Horse::RigidBodyComponent>()
+                .UseGravity = checked;
+        });
+        rbLayout->addRow("Use Gravity:", gravityCheck);
+
+        QCheckBox *sensorCheck = new QCheckBox();
+        sensorCheck->setChecked(rb.IsSensor);
+        connect(sensorCheck, &QCheckBox::toggled, this, [this](bool checked) {
+          if (m_SelectedEntity)
+            m_SelectedEntity.GetComponent<Horse::RigidBodyComponent>()
+                .IsSensor = checked;
+        });
+        rbLayout->addRow("Is Sensor:", sensorCheck);
+
+        // Remove Button
+        QPushButton *removeBtn = new QPushButton("Remove RigidBody");
+        connect(removeBtn, &QPushButton::clicked, this, [this]() {
+          if (m_SelectedEntity) {
+            m_SelectedEntity.RemoveComponent<Horse::RigidBodyComponent>();
+            RefreshInspector();
+          }
+        });
+        rbLayout->addRow(removeBtn);
+
+        m_ContentLayout->addWidget(rbGroup);
+      }
+
+      // BoxCollider Component
+      if (m_SelectedEntity.HasComponent<Horse::BoxColliderComponent>()) {
+        auto &bc = m_SelectedEntity.GetComponent<Horse::BoxColliderComponent>();
+        QGroupBox *bcGroup = new QGroupBox("Box Collider");
+        QFormLayout *bcLayout = new QFormLayout(bcGroup);
+
+        // Size
+        QHBoxLayout *sizeLayout = new QHBoxLayout();
+        sizeLayout->addWidget(new QLabel("Size"));
+        for (int i = 0; i < 3; ++i) {
+          QDoubleSpinBox *spin = new QDoubleSpinBox();
+          spin->setRange(0.01, 10000.0);
+          spin->setValue(bc.Size[i]);
+          connect(spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                  this, [this, i](double val) {
+                    if (m_SelectedEntity)
+                      m_SelectedEntity
+                          .GetComponent<Horse::BoxColliderComponent>()
+                          .Size[i] = (float)val;
+                  });
+          sizeLayout->addWidget(spin);
+        }
+        bcLayout->addRow(sizeLayout);
+
+        // Offset
+        QHBoxLayout *offsetLayout = new QHBoxLayout();
+        offsetLayout->addWidget(new QLabel("Offset"));
+        for (int i = 0; i < 3; ++i) {
+          QDoubleSpinBox *spin = new QDoubleSpinBox();
+          spin->setRange(-10000.0, 10000.0);
+          spin->setValue(bc.Offset[i]);
+          connect(spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                  this, [this, i](double val) {
+                    if (m_SelectedEntity)
+                      m_SelectedEntity
+                          .GetComponent<Horse::BoxColliderComponent>()
+                          .Offset[i] = (float)val;
+                  });
+          offsetLayout->addWidget(spin);
+        }
+        bcLayout->addRow(offsetLayout);
+
+        // Remove Button
+        QPushButton *removeBtn = new QPushButton("Remove BoxCollider");
+        connect(removeBtn, &QPushButton::clicked, this, [this]() {
+          if (m_SelectedEntity) {
+            m_SelectedEntity.RemoveComponent<Horse::BoxColliderComponent>();
+            RefreshInspector();
+          }
+        });
+        bcLayout->addRow(removeBtn);
+
+        m_ContentLayout->addWidget(bcGroup);
+      }
+
+      // General Add Component Button
+      QPushButton *addComponentBtn = new QPushButton("Add Component");
+      connect(addComponentBtn, &QPushButton::clicked, this, [this]() {
+        QMenu menu;
+        if (m_SelectedEntity) {
+          if (!m_SelectedEntity.HasComponent<Horse::RigidBodyComponent>()) {
+            menu.addAction("Rigid Body", [this]() {
+              m_SelectedEntity.AddComponent<Horse::RigidBodyComponent>();
+              RefreshInspector();
+            });
+          }
+          if (!m_SelectedEntity.HasComponent<Horse::BoxColliderComponent>()) {
+            menu.addAction("Box Collider", [this]() {
+              m_SelectedEntity.AddComponent<Horse::BoxColliderComponent>();
+              RefreshInspector();
+            });
+          }
+          // Can add other missing components here if needed
+        }
+        menu.exec(QCursor::pos());
+      });
+      m_ContentLayout->addWidget(addComponentBtn);
     }
-  }
-}
