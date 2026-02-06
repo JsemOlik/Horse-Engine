@@ -7,7 +7,6 @@
 #include <QTextEdit>
 #include <filesystem>
 
-
 namespace Horse {
 class Project;
 }
@@ -47,6 +46,7 @@ private:
   // For Packaging specifically
   QLineEdit *m_RunnerEdit = nullptr;
   QLineEdit *m_GameDLLEdit = nullptr;
+  QLineEdit *m_GameNameEdit = nullptr;
 
   QTextEdit *m_LogArea;
   QPushButton *m_BuildButton;

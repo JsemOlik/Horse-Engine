@@ -5,10 +5,9 @@
 #include <string>
 #include <vector>
 
-
 void PrintUsage() {
   std::cout << "Usage: HorsePackager <CookedAssetsDir> <OutputDir> "
-               "<RuntimeExe> <GameDLL>"
+               "<RuntimeExe> <GameDLL> [GameName]"
             << std::endl;
 }
 
@@ -22,6 +21,10 @@ int main(int argc, char **argv) {
   std::filesystem::path outputDir = std::filesystem::absolute(argv[2]);
   std::filesystem::path runtimeExe = std::filesystem::absolute(argv[3]);
   std::filesystem::path gameDll = std::filesystem::absolute(argv[4]);
+  std::string gameName = "MyGame";
+  if (argc >= 6) {
+    gameName = argv[5];
+  }
 
   if (!std::filesystem::exists(cookedDir)) {
     std::cerr << "Error: Cooked directory does not exist: " << cookedDir
@@ -58,12 +61,13 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  // 2. Copy Runtime Exe -> MyGame.exe
+  // 2. Copy Runtime Exe -> [GameName].exe
   try {
+    std::string exeName = gameName + ".exe";
     std::filesystem::copy_file(
-        runtimeExe, outputDir / "MyGame.exe",
+        runtimeExe, outputDir / exeName,
         std::filesystem::copy_options::overwrite_existing);
-    std::cout << "Copied Runtime to MyGame.exe" << std::endl;
+    std::cout << "Copied Runtime to " << exeName << std::endl;
   } catch (std::exception &e) {
     std::cerr << "Error copying runtime: " << e.what() << std::endl;
   }

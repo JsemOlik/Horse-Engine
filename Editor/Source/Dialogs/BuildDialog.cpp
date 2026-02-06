@@ -11,7 +11,6 @@
 #include <QUrl>
 #include <QVBoxLayout>
 
-
 BuildDialog::BuildDialog(BuildToolType type, QWidget *parent)
     : QDialog(parent), m_Type(type), m_Process(new QProcess(this)) {
 
@@ -88,6 +87,10 @@ void BuildDialog::SetupUI() {
     gameDLLLayout->addWidget(m_GameDLLEdit);
     gameDLLLayout->addWidget(browseGameDLLBtn);
     formLayout->addRow("Game DLL Path:", gameDLLLayout);
+
+    // Game Name
+    m_GameNameEdit = new QLineEdit();
+    formLayout->addRow("Game Name:", m_GameNameEdit);
   }
 
   mainLayout->addLayout(formLayout);
@@ -126,6 +129,7 @@ void BuildDialog::LoadSettings() {
   if (m_Type == BuildToolType::Package) {
     m_RunnerEdit->setText(settings.value("RunnerPath").toString());
     m_GameDLLEdit->setText(settings.value("GameDLLPath").toString());
+    m_GameNameEdit->setText(settings.value("GameName", "MyGame").toString());
   }
 
   // Default heuristics if empty
@@ -170,6 +174,7 @@ void BuildDialog::SaveSettings() {
   if (m_Type == BuildToolType::Package) {
     settings.setValue("RunnerPath", m_RunnerEdit->text());
     settings.setValue("GameDLLPath", m_GameDLLEdit->text());
+    settings.setValue("GameName", m_GameNameEdit->text());
   }
 
   settings.endGroup();
@@ -224,7 +229,7 @@ void BuildDialog::OnRunBuild() {
     args << m_SourceEdit->text() << m_OutputEdit->text();
   } else {
     args << m_SourceEdit->text() << m_OutputEdit->text() << m_RunnerEdit->text()
-         << m_GameDLLEdit->text();
+         << m_GameDLLEdit->text() << m_GameNameEdit->text();
   }
 
   m_LastOutputPath = m_OutputEdit->text();
@@ -277,6 +282,8 @@ void BuildDialog::UpdateControls(bool running) {
     m_RunnerEdit->setEnabled(!running);
   if (m_GameDLLEdit)
     m_GameDLLEdit->setEnabled(!running);
+  if (m_GameNameEdit)
+    m_GameNameEdit->setEnabled(!running);
 
   if (running) {
     m_BuildButton->setText("Building...");
