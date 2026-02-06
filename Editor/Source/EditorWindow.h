@@ -37,6 +37,8 @@ private slots:
   void OnNewProject();
   void OnOpenProject();
   void OnSaveProject();
+  void OnCookProject();
+  void OnPackageProject();
   void OnProjectSettings();
   void OnPreferences();
   void OnNewScene();

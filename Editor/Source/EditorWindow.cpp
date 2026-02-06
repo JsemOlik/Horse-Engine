@@ -156,11 +156,17 @@ void EditorWindow::CreateMenus() {
   connect(loadLayoutAction, &QAction::triggered, this,
           &EditorWindow::OnLoadLayout);
 
-  viewMenu->addSeparator();
-
   QAction *resetLayoutAction = viewMenu->addAction("Reset Layout");
   connect(resetLayoutAction, &QAction::triggered, this,
           &EditorWindow::OnResetLayout);
+
+  QMenu *buildMenu = menuBar()->addMenu("&Building");
+  QAction *cookAction = buildMenu->addAction("&Cook Project...");
+  connect(cookAction, &QAction::triggered, this, &EditorWindow::OnCookProject);
+
+  QAction *packageAction = buildMenu->addAction("&Package Project...");
+  connect(packageAction, &QAction::triggered, this,
+          &EditorWindow::OnPackageProject);
 
   QMenu *helpMenu = menuBar()->addMenu("&Help");
   helpMenu->addAction("&About");
@@ -432,6 +438,18 @@ void EditorWindow::SaveProject(const std::string &filepath) {
   if (!serializer.SerializeToJSON(filepath)) {
     QMessageBox::critical(this, "Error", "Failed to save project!");
   }
+}
+
+#include "Dialogs/BuildDialog.h"
+
+void EditorWindow::OnCookProject() {
+  BuildDialog dialog(BuildToolType::Cook, this);
+  dialog.exec();
+}
+
+void EditorWindow::OnPackageProject() {
+  BuildDialog dialog(BuildToolType::Package, this);
+  dialog.exec();
 }
 
 #include "Dialogs/ProjectSettingsDialog.h"
