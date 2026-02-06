@@ -60,7 +60,7 @@ public:
 
   virtual void OnUpdate(float deltaTime) override {
     if (m_ActiveScene) {
-      m_ActiveScene->OnRuntimeUpdate(deltaTime);
+      m_ActiveScene->OnUpdate(deltaTime);
     }
   }
 
