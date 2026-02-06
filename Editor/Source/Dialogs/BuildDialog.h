@@ -26,6 +26,7 @@ private slots:
   void OnBrowseTool();
   void OnBrowseRunner();
   void OnBrowseGameDLL();
+  void OnBrowseIcon();
   void OnRunBuild();
   void OnOpenFolder();
   void OnProcessOutput();
@@ -47,6 +48,7 @@ private:
   QLineEdit *m_RunnerEdit = nullptr;
   QLineEdit *m_GameDLLEdit = nullptr;
   QLineEdit *m_GameNameEdit = nullptr;
+  QLineEdit *m_IconEdit = nullptr;
 
   QTextEdit *m_LogArea;
   QPushButton *m_BuildButton;

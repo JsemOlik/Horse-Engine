@@ -1,13 +1,125 @@
 #include "PakWriter.h"
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <Windows.h>
+#endif
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
 
+#ifdef _WIN32
+#pragma pack(push, 1)
+struct ICONDIRENTRY {
+  BYTE bWidth;
+  BYTE bHeight;
+  BYTE bColorCount;
+  BYTE bReserved;
+  WORD wPlanes;
+  WORD wBitCount;
+  DWORD dwBytesInRes;
+  DWORD dwImageOffset;
+};
+
+struct ICONDIR {
+  WORD idReserved;
+  WORD idType;
+  WORD idCount;
+  // ICONDIRENTRY idEntries[1];
+};
+
+struct GRPICONDIRENTRY {
+  BYTE bWidth;
+  BYTE bHeight;
+  BYTE bColorCount;
+  BYTE bReserved;
+  WORD wPlanes;
+  WORD wBitCount;
+  DWORD dwBytesInRes;
+  WORD nID;
+};
+
+struct GRPICONDIR {
+  WORD idReserved;
+  WORD idType;
+  WORD idCount;
+  // GRPICONDIRENTRY idEntries[1];
+};
+#pragma pack(pop)
+#endif
+
+#ifdef _WIN32
+bool InjectIcon(const std::filesystem::path &exePath,
+                const std::filesystem::path &iconPath) {
+  if (!std::filesystem::exists(iconPath))
+    return false;
+
+  std::ifstream file(iconPath, std::ios::binary);
+  if (!file)
+    return false;
+
+  ICONDIR dir;
+  file.read((char *)&dir, sizeof(ICONDIR));
+  if (dir.idType != 1)
+    return false;
+
+  std::vector<ICONDIRENTRY> entries(dir.idCount);
+  file.read((char *)entries.data(), dir.idCount * sizeof(ICONDIRENTRY));
+
+  HANDLE hUpdate = BeginUpdateResourceW(exePath.c_str(), FALSE);
+  if (!hUpdate)
+    return false;
+
+  std::vector<BYTE> grpBuffer(sizeof(GRPICONDIR) +
+                              dir.idCount * sizeof(GRPICONDIRENTRY));
+  GRPICONDIR *grpDir = (GRPICONDIR *)grpBuffer.data();
+  grpDir->idReserved = dir.idReserved;
+  grpDir->idType = dir.idType;
+  grpDir->idCount = dir.idCount;
+
+  GRPICONDIRENTRY *grpEntries =
+      (GRPICONDIRENTRY *)(grpBuffer.data() + sizeof(GRPICONDIR));
+
+  for (int i = 0; i < dir.idCount; ++i) {
+    std::vector<BYTE> imgBuffer(entries[i].dwBytesInRes);
+    file.seekg(entries[i].dwImageOffset);
+    file.read((char *)imgBuffer.data(), entries[i].dwBytesInRes);
+
+    if (!UpdateResourceW(hUpdate, (LPCWSTR)RT_ICON, MAKEINTRESOURCEW(i + 1),
+                         MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL),
+                         imgBuffer.data(), entries[i].dwBytesInRes)) {
+      EndUpdateResourceW(hUpdate, TRUE);
+      return false;
+    }
+
+    grpEntries[i].bWidth = entries[i].bWidth;
+    grpEntries[i].bHeight = entries[i].bHeight;
+    grpEntries[i].bColorCount = entries[i].bColorCount;
+    grpEntries[i].bReserved = entries[i].bReserved;
+    grpEntries[i].wPlanes = entries[i].wPlanes;
+    grpEntries[i].wBitCount = entries[i].wBitCount;
+    grpEntries[i].dwBytesInRes = entries[i].dwBytesInRes;
+    grpEntries[i].nID = (WORD)(i + 1);
+  }
+
+  if (!UpdateResourceW(hUpdate, (LPCWSTR)RT_GROUP_ICON, L"MAINICON",
+                       MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL),
+                       grpBuffer.data(), (DWORD)grpBuffer.size())) {
+    EndUpdateResourceW(hUpdate, TRUE);
+    return false;
+  }
+
+  return EndUpdateResourceW(hUpdate, FALSE);
+}
+#endif
+
 void PrintUsage() {
   std::cout << "Usage: HorsePackager <CookedAssetsDir> <OutputDir> "
-               "<RuntimeExe> <GameDLL> [GameName]"
+               "<RuntimeExe> <GameDLL> [GameName] [IconPath]"
             << std::endl;
 }
 
@@ -24,6 +136,11 @@ int main(int argc, char **argv) {
   std::string gameName = "MyGame";
   if (argc >= 6) {
     gameName = argv[5];
+  }
+
+  std::filesystem::path iconPath;
+  if (argc >= 7) {
+    iconPath = std::filesystem::absolute(argv[6]);
   }
 
   if (!std::filesystem::exists(cookedDir)) {
@@ -74,6 +191,19 @@ int main(int argc, char **argv) {
 
   // 3. Copy Game DLL
   try {
+    std::filesystem::path exePath = outputDir / (gameName + ".exe");
+    if (!iconPath.empty()) {
+      std::cout << "Injecting icon: " << iconPath << std::endl;
+#ifdef _WIN32
+      if (!InjectIcon(exePath, iconPath)) {
+        std::cerr << "Warning: Failed to inject icon." << std::endl;
+      }
+#else
+      std::cerr << "Warning: Icon injection only supported on Windows."
+                << std::endl;
+#endif
+    }
+
     std::filesystem::copy_file(
         gameDll, outputDir / "HorseGame.dll",
         std::filesystem::copy_options::overwrite_existing);

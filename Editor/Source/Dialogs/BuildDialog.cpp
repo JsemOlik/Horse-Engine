@@ -91,6 +91,16 @@ void BuildDialog::SetupUI() {
     // Game Name
     m_GameNameEdit = new QLineEdit();
     formLayout->addRow("Game Name:", m_GameNameEdit);
+
+    // Icon Path
+    QHBoxLayout *iconLayout = new QHBoxLayout();
+    m_IconEdit = new QLineEdit();
+    QPushButton *browseIconBtn = new QPushButton("Browse...");
+    connect(browseIconBtn, &QPushButton::clicked, this,
+            &BuildDialog::OnBrowseIcon);
+    iconLayout->addWidget(m_IconEdit);
+    iconLayout->addWidget(browseIconBtn);
+    formLayout->addRow("Icon Path (.ico):", iconLayout);
   }
 
   mainLayout->addLayout(formLayout);
@@ -130,6 +140,7 @@ void BuildDialog::LoadSettings() {
     m_RunnerEdit->setText(settings.value("RunnerPath").toString());
     m_GameDLLEdit->setText(settings.value("GameDLLPath").toString());
     m_GameNameEdit->setText(settings.value("GameName", "MyGame").toString());
+    m_IconEdit->setText(settings.value("IconPath").toString());
   }
 
   // Default heuristics if empty
@@ -175,6 +186,7 @@ void BuildDialog::SaveSettings() {
     settings.setValue("RunnerPath", m_RunnerEdit->text());
     settings.setValue("GameDLLPath", m_GameDLLEdit->text());
     settings.setValue("GameName", m_GameNameEdit->text());
+    settings.setValue("IconPath", m_IconEdit->text());
   }
 
   settings.endGroup();
@@ -218,6 +230,14 @@ void BuildDialog::OnBrowseGameDLL() {
     m_GameDLLEdit->setText(file);
 }
 
+void BuildDialog::OnBrowseIcon() {
+  QString file = QFileDialog::getOpenFileName(
+      this, "Select Executable Icon", m_IconEdit->text(),
+      "Icon Files (*.ico);;All Files (*)");
+  if (!file.isEmpty())
+    m_IconEdit->setText(file);
+}
+
 void BuildDialog::OnRunBuild() {
   m_LogArea->clear();
   m_LogArea->append("<b>Preparing build...</b>");
@@ -229,7 +249,8 @@ void BuildDialog::OnRunBuild() {
     args << m_SourceEdit->text() << m_OutputEdit->text();
   } else {
     args << m_SourceEdit->text() << m_OutputEdit->text() << m_RunnerEdit->text()
-         << m_GameDLLEdit->text() << m_GameNameEdit->text();
+         << m_GameDLLEdit->text() << m_GameNameEdit->text()
+         << m_IconEdit->text();
   }
 
   m_LastOutputPath = m_OutputEdit->text();
@@ -284,6 +305,8 @@ void BuildDialog::UpdateControls(bool running) {
     m_GameDLLEdit->setEnabled(!running);
   if (m_GameNameEdit)
     m_GameNameEdit->setEnabled(!running);
+  if (m_IconEdit)
+    m_IconEdit->setEnabled(!running);
 
   if (running) {
     m_BuildButton->setText("Building...");
