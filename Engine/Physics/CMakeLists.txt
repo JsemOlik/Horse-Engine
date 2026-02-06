@@ -20,8 +20,6 @@ target_link_libraries(HorsePhysics
 
 target_compile_definitions(HorsePhysics
     PUBLIC
-        JPH_PROFILE_ENABLED
-        JPH_DEBUG_Renderer
         HORSE_PLATFORM_WINDOWS=1
     # JPH_FLOATING_POINT_EXCEPTIONS_ENABLED
 )
