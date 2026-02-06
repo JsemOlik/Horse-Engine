@@ -12,7 +12,6 @@
 #include <string>
 #include <vector>
 
-
 namespace Horse {
 class Project;
 }
@@ -34,12 +33,17 @@ public:
   std::string GetDefaultScene() const {
     return m_SceneCombo->currentText().toStdString();
   }
+  std::string GetSkyboxTexture() const {
+    return m_SkyboxCombo->currentText().toStdString();
+  }
 
 private:
   void ScanForScenes();
+  void ScanForTextures();
 
   std::shared_ptr<Horse::Project> m_Project;
   QLineEdit *m_NameEdit;
   QLineEdit *m_VersionEdit;
   QComboBox *m_SceneCombo;
+  QComboBox *m_SkyboxCombo;
 };

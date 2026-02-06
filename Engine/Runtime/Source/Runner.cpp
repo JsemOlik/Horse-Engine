@@ -2,9 +2,11 @@
 #include "HorseEngine/Core/FileSystem.h"
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Engine.h"
+#include "HorseEngine/Project/Project.h"
 #include "HorseEngine/Render/D3D11Renderer.h"
 #include <filesystem>
 #include <iostream>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <windows.h>
 
@@ -50,9 +52,48 @@ int main(int argc, char **argv) {
                    "std::filesystem..."
                 << std::endl;
       if (std::filesystem::exists(pakPath)) {
-        // Try mounting via absolute path logic if Exists fails (e.g. init
-        // issue)
         Horse::FileSystem::Mount(pakPathStr, "/");
+      }
+    }
+
+    // Load Project Config
+    std::vector<uint8_t> projectData;
+    if (Horse::FileSystem::ReadBytes("Game.project.bin", projectData)) {
+      struct ProjectCookedHeader {
+        char Magic[4];
+        uint32_t Version;
+        uint64_t DefaultLevelGUID;
+      };
+
+      if (projectData.size() >= sizeof(ProjectCookedHeader)) {
+        auto header =
+            reinterpret_cast<ProjectCookedHeader *>(projectData.data());
+        if (memcmp(header->Magic, "HPRJ", 4) == 0) {
+          auto project = std::make_shared<Horse::Project>();
+          auto &config = project->GetConfig();
+
+          // Load Manifest to resolve GUID
+          std::string manifestContent;
+          if (Horse::FileSystem::ReadText("Game.manifest.json",
+                                          manifestContent)) {
+            try {
+              auto manifest = nlohmann::json::parse(manifestContent);
+              std::string guidStr = std::to_string(header->DefaultLevelGUID);
+              if (manifest.contains("Assets")) {
+                auto &assets = manifest["Assets"];
+                if (assets.contains(guidStr)) {
+                  config.DefaultScene = assets[guidStr].get<std::string>();
+                  std::cout << "Resolved Default Scene: " << config.DefaultScene
+                            << std::endl;
+                }
+              }
+            } catch (...) {
+              std::cerr << "Failed to parse Game.manifest.json" << std::endl;
+            }
+          }
+
+          Horse::Project::SetActive(project);
+        }
       }
     }
   }

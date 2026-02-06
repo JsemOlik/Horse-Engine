@@ -13,6 +13,8 @@ struct HORSE_API ProjectConfig {
   std::string EngineVersion = "0.1.0";
   std::string DefaultScene;
   std::string AssetDirectory = "Assets";
+  std::string SkyboxTexture = "Assets/Textures/skybox.png";
+  std::string DefaultCubeTexture = "Assets/Textures/Checkerboard.png";
 
   // Internal paths
   std::filesystem::path ProjectFileName;

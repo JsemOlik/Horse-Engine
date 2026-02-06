@@ -146,6 +146,9 @@ int main(int argc, char **argv) {
       std::filesystem::path sourcePath = assetsDir / metadata.FilePath;
       if (cooker->Cook(sourcePath, metadata, context)) {
         std::filesystem::path cookedRelPath = metadata.FilePath;
+        if (cookedRelPath.extension() == ".json") {
+          cookedRelPath.replace_extension("");
+        }
         cookedRelPath.replace_extension(cooker->GetCookedExtension());
         manifest["Assets"][std::to_string((uint64_t)handle)] =
             cookedRelPath.string();

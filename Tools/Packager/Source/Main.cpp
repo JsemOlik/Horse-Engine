@@ -226,17 +226,20 @@ int main(int argc, char **argv) {
     }
   }
 
-  // 5. Copy Engine assets
-  std::filesystem::path buildEngineDir = runtimeDir / "Engine";
+  // 5. Copy Engine assets (Only Shaders, textures are now project-local)
+  std::filesystem::path buildEngineDir = runtimeDir / "Engine/Runtime";
   if (std::filesystem::exists(buildEngineDir)) {
     try {
-      std::filesystem::copy(
-          buildEngineDir, outputDir / "Engine",
-          std::filesystem::copy_options::recursive |
-              std::filesystem::copy_options::overwrite_existing);
-      std::cout << "Copied Engine assets" << std::endl;
+      std::filesystem::create_directories(outputDir / "Engine/Runtime/Shaders");
+      if (std::filesystem::exists(buildEngineDir / "Shaders")) {
+        std::filesystem::copy(
+            buildEngineDir / "Shaders", outputDir / "Engine/Runtime/Shaders",
+            std::filesystem::copy_options::recursive |
+                std::filesystem::copy_options::overwrite_existing);
+        std::cout << "Copied Engine Shaders" << std::endl;
+      }
     } catch (const std::exception &e) {
-      std::cerr << "Error copying Engine assets: " << e.what() << std::endl;
+      std::cerr << "Error copying Engine shaders: " << e.what() << std::endl;
     }
   }
 

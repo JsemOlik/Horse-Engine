@@ -1,5 +1,6 @@
 #include "HorseEngine/Render/D3D11Renderer.h"
 #include "HorseEngine/Core/Logging.h"
+#include "HorseEngine/Project/Project.h"
 #include "HorseEngine/Render/D3D11Buffer.h"
 #include "HorseEngine/Render/D3D11Shader.h"
 #include "HorseEngine/Render/D3D11Texture.h"
@@ -12,6 +13,7 @@
 #include <algorithm>
 #include <d3dcompiler.h>
 #include <dxgi1_2.h>
+#include <filesystem>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -728,7 +730,7 @@ bool D3D11Renderer::InitCube() {
                                           sizeof(wireIndices)))
     return false;
 
-  // Create constant buffer
+  // Create cube constant buffer
   m_CubeConstantBuffer = std::make_unique<D3D11Buffer>();
   if (!m_CubeConstantBuffer->Initialize(m_Device.Get(), BufferType::Constant,
                                         BufferUsage::Dynamic, nullptr,
@@ -737,9 +739,17 @@ bool D3D11Renderer::InitCube() {
 
   // Load texture
   m_CubeTexture = std::make_unique<D3D11Texture>();
-  if (!m_CubeTexture->LoadFromFile(
-          m_Device.Get(), m_Context.Get(),
-          "Engine/Runtime/Textures/Checkerboard.png")) {
+  std::string cubeTexturePath = "Engine/Runtime/Textures/Checkerboard.png";
+  if (auto project = Project::GetActive()) {
+    std::filesystem::path p = project->GetConfig().ProjectDirectory /
+                              project->GetConfig().DefaultCubeTexture;
+    if (std::filesystem::exists(p) && std::filesystem::is_regular_file(p)) {
+      cubeTexturePath = p.string();
+    }
+  }
+
+  if (!m_CubeTexture->LoadFromFile(m_Device.Get(), m_Context.Get(),
+                                   cubeTexturePath)) {
     HORSE_LOG_RENDER_WARN("Failed to load test texture, cube will be white");
   }
 
@@ -765,9 +775,18 @@ bool D3D11Renderer::InitCube() {
 
   // Load Skybox Texture
   m_SkyboxTexture = std::make_unique<D3D11Texture>();
+  std::string skyboxTexturePath = "Engine/Runtime/Textures/Skybox.png";
+  if (auto project = Project::GetActive()) {
+    std::filesystem::path p = project->GetConfig().ProjectDirectory /
+                              project->GetConfig().SkyboxTexture;
+    if (std::filesystem::exists(p) && std::filesystem::is_regular_file(p)) {
+      skyboxTexturePath = p.string();
+    }
+  }
+
   if (!m_SkyboxTexture->LoadFromFile(m_Device.Get(), m_Context.Get(),
-                                     "Engine/Runtime/Textures/Skybox.png")) {
-    HORSE_LOG_RENDER_WARN("Failed to load Skybox.png, sky will be empty");
+                                     skyboxTexturePath)) {
+    HORSE_LOG_RENDER_WARN("Failed to load Skybox texture, sky will be empty");
   }
 
   return true;
