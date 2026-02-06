@@ -6,7 +6,6 @@
 #include <vector>
 #include <wrl/client.h>
 
-
 namespace Horse {
 
 using Microsoft::WRL::ComPtr;

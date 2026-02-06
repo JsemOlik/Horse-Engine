@@ -52,6 +52,10 @@ public:
   void OnResize(u32 width, u32 height);
 
   void DrawCube();
+  void DrawWireBox(const DirectX::XMMATRIX &view,
+                   const DirectX::XMMATRIX &projection,
+                   const DirectX::XMMATRIX &world,
+                   const DirectX::XMFLOAT4 &color);
 
   ID3D11Device *GetDevice() const { return m_Device.Get(); }
   ID3D11DeviceContext *GetContext() const { return m_Context.Get(); }
@@ -79,6 +83,7 @@ private:
   std::unique_ptr<class D3D11Texture> m_CubeTexture;
   std::unique_ptr<class D3D11Buffer> m_CubeVertexBuffer;
   std::unique_ptr<class D3D11Buffer> m_CubeIndexBuffer;
+  std::unique_ptr<class D3D11Buffer> m_WireframeIndexBuffer;
   std::unique_ptr<class D3D11Buffer> m_CubeConstantBuffer;
   ComPtr<ID3D11InputLayout> m_CubeInputLayout;
   ComPtr<ID3D11VertexShader> m_CubeVS;

@@ -12,6 +12,7 @@
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QUrl>
+#include <glm/gtc/type_ptr.hpp>
 
 SceneViewport::SceneViewport(QWidget *parent) : D3D11ViewportWidget(parent) {
   setFocusPolicy(Qt::StrongFocus);
@@ -115,6 +116,29 @@ void SceneViewport::Render() {
         DirectX::XM_PIDIV4, width() / (float)height(), 0.1f, 1000.0f);
 
     m_Renderer->RenderScene(m_Scene.get(), &view, &projection);
+
+    // Draw Collider Outline for Selected Entity
+    if (m_SelectedEntity &&
+        m_SelectedEntity.HasComponent<Horse::BoxColliderComponent>()) {
+      auto &bc = m_SelectedEntity.GetComponent<Horse::BoxColliderComponent>();
+      auto &transform =
+          m_SelectedEntity.GetComponent<Horse::TransformComponent>();
+
+      // Load World Matrix
+      using namespace DirectX;
+      XMMATRIX worldMat = XMLoadFloat4x4(
+          (const XMFLOAT4X4 *)glm::value_ptr(transform.WorldTransform));
+
+      // Apply Box Collider Offset and Scale (Size)
+      XMMATRIX boxTransform =
+          XMMatrixScaling(bc.Size[0] * 0.5f, bc.Size[1] * 0.5f,
+                          bc.Size[2] * 0.5f) *
+          XMMatrixTranslation(bc.Offset[0], bc.Offset[1], bc.Offset[2]) *
+          worldMat;
+
+      m_Renderer->DrawWireBox(view, projection, boxTransform,
+                              {0.0f, 1.0f, 0.0f, 1.0f}); // Green
+    }
   }
 
   m_Renderer->EndFrame();

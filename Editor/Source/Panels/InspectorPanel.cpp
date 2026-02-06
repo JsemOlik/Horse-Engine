@@ -550,6 +550,9 @@ void InspectorPanel::DrawComponents() {
     rbLayout->addRow("Is Sensor:", sensorCheck);
 
     // Rotation Locks
+    QLabel *locksLabel = new QLabel("<b>Physics Constraints</b>");
+    rbLayout->addRow(locksLabel);
+
     QCheckBox *lockXCheck = new QCheckBox();
     lockXCheck->setChecked(rb.LockRotationX);
     connect(lockXCheck, &QCheckBox::toggled, this, [this](bool checked) {
@@ -557,7 +560,7 @@ void InspectorPanel::DrawComponents() {
         m_SelectedEntity.GetComponent<Horse::RigidBodyComponent>()
             .LockRotationX = checked;
     });
-    rbLayout->addRow("Lock Rotation X:", lockXCheck);
+    rbLayout->addRow("Lock Rotation (X):", lockXCheck);
 
     QCheckBox *lockYCheck = new QCheckBox();
     lockYCheck->setChecked(rb.LockRotationY);
@@ -566,7 +569,7 @@ void InspectorPanel::DrawComponents() {
         m_SelectedEntity.GetComponent<Horse::RigidBodyComponent>()
             .LockRotationY = checked;
     });
-    rbLayout->addRow("Lock Rotation Y:", lockYCheck);
+    rbLayout->addRow("Lock Rotation (Y):", lockYCheck);
 
     QCheckBox *lockZCheck = new QCheckBox();
     lockZCheck->setChecked(rb.LockRotationZ);
@@ -575,7 +578,7 @@ void InspectorPanel::DrawComponents() {
         m_SelectedEntity.GetComponent<Horse::RigidBodyComponent>()
             .LockRotationZ = checked;
     });
-    rbLayout->addRow("Lock Rotation Z:", lockZCheck);
+    rbLayout->addRow("Lock Rotation (Z):", lockZCheck);
 
     QPushButton *removeBtn = new QPushButton("Remove Component");
     connect(removeBtn, &QPushButton::clicked, this, [this]() {

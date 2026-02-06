@@ -61,6 +61,11 @@ void EditorWindow::SetSelectedEntity(Horse::Entity entity) {
   if (m_InspectorPanel) {
     m_InspectorPanel->SetSelectedEntity(entity);
   }
+
+  // Update scene viewport for gizmos/outlines
+  if (m_SceneViewport) {
+    m_SceneViewport->SetSelectedEntity(entity);
+  }
 }
 
 void EditorWindow::UpdateSceneContext() {

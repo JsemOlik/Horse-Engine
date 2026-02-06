@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../D3D11ViewportWidget.h"
+#include "HorseEngine/Scene/Entity.h"
 #include <DirectXMath.h>
 #include <set>
 
@@ -9,6 +10,7 @@ class SceneViewport : public D3D11ViewportWidget {
 
 public:
   explicit SceneViewport(QWidget *parent = nullptr);
+  void SetSelectedEntity(Horse::Entity entity) { m_SelectedEntity = entity; }
 
 protected:
   void mousePressEvent(QMouseEvent *event) override;
@@ -35,4 +37,6 @@ private:
 
   float m_MoveSpeed = 0.1f;
   float m_LookSensitivity = 0.1f;
+
+  Horse::Entity m_SelectedEntity;
 };

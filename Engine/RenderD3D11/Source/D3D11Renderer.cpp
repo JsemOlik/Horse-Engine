@@ -166,6 +166,48 @@ void D3D11Renderer::DrawCube() {
   // m_Context->DrawIndexed(36, 0, 0);
 }
 
+void D3D11Renderer::DrawWireBox(const DirectX::XMMATRIX &view,
+                                const DirectX::XMMATRIX &projection,
+                                const DirectX::XMMATRIX &world,
+                                const DirectX::XMFLOAT4 &color) {
+  if (!m_WireframeIndexBuffer || !m_CubeInitialized)
+    return;
+
+  XMMATRIX wvp = world * view * projection;
+
+  // Update constant buffer
+  XMFLOAT4X4 wvpData;
+  XMStoreFloat4x4(&wvpData, XMMatrixTranspose(wvp));
+  m_CubeConstantBuffer->UpdateData(m_Context.Get(), &wvpData, sizeof(wvpData));
+  m_CubeConstantBuffer->Bind(m_Context.Get(), 0);
+
+  // Update Material Constant Buffer with the wireframe color
+  MaterialConstantBuffer matCB;
+  matCB.AlbedoColor = color;
+  matCB.Roughness = 0.0f;
+  matCB.Metalness = 0.0f;
+  m_MaterialConstantBuffer->UpdateData(m_Context.Get(), &matCB,
+                                       sizeof(MaterialConstantBuffer));
+  m_MaterialConstantBuffer->Bind(m_Context.Get(), 1);
+
+  // Use default white texture
+  m_WhiteTexture->Bind(m_Context.Get(), 0);
+
+  // Set pipeline state
+  m_Context->IASetInputLayout(m_CubeInputLayout.Get());
+  m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+  m_CubeVertexBuffer->Bind(m_Context.Get(), 0);
+  m_WireframeIndexBuffer->Bind(m_Context.Get(), 0);
+
+  m_Context->VSSetShader(m_CubeVS.Get(), nullptr, 0);
+  m_Context->PSSetShader(m_CubePS.Get(), nullptr, 0);
+
+  m_Context->DrawIndexed(24, 0, 0);
+
+  // Reset topology
+  m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
+
 std::shared_ptr<D3D11Shader>
 D3D11Renderer::GetShader(const std::string &shaderName,
                          const MaterialInstance &material) {
@@ -586,6 +628,19 @@ bool D3D11Renderer::InitCube() {
   if (!m_CubeIndexBuffer->Initialize(m_Device.Get(), BufferType::Index,
                                      BufferUsage::Immutable, indices,
                                      sizeof(indices)))
+    return false;
+
+  // Create wireframe index buffer (12 lines * 2 indices = 24)
+  u32 wireIndices[] = {
+      0, 1, 1, 2, 2, 3, 3, 0, // Front
+      4, 5, 5, 6, 6, 7, 7, 4, // Back
+      0, 4, 1, 5, 2, 6, 3, 7  // Side connections
+  };
+
+  m_WireframeIndexBuffer = std::make_unique<D3D11Buffer>();
+  if (!m_WireframeIndexBuffer->Initialize(m_Device.Get(), BufferType::Index,
+                                          BufferUsage::Immutable, wireIndices,
+                                          sizeof(wireIndices)))
     return false;
 
   // Create constant buffer
