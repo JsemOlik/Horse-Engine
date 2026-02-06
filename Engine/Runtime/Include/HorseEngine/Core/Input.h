@@ -12,6 +12,8 @@ struct MousePosition {
   float Y;
 };
 
+enum class CursorMode { Normal = 0, Hidden = 1, Locked = 2 };
+
 enum KeyCode {
   KEY_NONE = 0x00,
   KEY_LBUTTON = 0x01,
@@ -90,6 +92,8 @@ public:
                            const std::vector<int> &positiveKeys,
                            const std::vector<int> &negativeKeys);
 
+  static void SetCursorMode(CursorMode mode);
+  static CursorMode GetCursorMode();
   static bool IsActionPressed(const std::string &name);
   static float GetAxisValue(const std::string &name);
 

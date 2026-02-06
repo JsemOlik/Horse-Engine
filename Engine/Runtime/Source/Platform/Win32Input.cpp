@@ -2,6 +2,7 @@
 #include "HorseEngine/Core/Logging.h"
 #include <string>
 #include <unordered_map>
+#include <windows.h>
 
 namespace Horse {
 
@@ -82,5 +83,36 @@ void Input::UpdateMousePosition(float x, float y) {
 void Input::UpdateMouseButtonState(int button, bool pressed) {
   s_MouseStates[button] = pressed;
 }
+
+static CursorMode s_CursorMode = CursorMode::Normal;
+
+void Input::SetCursorMode(CursorMode mode) {
+  s_CursorMode = mode;
+
+  if (mode == CursorMode::Locked) {
+    // Hide cursor
+    while (ShowCursor(FALSE) >= 0)
+      ;
+
+    // Lock to window
+    HWND hwnd = GetActiveWindow();
+    if (hwnd) {
+      RECT rect;
+      GetWindowRect(hwnd, &rect);
+      ClipCursor(&rect);
+    }
+  } else if (mode == CursorMode::Hidden) {
+    while (ShowCursor(FALSE) >= 0)
+      ;
+    ClipCursor(nullptr);
+  } else {
+    // Normal
+    while (ShowCursor(TRUE) < 0)
+      ;
+    ClipCursor(nullptr);
+  }
+}
+
+CursorMode Input::GetCursorMode() { return s_CursorMode; }
 
 } // namespace Horse
