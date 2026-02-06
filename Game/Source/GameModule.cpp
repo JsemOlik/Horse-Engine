@@ -5,6 +5,8 @@
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Scene.h"
 #include "HorseEngine/Scene/ScriptableEntity.h"
+#include "PlayerController.h"
+
 
 #include <cmath>
 #include <iostream>
@@ -36,7 +38,7 @@ public:
   virtual void OnUpdate(float deltaTime) override {}
 
   virtual std::vector<std::string> GetAvailableScripts() const override {
-    return {"VerticalMover"};
+    return {"VerticalMover", "PlayerController"};
   }
 
   virtual void CreateScript(const std::string &name, Entity entity) override {
@@ -50,6 +52,15 @@ public:
 
       nsc->Bind<VerticalMover>();
       nsc->ClassName = "VerticalMover";
+    } else if (name == "PlayerController") {
+      NativeScriptComponent *nsc = nullptr;
+      if (entity.HasComponent<NativeScriptComponent>()) {
+        nsc = &entity.GetComponent<NativeScriptComponent>();
+      } else {
+        nsc = &entity.AddComponent<NativeScriptComponent>();
+      }
+      nsc->Bind<PlayerController>();
+      nsc->ClassName = "PlayerController";
     }
   }
 };
