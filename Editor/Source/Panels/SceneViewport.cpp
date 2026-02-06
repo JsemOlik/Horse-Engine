@@ -13,7 +13,9 @@
 #include <QMenu>
 #include <QMimeData>
 #include <QMouseEvent>
+#include <QPainterPath>
 #include <QPushButton>
+#include <QRegion>
 #include <QUrl>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -22,11 +24,15 @@ SceneViewport::SceneViewport(QWidget *parent) : D3D11ViewportWidget(parent) {
   setAcceptDrops(true);
 
   QPushButton *viewBtn = new QPushButton("View", this);
-  viewBtn->setGeometry(10, 10, 80, 30);
+  viewBtn->setGeometry(10, 10, 60, 30);
   viewBtn->setCursor(Qt::ArrowCursor);
-  // Ensure the button renders transparently outside the border radius
-  viewBtn->setAttribute(Qt::WA_TranslucentBackground);
-  viewBtn->setAutoFillBackground(false);
+
+  // setMask is the most robust way to handle non-rectangular widgets
+  // over a D3D surface where parent background is not drawn by Qt.
+  QPainterPath path;
+  // Shrink mask slightly to effectively clip the black anti-aliasing artifacts
+  path.addRoundedRect(1, 1, 58, 28, 14, 14);
+  viewBtn->setMask(QRegion(path.toFillPolygon().toPolygon()));
 
   // Pill shape styling with dropdown arrow
   viewBtn->setStyleSheet(
@@ -35,12 +41,13 @@ SceneViewport::SceneViewport(QWidget *parent) : D3D11ViewportWidget(parent) {
       "  color: white; "
       "  border: 1px solid #555; "
       "  border-radius: 15px; " // Pill shape (half of height 30)
-      "  padding-left: 10px; "
-      "  padding-right: 10px; "
+      "  padding: 0px; "        // Reset padding to ensure centering
       "  text-align: center; "
       "}"
-      "QPushButton::menu-indicator { image: none; }" // Hide default indicator
-                                                     // if preferred, or keep it
+      "QPushButton::menu-indicator { image: none; width: 0px; }" // Remove
+                                                                 // indicator
+                                                                 // space
+      // if preferred, or keep it
       "QPushButton:hover { background-color: #444; }"
       "QPushButton:pressed { background-color: #222; }"
       "QMenu { "
