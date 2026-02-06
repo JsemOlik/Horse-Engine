@@ -19,8 +19,6 @@ namespace Horse {
 void PlayerController::OnCreate() {
   if (GetComponent<RigidBodyComponent>().RuntimeBody) {
     m_RigidBody = &GetComponent<RigidBodyComponent>();
-    m_RigidBody->LockRotationX = true;
-    m_RigidBody->LockRotationZ = true;
 
     // Access PhysicsSystem via Scene
     auto scene = GetEntity().GetScene();
