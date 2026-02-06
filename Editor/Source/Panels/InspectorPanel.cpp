@@ -549,6 +549,34 @@ void InspectorPanel::DrawComponents() {
     });
     rbLayout->addRow("Is Sensor:", sensorCheck);
 
+    // Rotation Locks
+    QCheckBox *lockXCheck = new QCheckBox();
+    lockXCheck->setChecked(rb.LockRotationX);
+    connect(lockXCheck, &QCheckBox::toggled, this, [this](bool checked) {
+      if (m_SelectedEntity)
+        m_SelectedEntity.GetComponent<Horse::RigidBodyComponent>()
+            .LockRotationX = checked;
+    });
+    rbLayout->addRow("Lock Rotation X:", lockXCheck);
+
+    QCheckBox *lockYCheck = new QCheckBox();
+    lockYCheck->setChecked(rb.LockRotationY);
+    connect(lockYCheck, &QCheckBox::toggled, this, [this](bool checked) {
+      if (m_SelectedEntity)
+        m_SelectedEntity.GetComponent<Horse::RigidBodyComponent>()
+            .LockRotationY = checked;
+    });
+    rbLayout->addRow("Lock Rotation Y:", lockYCheck);
+
+    QCheckBox *lockZCheck = new QCheckBox();
+    lockZCheck->setChecked(rb.LockRotationZ);
+    connect(lockZCheck, &QCheckBox::toggled, this, [this](bool checked) {
+      if (m_SelectedEntity)
+        m_SelectedEntity.GetComponent<Horse::RigidBodyComponent>()
+            .LockRotationZ = checked;
+    });
+    rbLayout->addRow("Lock Rotation Z:", lockZCheck);
+
     QPushButton *removeBtn = new QPushButton("Remove Component");
     connect(removeBtn, &QPushButton::clicked, this, [this]() {
       if (m_SelectedEntity) {

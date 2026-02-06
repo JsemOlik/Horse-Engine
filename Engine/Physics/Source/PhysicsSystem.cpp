@@ -295,7 +295,18 @@ void PhysicsSystem::OnRuntimeStart(Scene *scene) {
 
     JPH::BodyCreationSettings bodySettings(shape, pos, rot, motionType,
                                            objectLayer);
-    bodySettings.mAllowedDOFs = JPH::EAllowedDOFs::All;
+
+    // Calculate Allowed DOFs
+    JPH::EAllowedDOFs allowedDOFs = JPH::EAllowedDOFs::All;
+    if (rb.LockRotationX)
+      allowedDOFs &= ~JPH::EAllowedDOFs::RotationX;
+    if (rb.LockRotationY)
+      allowedDOFs &= ~JPH::EAllowedDOFs::RotationY;
+    if (rb.LockRotationZ)
+      allowedDOFs &= ~JPH::EAllowedDOFs::RotationZ;
+
+    bodySettings.mAllowedDOFs = allowedDOFs;
+
     if (!rb.UseGravity && !rb.Anchored) {
       bodySettings.mGravityFactor = 0.0f;
     }
