@@ -1,7 +1,6 @@
 #pragma once
 
 #include "HorseEngine/Core.h"
-#include <glm/glm.hpp>
 
 // Forward declarations to avoid exposing Jolt headers everywhere
 namespace JPH {
@@ -31,17 +30,6 @@ public:
   // Accessors (for internal use or advanced users)
   JPH::PhysicsSystem *GetJoltSystem() const { return m_JoltSystem; }
   JPH::BodyInterface *GetBodyInterface() const;
-
-  // Raycasting
-  struct RayCastResult {
-    bool Hit = false;
-    float Fraction = 1.0f;
-    glm::vec3 Position = {0, 0, 0};
-    glm::vec3 Normal = {0, 0, 0};
-  };
-  RayCastResult RayCast(const glm::vec3 &start, const glm::vec3 &end);
-  RayCastResult RayCast(const glm::vec3 &start, const glm::vec3 &end,
-                        void *ignoreBodyRuntimePtr);
 
 private:
   JPH::PhysicsSystem *m_JoltSystem = nullptr;

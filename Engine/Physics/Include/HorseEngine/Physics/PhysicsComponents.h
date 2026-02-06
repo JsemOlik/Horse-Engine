@@ -13,10 +13,6 @@ struct RigidBodyComponent {
   std::array<float, 3> LinearVelocity = {0.0f, 0.0f, 0.0f};
   std::array<float, 3> AngularVelocity = {0.0f, 0.0f, 0.0f};
 
-  bool LockRotationX = false;
-  bool LockRotationY = false;
-  bool LockRotationZ = false;
-
   // Runtime data - Opaque pointer to Jolt Body
   void *RuntimeBody = nullptr;
 

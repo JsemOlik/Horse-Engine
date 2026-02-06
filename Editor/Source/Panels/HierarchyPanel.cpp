@@ -310,6 +310,8 @@ void HierarchyPanel::OnCreatePlayer() {
   // 3. Add RigidBody
   auto &rb = player.AddComponent<Horse::RigidBodyComponent>();
   rb.Anchored = false; // Dynamic
+  // rb.FixedRotation = true; // TODO: Add support for rotation locking in
+  // RigidBodyComponent
 
   // 4. Add BoxCollider
   // Matches the visual scale (1.0 * 0.5 = 0.5 width, etc relative to physics?)

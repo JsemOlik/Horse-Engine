@@ -10,13 +10,8 @@
 #include <Jolt/Core/Factory.h>
 #include <Jolt/Core/JobSystemThreadPool.h>
 #include <Jolt/Core/TempAllocator.h>
-#include <Jolt/Physics/Body/Body.h>
 #include <Jolt/Physics/Body/BodyActivationListener.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
-#include <Jolt/Physics/Body/BodyLock.h>
-#include <Jolt/Physics/Collision/CastResult.h>
-#include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
-#include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/PhysicsSettings.h>
@@ -224,67 +219,6 @@ JPH::BodyInterface *PhysicsSystem::GetBodyInterface() const {
   return m_JoltSystem ? &m_JoltSystem->GetBodyInterface() : nullptr;
 }
 
-PhysicsSystem::RayCastResult PhysicsSystem::RayCast(const glm::vec3 &start,
-                                                    const glm::vec3 &end) {
-  return RayCast(start, end, nullptr);
-}
-
-PhysicsSystem::RayCastResult
-PhysicsSystem::RayCast(const glm::vec3 &start, const glm::vec3 &end,
-                       void *ignoreBodyRuntimePtr) {
-  if (!m_JoltSystem)
-    return {};
-
-  JPH::RVec3 from(start.x, start.y, start.z);
-  JPH::Vec3 dir(end.x - start.x, end.y - start.y, end.z - start.z);
-  JPH::RRayCast ray(from, dir);
-
-  JPH::RayCastSettings settings;
-  JPH::ClosestHitCollisionCollector<JPH::CastRayCollector> collector;
-
-  // Body Filter to ignore self
-  class IgnoreBodyFilter : public JPH::BodyFilter {
-  public:
-    IgnoreBodyFilter(const JPH::BodyID &ignoreID) : m_IgnoreID(ignoreID) {}
-    bool ShouldCollide(const JPH::BodyID &inBodyID) const override {
-      return inBodyID != m_IgnoreID;
-    }
-
-  private:
-    JPH::BodyID m_IgnoreID;
-  };
-
-  JPH::BodyID ignoreID;
-  if (ignoreBodyRuntimePtr) {
-    ignoreID = static_cast<JPH::Body *>(ignoreBodyRuntimePtr)->GetID();
-  }
-
-  IgnoreBodyFilter bodyFilter(ignoreID);
-
-  m_JoltSystem->GetNarrowPhaseQuery().CastRay(ray, settings, collector, {}, {},
-                                              bodyFilter);
-
-  RayCastResult result;
-  if (collector.HadHit()) {
-    result.Hit = true;
-    result.Fraction = collector.mHit.mFraction;
-
-    JPH::RVec3 hitPos = ray.GetPointOnRay(collector.mHit.mFraction);
-    result.Position = {hitPos.GetX(), hitPos.GetY(), hitPos.GetZ()};
-
-    // Get normal
-    auto &bodyLockInterface = m_JoltSystem->GetBodyLockInterface();
-    JPH::BodyLockRead lock(bodyLockInterface, collector.mHit.mBodyID);
-    if (lock.Succeeded()) {
-      JPH::Vec3 normal = lock.GetBody().GetWorldSpaceSurfaceNormal(
-          collector.mHit.mSubShapeID2, hitPos);
-      result.Normal = {normal.GetX(), normal.GetY(), normal.GetZ()};
-    }
-  }
-
-  return result;
-}
-
 void PhysicsSystem::OnRuntimeStart(Scene *scene) {
   m_ContextScene = scene;
 
@@ -361,17 +295,7 @@ void PhysicsSystem::OnRuntimeStart(Scene *scene) {
 
     JPH::BodyCreationSettings bodySettings(shape, pos, rot, motionType,
                                            objectLayer);
-
-    // Calculate Allowed DOFs
-    JPH::EAllowedDOFs allowedDOFs = JPH::EAllowedDOFs::All;
-    if (rb.LockRotationX)
-      allowedDOFs &= ~JPH::EAllowedDOFs::RotationX;
-    if (rb.LockRotationY)
-      allowedDOFs &= ~JPH::EAllowedDOFs::RotationY;
-    if (rb.LockRotationZ)
-      allowedDOFs &= ~JPH::EAllowedDOFs::RotationZ;
-
-    bodySettings.mAllowedDOFs = allowedDOFs;
+    bodySettings.mAllowedDOFs = JPH::EAllowedDOFs::All;
     if (!rb.UseGravity && !rb.Anchored) {
       bodySettings.mGravityFactor = 0.0f;
     }
