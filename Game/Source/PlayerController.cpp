@@ -109,8 +109,9 @@ void PlayerController::OnUpdate(float deltaTime) {
     // Physics Rotation - convert Yaw (degrees) to Radians and around Y axis
     // Note: Jolt uses Radians.
     // -m_Yaw because... coordinate systems. Let's try standard first.
+    // Convert to radians and handle CW rotation for RHS
     JPH::Quat rotation =
-        JPH::Quat::sRotation(JPH::Vec3::sAxisY(), glm::radians(m_Yaw));
+        JPH::Quat::sRotation(JPH::Vec3::sAxisY(), glm::radians(-m_Yaw));
     m_BodyInterface->SetRotation(bodyID, rotation, JPH::EActivation::Activate);
 
     // 3. Rotate Camera (Pitch)
@@ -134,10 +135,11 @@ void PlayerController::OnUpdate(float deltaTime) {
   bool onGround = IsOnGround();
 
   // Calculate Forward/Right vectors based on YAW
-  // GLM uses -Z as forward. Yaw 0 should be (0, 0, -1).
+  // Using RHS: +X is Forward, +Z is Right, +Y is Up
+  // m_Yaw increasing turns RIGHT (CW)
   float yawRad = glm::radians(m_Yaw);
-  glm::vec3 forward(sin(yawRad), 0, -cos(yawRad));
-  glm::vec3 right(cos(yawRad), 0, sin(yawRad));
+  glm::vec3 forward(cos(yawRad), 0, -sin(yawRad));
+  glm::vec3 right(sin(yawRad), 0, cos(yawRad));
 
   glm::vec3 wishDir(0.0f);
   if (Input::IsKeyPressed(KEY_W))
