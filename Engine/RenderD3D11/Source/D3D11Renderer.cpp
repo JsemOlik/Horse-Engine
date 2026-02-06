@@ -116,7 +116,7 @@ void D3D11Renderer::Shutdown() {
   m_Device.Reset();
 }
 
-void D3D11Renderer::SetWireframe(bool enabled) { m_WireframeEnabled = enabled; }
+void D3D11Renderer::SetViewMode(int mode) { m_ViewMode = mode; }
 
 void D3D11Renderer::BeginFrame() {
   m_Context->OMSetRenderTargets(1, m_RenderTargetView.GetAddressOf(),
@@ -420,8 +420,10 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
   m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
   // Set Rasterizer State
-  m_Context->RSSetState(m_WireframeEnabled ? m_RasterizerStateWireframe.Get()
-                                           : m_RasterizerStateSolid.Get());
+  // Wireframe state only for mode 1. Mode 2 (Colored Triangles) uses Solid
+  // state
+  m_Context->RSSetState(m_ViewMode == 1 ? m_RasterizerStateWireframe.Get()
+                                        : m_RasterizerStateSolid.Get());
 
   m_Context->VSSetShader(m_CubeVS.Get(), nullptr, 0);
   m_CubeConstantBuffer->Bind(m_Context.Get(), 0);
@@ -472,6 +474,7 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
     matCB.AlbedoColor = {color[0], color[1], color[2], color[3]};
     matCB.Roughness = material->GetFloat("Roughness");
     matCB.Metalness = material->GetFloat("Metalness");
+    matCB.ViewMode = m_ViewMode;
 
     m_MaterialConstantBuffer->UpdateData(m_Context.Get(), &matCB,
                                          sizeof(MaterialConstantBuffer));

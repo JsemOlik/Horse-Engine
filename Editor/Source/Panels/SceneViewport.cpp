@@ -23,6 +23,10 @@ SceneViewport::SceneViewport(QWidget *parent) : D3D11ViewportWidget(parent) {
 
   QPushButton *viewBtn = new QPushButton("View", this);
   viewBtn->setGeometry(10, 10, 80, 30);
+  viewBtn->setCursor(Qt::ArrowCursor);
+  // Ensure the button renders transparently outside the border radius
+  viewBtn->setAttribute(Qt::WA_TranslucentBackground);
+  viewBtn->setAutoFillBackground(false);
 
   // Pill shape styling with dropdown arrow
   viewBtn->setStyleSheet(
@@ -50,19 +54,27 @@ SceneViewport::SceneViewport(QWidget *parent) : D3D11ViewportWidget(parent) {
 
   QAction *solidAction = viewMenu->addAction("Solid");
   QAction *wireframeAction = viewMenu->addAction("Wireframe");
+  QAction *coloredTrisAction = viewMenu->addAction("Colored Triangles");
 
   viewBtn->setMenu(viewMenu);
 
   connect(solidAction, &QAction::triggered, [this]() {
     if (m_Renderer) {
-      m_Renderer->SetWireframe(false);
+      m_Renderer->SetViewMode(0);
       update();
     }
   });
 
   connect(wireframeAction, &QAction::triggered, [this]() {
     if (m_Renderer) {
-      m_Renderer->SetWireframe(true);
+      m_Renderer->SetViewMode(1);
+      update();
+    }
+  });
+
+  connect(coloredTrisAction, &QAction::triggered, [this]() {
+    if (m_Renderer) {
+      m_Renderer->SetViewMode(2);
       update();
     }
   });

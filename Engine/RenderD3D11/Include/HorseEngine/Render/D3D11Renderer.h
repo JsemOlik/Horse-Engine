@@ -60,7 +60,7 @@ public:
   ID3D11Device *GetDevice() const { return m_Device.Get(); }
   ID3D11DeviceContext *GetContext() const { return m_Context.Get(); }
 
-  void SetWireframe(bool enabled);
+  void SetViewMode(int mode); // 0=Solid, 1=Wireframe, 2=ColoredTriangles
 
 private:
   struct Vertex {
@@ -84,7 +84,7 @@ private:
 
   ComPtr<ID3D11RasterizerState> m_RasterizerStateSolid;
   ComPtr<ID3D11RasterizerState> m_RasterizerStateWireframe;
-  bool m_WireframeEnabled = false;
+  int m_ViewMode = 0;
 
   // Cube members
   std::unique_ptr<class D3D11Texture> m_CubeTexture;
@@ -107,9 +107,10 @@ private:
   // Material constants
   struct MaterialConstantBuffer {
     DirectX::XMFLOAT4 AlbedoColor;
-    f32 Roughness;
-    f32 Metalness;
-    f32 Padding[2]; // Align to 16 bytes
+    float Roughness;
+    float Metalness;
+    int ViewMode;
+    float Padding;
   };
 
   std::unique_ptr<class D3D11Buffer> m_MaterialConstantBuffer;
