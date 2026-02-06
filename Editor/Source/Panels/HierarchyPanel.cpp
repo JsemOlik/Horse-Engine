@@ -299,6 +299,10 @@ void HierarchyPanel::OnCreatePlayer() {
   // 2. Create Player Entity
   auto player = m_Scene->CreateEntity("Player");
 
+  // 2.5 Add MeshRenderer (so we can see it!)
+  auto &meshRenderer = player.AddComponent<Horse::MeshRendererComponent>();
+  meshRenderer.MaterialGUID = ""; // Defaults to standard material/cube mesh
+
   // 3. Add RigidBody
   auto &rb = player.AddComponent<Horse::RigidBodyComponent>();
   rb.Anchored = false; // Dynamic
