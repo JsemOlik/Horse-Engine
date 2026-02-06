@@ -1,15 +1,15 @@
-#include "HorseEngine/Physics/PhysicsSystem.h"
+#include <Jolt/Jolt.h>
+
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Physics/PhysicsComponents.h"
+#include "HorseEngine/Physics/PhysicsSystem.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Entity.h"
 #include "HorseEngine/Scene/Scene.h"
 
-
 #include <Jolt/Core/Factory.h>
 #include <Jolt/Core/JobSystemThreadPool.h>
 #include <Jolt/Core/TempAllocator.h>
-#include <Jolt/Jolt.h>
 #include <Jolt/Physics/Body/BodyActivationListener.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
@@ -18,11 +18,9 @@
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/RegisterTypes.h>
 
-
 #include <cstdarg>
 #include <iostream>
 #include <thread>
-
 
 // Jolt Callback Trace
 static void TraceImpl(const char *inFMT, ...) {

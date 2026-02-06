@@ -15,6 +15,6 @@
     "physfs",
     "zlib",
     "glm",
-    "jolt-physics"
+    "joltphysics"
   ]
 }

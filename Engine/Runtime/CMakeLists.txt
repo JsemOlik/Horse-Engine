@@ -54,7 +54,7 @@ target_link_libraries(HorseRuntime
         nlohmann_json::nlohmann_json
         glm::glm
         ${LUA_LIBRARY}
-        sol2
+        sol2::sol2
         d3d11.lib
         dxgi.lib
         dxguid.lib
