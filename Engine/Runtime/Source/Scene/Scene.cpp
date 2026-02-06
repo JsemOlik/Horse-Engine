@@ -201,6 +201,7 @@ void Scene::TriggerAssetLoads() {
 }
 
 void Scene::UpdateStagedLoad() {
+  HORSE_LOG_CORE_INFO("UpdateStagedLoad stage: {}", (int)m_LoadingStage);
   switch (m_LoadingStage) {
   case LoadingStage::Assets:
     // Check if all queued assets are ready (simulated for now)

@@ -42,6 +42,17 @@ public:
     m_ActiveScene = SceneSerializer::DeserializeFromJSON(scenePath);
     if (m_ActiveScene) {
       HORSE_LOG_CORE_INFO("Successfully loaded scene: {}", scenePath);
+
+      // Re-bind native scripts
+      auto view = m_ActiveScene->GetRegistry().view<NativeScriptComponent>();
+      for (auto entity : view) {
+        auto &nsc = view.get<NativeScriptComponent>(entity);
+        if (!nsc.ClassName.empty()) {
+          HORSE_LOG_CORE_INFO("Re-binding script: {} to entity", nsc.ClassName);
+          CreateScript(nsc.ClassName, {entity, m_ActiveScene.get()});
+        }
+      }
+
       m_ActiveScene->OnRuntimeStart();
 
       // Resize logic removed as Scene doesn't support it directly yet.
