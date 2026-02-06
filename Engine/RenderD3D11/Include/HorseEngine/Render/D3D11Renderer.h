@@ -37,8 +37,8 @@ public:
   virtual void BeginFrame() override;
   virtual void EndFrame() override;
 
-  void Clear(f32 r, f32 g, f32 b, f32 a = 1.0f);
-  void Present();
+  virtual void Clear(f32 r, f32 g, f32 b, f32 a = 1.0f) override;
+  virtual void Present() override;
   virtual void
   RenderScene(class Scene *scene,
               const DirectX::XMMATRIX *overrideView = nullptr,

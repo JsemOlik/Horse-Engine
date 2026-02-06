@@ -25,6 +25,9 @@ public:
   virtual void BeginFrame() = 0;
   virtual void EndFrame() = 0;
 
+  virtual void Clear(float r, float g, float b, float a = 1.0f) = 0;
+  virtual void Present() = 0;
+
   virtual void
   RenderScene(Scene *scene, const DirectX::XMMATRIX *overrideView = nullptr,
               const DirectX::XMMATRIX *overrideProjection = nullptr) = 0;

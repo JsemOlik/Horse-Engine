@@ -87,6 +87,7 @@ void Engine::RunFrame() {
   // Render
   if (m_Renderer && m_GameModule) {
     m_Renderer->BeginFrame();
+    m_Renderer->Clear(0.1f, 0.1f, 0.1f, 1.0f);
 
     Scene *scene = m_GameModule->GetActiveScene();
     if (scene) {
@@ -94,6 +95,7 @@ void Engine::RunFrame() {
     }
 
     m_Renderer->EndFrame();
+    m_Renderer->Present();
   }
 }
 
