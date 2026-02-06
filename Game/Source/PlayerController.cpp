@@ -1,11 +1,18 @@
 #include "PlayerController.h"
 #include "HorseEngine/Core/Input.h"
+#include "HorseEngine/Physics/PhysicsComponents.h"
 #include "HorseEngine/Physics/PhysicsSystem.h"
 #include "HorseEngine/Scene/Components.h"
+#include "HorseEngine/Scene/Entity.h"
 #include "HorseEngine/Scene/Scene.h"
+#include <glm/gtc/matrix_transform.hpp>
 
 // Jolt Includes
 #include <Jolt/Physics/Body/Body.h>
+#include <Jolt/Physics/Collision/CastResult.h>
+#include <Jolt/Physics/Collision/RayCast.h>
+#include <Jolt/Physics/PhysicsSystem.h>
+#include <algorithm>
 
 namespace Horse {
 
@@ -118,56 +125,134 @@ void PlayerController::OnUpdate(float deltaTime) {
   // -------------------------------------------------------------------------
   // Movement
   // -------------------------------------------------------------------------
-  JPH::Vec3 velocity = m_BodyInterface->GetLinearVelocity(bodyID);
-  JPH::Vec3 moveDir = JPH::Vec3::sZero();
+
+  // Current Velocity in Units
+  JPH::Vec3 worldVelocity = m_BodyInterface->GetLinearVelocity(bodyID);
+  glm::vec3 velocity = ToUnits(glm::vec3(
+      worldVelocity.GetX(), worldVelocity.GetY(), worldVelocity.GetZ()));
+
+  bool onGround = IsOnGround();
 
   // Calculate Forward/Right vectors based on YAW
-  // Simple trig or use the quaternion we just set.
+  // GLM uses -Z as forward. Yaw 0 should be (0, 0, -1).
   float yawRad = glm::radians(m_Yaw);
-  JPH::Vec3 forward(
-      sin(yawRad), 0,
-      cos(yawRad)); // Z is forward? In standard OpenGL, -Z is forward.
-  // Let's assume +Z is forward for now, fix if inverted.
-  // Actually, if we rotate the body, "Forward" in Local space is just (0,0,1).
-  // Jolt's linear velocity is in World Space. So we need World Forward.
+  glm::vec3 forward(sin(yawRad), 0, -cos(yawRad));
+  glm::vec3 right(cos(yawRad), 0, sin(yawRad));
 
-  // Forward vector from Yaw:
-  // x = sin(yaw), z = cos(yaw)
-
-  JPH::Vec3 right(cos(yawRad), 0, -sin(yawRad));
-
+  glm::vec3 wishDir(0.0f);
   if (Input::IsKeyPressed(KEY_W))
-    moveDir += forward;
+    wishDir += forward;
   if (Input::IsKeyPressed(KEY_S))
-    moveDir -= forward;
+    wishDir -= forward;
   if (Input::IsKeyPressed(KEY_A))
-    moveDir -= right;
+    wishDir -= right;
   if (Input::IsKeyPressed(KEY_D))
-    moveDir += right;
+    wishDir += right;
 
-  if (moveDir.LengthSq() > 0.0f) {
-    moveDir = moveDir.Normalized() * m_Speed;
-    // Preserve vertical velocity (gravity)
-    moveDir.SetY(velocity.GetY());
-
-    m_BodyInterface->SetLinearVelocity(bodyID, moveDir);
-    m_BodyInterface->ActivateBody(bodyID);
-  } else {
-    // Dampen horizontal velocity if no input?
-    // For now just keep gravity.
-    m_BodyInterface->SetLinearVelocity(bodyID,
-                                       JPH::Vec3(0, velocity.GetY(), 0));
+  float wishSpeed = glm::length(wishDir);
+  if (wishSpeed > 0.0f) {
+    wishDir = glm::normalize(wishDir);
+    wishSpeed = m_MaxSpeed;
   }
 
-  // -------------------------------------------------------------------------
-  // Jump
-  // -------------------------------------------------------------------------
-  if (Input::IsKeyPressed(KEY_SPACE)) {
-    // Simple ground check: if vertical velocity is near zero
-    if (abs(velocity.GetY()) < 0.1f) {
-      m_BodyInterface->AddImpulse(bodyID, JPH::Vec3(0, m_JumpForce, 0));
+  bool jumpPressed = Input::IsKeyPressed(KEY_SPACE);
+
+  if (onGround) {
+    // Ground Move
+    ApplyFriction(velocity, deltaTime);
+    Accelerate(velocity, wishDir, wishSpeed, m_Accelerate, deltaTime);
+
+    // Jump (Pogo prevention)
+    if (jumpPressed && !m_OldJumpPressed) {
+      velocity.y = m_JumpImpulse;
     }
+  } else {
+    // Air Move
+    AirAccelerate(velocity, wishDir, wishSpeed, m_AirAccelerate, deltaTime);
+
+    // Apply Gravity
+    velocity.y -= m_Gravity * deltaTime;
   }
+
+  m_OldJumpPressed = jumpPressed;
+
+  // Set new world velocity
+  glm::vec3 worldVel = ToMeters(velocity);
+  m_BodyInterface->SetLinearVelocity(
+      bodyID, JPH::Vec3(worldVel.x, worldVel.y, worldVel.z));
+  m_BodyInterface->ActivateBody(bodyID);
+}
+
+void PlayerController::ApplyFriction(glm::vec3 &velocity, float deltaTime) {
+  float speed = glm::length(velocity);
+  if (speed < 0.1f)
+    return;
+
+  float drop = 0.0f;
+  float control = speed < m_StopSpeed ? m_StopSpeed : speed;
+  drop += control * m_Friction * deltaTime;
+
+  float newSpeed = speed - drop;
+  if (newSpeed < 0.0f)
+    newSpeed = 0.0f;
+  newSpeed /= speed;
+
+  velocity *= newSpeed;
+}
+
+void PlayerController::Accelerate(glm::vec3 &velocity, glm::vec3 wishDir,
+                                  float wishSpeed, float accel,
+                                  float deltaTime) {
+  float currentSpeed = glm::dot(velocity, wishDir);
+  float addSpeed = wishSpeed - currentSpeed;
+  if (addSpeed <= 0)
+    return;
+
+  float accelSpeed = accel * deltaTime * wishSpeed;
+  if (accelSpeed > addSpeed)
+    accelSpeed = addSpeed;
+
+  velocity += wishDir * accelSpeed;
+}
+
+void PlayerController::AirAccelerate(glm::vec3 &velocity, glm::vec3 wishDir,
+                                     float wishSpeed, float accel,
+                                     float deltaTime) {
+  float wishSpd = wishSpeed;
+  if (wishSpd > 30.0f)
+    wishSpd = 30.0f;
+
+  float currentSpeed = glm::dot(velocity, wishDir);
+  float addSpeed = wishSpd - currentSpeed;
+  if (addSpeed <= 0)
+    return;
+
+  float accelSpeed = accel * wishSpeed * deltaTime;
+  if (accelSpeed > addSpeed)
+    accelSpeed = addSpeed;
+
+  velocity += wishDir * accelSpeed;
+}
+
+bool PlayerController::IsOnGround() {
+  auto scene = GetEntity().GetScene();
+  if (!scene || !scene->GetPhysicsSystem())
+    return false;
+
+  auto &transform = this->template GetComponent<Horse::TransformComponent>();
+  // Raycast from center to slightly below feet
+  // Assuming cube is 1x2x1 meters (39.37 x 78.74 x 39.37 units)
+  // Floor is at y - 1.0m (approx)
+  glm::vec3 start = {transform.Position[0], transform.Position[1],
+                     transform.Position[2]};
+  glm::vec3 end = start - glm::vec3(0, 1.1f, 0); // 1.1m down
+
+  // Use filtered RayCast to ignore ourselves
+  auto result =
+      scene->GetPhysicsSystem()->RayCast(start, end, m_RigidBody->RuntimeBody);
+
+  // Normal.y > 0.7 means slope is less than ~45 degrees
+  return result.Hit && result.Fraction < 1.0f && result.Normal.y > 0.7f;
 }
 
 void PlayerController::OnDestroy() {

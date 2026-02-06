@@ -12,6 +12,8 @@ target_include_directories(HorseGame
 target_link_libraries(HorseGame
     PRIVATE
         HorseRuntime
+        HorsePhysics
+        glm::glm
         spdlog::spdlog
         fmt::fmt
 )
