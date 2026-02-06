@@ -7,6 +7,7 @@ add_executable(HorseCooker
     Source/MaterialCooker.cpp
     Source/LevelCooker.cpp
     Source/ProjectCooker.cpp
+    Source/ScriptCooker.cpp
 )
 
 target_link_libraries(HorseCooker
