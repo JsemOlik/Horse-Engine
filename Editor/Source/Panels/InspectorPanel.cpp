@@ -415,6 +415,106 @@ void InspectorPanel::DrawComponents() {
     m_ContentLayout->addWidget(lsGroup);
   }
 
+  // Camera Component
+  if (m_SelectedEntity.HasComponent<Horse::CameraComponent>()) {
+    auto &camera = m_SelectedEntity.GetComponent<Horse::CameraComponent>();
+
+    QGroupBox *camGroup = new QGroupBox("Camera");
+    QFormLayout *camLayout = new QFormLayout(camGroup);
+
+    // Primary Checkbox
+    QCheckBox *primaryCheck = new QCheckBox();
+    primaryCheck->setChecked(camera.Primary);
+    connect(primaryCheck, &QCheckBox::toggled, this, [this](bool checked) {
+      if (m_SelectedEntity)
+        m_SelectedEntity.GetComponent<Horse::CameraComponent>().Primary =
+            checked;
+    });
+    camLayout->addRow("Primary:", primaryCheck);
+
+    // Projection Type
+    QComboBox *typeCombo = new QComboBox();
+    typeCombo->addItem("Perspective");
+    typeCombo->addItem("Orthographic");
+    typeCombo->setCurrentIndex((int)camera.Type);
+    connect(typeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this](int index) {
+              if (m_SelectedEntity) {
+                m_SelectedEntity.GetComponent<Horse::CameraComponent>().Type =
+                    (Horse::CameraComponent::ProjectionType)index;
+                // Refresh to show relevant fields (FOV vs Size)?
+                // For now, simple refresh isn't needed if we show all or
+                // dynamic update, but usually simpler just to force refresh or
+                // hide/show widgets.
+                RefreshInspector();
+              }
+            });
+    camLayout->addRow("Projection:", typeCombo);
+
+    if (camera.Type == Horse::CameraComponent::ProjectionType::Perspective) {
+      // FOV
+      QDoubleSpinBox *fovSpin = new QDoubleSpinBox();
+      fovSpin->setRange(1.0, 179.0);
+      fovSpin->setValue(camera.FOV);
+      connect(fovSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+              this, [this](double val) {
+                if (m_SelectedEntity)
+                  m_SelectedEntity.GetComponent<Horse::CameraComponent>().FOV =
+                      (float)val;
+              });
+      camLayout->addRow("FOV (Deg):", fovSpin);
+    } else {
+      // Orthographic Size
+      QDoubleSpinBox *sizeSpin = new QDoubleSpinBox();
+      sizeSpin->setRange(0.1, 1000.0);
+      sizeSpin->setValue(camera.OrthographicSize);
+      connect(sizeSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+              this, [this](double val) {
+                if (m_SelectedEntity)
+                  m_SelectedEntity.GetComponent<Horse::CameraComponent>()
+                      .OrthographicSize = (float)val;
+              });
+      camLayout->addRow("Size:", sizeSpin);
+    }
+
+    // Near Clip
+    QDoubleSpinBox *nearSpin = new QDoubleSpinBox();
+    nearSpin->setRange(0.001, 10000.0);
+    nearSpin->setValue(camera.NearClip);
+    connect(
+        nearSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+        [this](double val) {
+          if (m_SelectedEntity)
+            m_SelectedEntity.GetComponent<Horse::CameraComponent>().NearClip =
+                (float)val;
+        });
+    camLayout->addRow("Near Clip:", nearSpin);
+
+    // Far Clip
+    QDoubleSpinBox *farSpin = new QDoubleSpinBox();
+    farSpin->setRange(0.01, 100000.0);
+    farSpin->setValue(camera.FarClip);
+    connect(
+        farSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+        [this](double val) {
+          if (m_SelectedEntity)
+            m_SelectedEntity.GetComponent<Horse::CameraComponent>().FarClip =
+                (float)val;
+        });
+    camLayout->addRow("Far Clip:", farSpin);
+
+    QPushButton *removeBtn = new QPushButton("Remove Component");
+    connect(removeBtn, &QPushButton::clicked, this, [this]() {
+      if (m_SelectedEntity) {
+        m_SelectedEntity.RemoveComponent<Horse::CameraComponent>();
+        RefreshInspector();
+      }
+    });
+    camLayout->addRow(removeBtn);
+
+    m_ContentLayout->addWidget(camGroup);
+  }
+
   // RigidBody Component
   if (m_SelectedEntity.HasComponent<Horse::RigidBodyComponent>()) {
     auto &rb = m_SelectedEntity.GetComponent<Horse::RigidBodyComponent>();

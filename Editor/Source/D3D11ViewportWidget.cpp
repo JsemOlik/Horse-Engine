@@ -115,8 +115,21 @@ void D3D11ViewportWidget::mouseReleaseEvent(QMouseEvent *event) {
 }
 
 void D3D11ViewportWidget::mouseMoveEvent(QMouseEvent *event) {
+  bool isLocked = Horse::Input::GetCursorMode() == Horse::CursorMode::Locked;
+
   Horse::Input::UpdateMousePosition(static_cast<float>(event->pos().x()),
                                     static_cast<float>(event->pos().y()));
+
+  if (isLocked) {
+    QPoint globalCenter = mapToGlobal(rect().center());
+    if (event->globalPos() != globalCenter) {
+      QCursor::setPos(globalCenter);
+      QPoint localCenter = rect().center();
+      Horse::Input::UpdateMousePosition(static_cast<float>(localCenter.x()),
+                                        static_cast<float>(localCenter.y()),
+                                        true);
+    }
+  }
 }
 
 void D3D11ViewportWidget::focusInEvent(QFocusEvent *event) {}

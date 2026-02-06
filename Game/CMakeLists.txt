@@ -1,6 +1,8 @@
 
 add_library(HorseGame SHARED
     Source/GameModule.cpp
+    Source/PlayerController.cpp
+    Source/PlayerController.h
 )
 
 target_include_directories(HorseGame

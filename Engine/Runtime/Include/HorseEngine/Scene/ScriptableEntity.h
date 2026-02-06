@@ -9,6 +9,7 @@ public:
   virtual ~ScriptableEntity() = default;
 
   template <typename T> T &GetComponent() { return m_Entity.GetComponent<T>(); }
+  Entity GetEntity() const { return m_Entity; }
 
 protected:
   virtual void OnCreate() {}

@@ -51,6 +51,9 @@ public:
   // Update systems
   void OnUpdate(float deltaTime);
 
+  // Physics
+  PhysicsSystem *GetPhysicsSystem() const { return m_PhysicsSystem; }
+
 private:
   void UpdateTransformHierarchy();
   void UpdateEntityTransform(Entity entity, const glm::mat4 &parentTransform);

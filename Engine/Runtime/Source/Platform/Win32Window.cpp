@@ -3,7 +3,6 @@
 #include "HorseEngine/Core/Logging.h"
 #include <windowsx.h>
 
-
 namespace Horse {
 
 static const wchar_t *WINDOW_CLASS_NAME = L"HorseEngineWindowClass";
@@ -132,6 +131,21 @@ LRESULT CALLBACK Window::WindowProc(HWND hwnd, UINT msg, WPARAM wParam,
     float x = static_cast<float>(GET_X_LPARAM(lParam));
     float y = static_cast<float>(GET_Y_LPARAM(lParam));
     Input::UpdateMousePosition(x, y);
+
+    if (Input::GetCursorMode() == CursorMode::Locked) {
+      RECT rect;
+      GetClientRect(hwnd, &rect);
+      int centerX = (rect.right - rect.left) / 2;
+      int centerY = (rect.bottom - rect.top) / 2;
+
+      if (static_cast<int>(x) != centerX || static_cast<int>(y) != centerY) {
+        POINT pt = {centerX, centerY};
+        ClientToScreen(hwnd, &pt);
+        SetCursorPos(pt.x, pt.y);
+        Input::UpdateMousePosition(static_cast<float>(centerX),
+                                   static_cast<float>(centerY), true);
+      }
+    }
     return 0;
   }
 
