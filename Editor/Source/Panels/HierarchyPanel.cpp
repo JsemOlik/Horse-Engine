@@ -14,6 +14,8 @@
 #include <filesystem>
 
 #include "HorseEngine/Asset/AssetManager.h"
+#include "HorseEngine/Engine.h"
+#include "HorseEngine/Game/GameModule.h"
 
 HierarchyPanel::HierarchyPanel(QWidget *parent) : QWidget(parent) {
 
@@ -217,6 +219,10 @@ void HierarchyPanel::OnContextMenuRequested(const QPoint &pos) {
   connect(createCubeAction, &QAction::triggered, this,
           &HierarchyPanel::OnCreateCube);
 
+  QAction *createPlayerAction = contextMenu.addAction("Create Player");
+  connect(createPlayerAction, &QAction::triggered, this,
+          &HierarchyPanel::OnCreatePlayer);
+
   QAction *createCameraAction = contextMenu.addAction("Create Camera");
   connect(createCameraAction, &QAction::triggered, this,
           &HierarchyPanel::OnCreateCamera);
@@ -271,6 +277,57 @@ void HierarchyPanel::OnCreateCube() {
 
   auto &meshRenderer = entity.AddComponent<Horse::MeshRendererComponent>();
   meshRenderer.MaterialGUID = "";
+  RefreshHierarchy();
+}
+
+void HierarchyPanel::OnCreatePlayer() {
+  if (!m_Scene)
+    return;
+
+  // 1. Remove existing "Main Camera" if found
+  auto &registry = m_Scene->GetRegistry();
+  auto view = registry.view<Horse::TagComponent, Horse::CameraComponent>();
+  for (auto entity : view) {
+    auto &tag = view.get<Horse::TagComponent>(entity);
+    if (tag.Name == "Main Camera") {
+      m_Scene->DestroyEntity(Horse::Entity(entity, m_Scene.get()));
+      // We can break if we assume only one, but let's be safe and catch
+      // duplicate default cameras
+    }
+  }
+
+  // 2. Create Player Entity
+  auto player = m_Scene->CreateEntity("Player");
+
+  // 3. Add RigidBody
+  auto &rb = player.AddComponent<Horse::RigidBodyComponent>();
+  rb.Anchored = false; // Dynamic
+  // rb.FixedRotation = true; // TODO: Add support for rotation locking in
+  // RigidBodyComponent
+
+  // 4. Add BoxCollider
+  auto &bc = player.AddComponent<Horse::BoxColliderComponent>();
+  bc.Size = {1.0f, 2.0f, 1.0f};   // Standard height
+  bc.Offset = {0.0f, 1.0f, 0.0f}; // Pivot at feet
+
+  // 5. Add Script
+  // We need to use the Engine -> GameModule to create the script because we
+  // can't link to Game DLL directly
+  if (Horse::Engine::Get()->GetGameModule()) {
+    Horse::Engine::Get()->GetGameModule()->CreateScript("PlayerController",
+                                                        player);
+  }
+
+  // 6. Create Child Camera
+  auto cameraEntity = m_Scene->CreateEntity("Camera");
+  m_Scene->SetEntityParent(cameraEntity, player);
+
+  auto &transform = cameraEntity.GetComponent<Horse::TransformComponent>();
+  transform.Position = {0.0f, 1.6f, 0.0f}; // Eye height
+
+  auto &camComp = cameraEntity.AddComponent<Horse::CameraComponent>();
+  camComp.Primary = true;
+
   RefreshHierarchy();
 }
 
