@@ -1,10 +1,12 @@
 #include "CookerRegistry.h"
+#include "HorseEngine/Asset/Asset.h"
 #include "HorseEngine/Asset/AssetManager.h"
 #include "HorseEngine/Core/Logging.h"
 #include "LevelCooker.h"
 #include "MaterialCooker.h"
 #include "MeshCooker.h"
 #include "ProjectCooker.h"
+#include "ScriptCooker.h"
 #include "TextureCooker.h"
 
 #include <filesystem>
@@ -13,6 +15,7 @@
 #include <map>
 #include <nlohmann/json.hpp>
 #include <string>
+#include <windows.h>
 
 using namespace Horse;
 
@@ -33,6 +36,8 @@ AssetType GetTypeFromExtension(const std::filesystem::path &path) {
     return AssetType::Mesh;
   if (ext == ".horsemat" || ext == ".mat")
     return AssetType::Material;
+  if (ext == ".lua")
+    return AssetType::Script;
 
   std::string filename = path.filename().string();
   for (auto &c : filename)
@@ -87,6 +92,8 @@ int main(int argc, char **argv) {
                                  std::make_unique<MaterialCooker>());
   CookerRegistry::RegisterCooker(AssetType::Scene,
                                  std::make_unique<LevelCooker>());
+  CookerRegistry::RegisterCooker(AssetType::Script,
+                                 std::make_unique<ScriptCooker>());
 
   CookerContext context;
   context.AssetsDir = assetsDir;
