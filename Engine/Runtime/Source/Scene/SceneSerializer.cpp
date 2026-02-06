@@ -441,6 +441,17 @@ SceneSerializer::DeserializeFromJSON(const std::string &filepath) {
       return nullptr;
     }
 
+    // Check for HLVL header (Cooked Level)
+    if (jsonContent.size() >= 4 && jsonContent.substr(0, 4) == "HLVL") {
+      if (jsonContent.size() >= 16) {
+        // Skip Header (12 bytes) + Size (4 bytes) = 16 bytes
+        jsonContent = jsonContent.substr(16);
+      } else {
+        HORSE_LOG_CORE_ERROR("Corrupt cooked level file: {}", filepath);
+        return nullptr;
+      }
+    }
+
     json sceneJson = json::parse(jsonContent);
     // ... rest is same
     auto scene = DeserializeSceneFromJson(sceneJson);

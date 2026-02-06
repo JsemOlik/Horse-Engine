@@ -13,6 +13,7 @@ namespace Horse {
 
 class GameModule;
 class LuaScriptEngine;
+class Renderer;
 
 class HORSE_API Engine {
 public:
@@ -30,11 +31,14 @@ public:
 
   Window *GetWindow() const { return m_Window.get(); }
   GameModule *GetGameModule() const;
+  void SetRenderer(Renderer *renderer) { m_Renderer = renderer; }
+  Renderer *GetRenderer() const { return m_Renderer; }
 
   static Engine *Get() { return s_Instance; }
 
 private:
   std::unique_ptr<Window> m_Window;
+  Renderer *m_Renderer = nullptr;
   bool m_Running = true;
 
   GameModule *m_GameModule = nullptr;

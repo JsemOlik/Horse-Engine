@@ -2,6 +2,7 @@
 #include "HorseEngine/Core/Input.h"
 #include "HorseEngine/Core/Memory.h"
 #include "HorseEngine/Game/GameModule.h"
+#include "HorseEngine/Render/Renderer.h"
 #include "HorseEngine/Scripting/LuaScriptEngine.h"
 #include <iostream>
 
@@ -78,9 +79,21 @@ void Engine::RunFrame() {
   FrameAllocator::Reset();
   Time::Update();
 
-  // Main loop work here
+  // Update
   if (m_GameModule) {
     m_GameModule->OnUpdate(Time::GetDeltaTime());
+  }
+
+  // Render
+  if (m_Renderer && m_GameModule) {
+    m_Renderer->BeginFrame();
+
+    Scene *scene = m_GameModule->GetActiveScene();
+    if (scene) {
+      m_Renderer->RenderScene(scene);
+    }
+
+    m_Renderer->EndFrame();
   }
 }
 

@@ -1,4 +1,5 @@
 #include "HorseEngine/Render/D3D11Shader.h"
+#include "HorseEngine/Core/FileSystem.h"
 #include "HorseEngine/Core/Logging.h"
 #include <d3dcompiler.h>
 #include <filesystem>
@@ -7,9 +8,8 @@
 #include <vector>
 #include <windows.h>
 
-namespace Horse {
 
-#include "HorseEngine/Core/FileSystem.h"
+namespace Horse {
 
 // ...
 

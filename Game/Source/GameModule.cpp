@@ -64,6 +64,8 @@ public:
     }
   }
 
+  virtual Scene *GetActiveScene() override { return m_ActiveScene.get(); }
+
 private:
   std::shared_ptr<Scene> m_ActiveScene;
 

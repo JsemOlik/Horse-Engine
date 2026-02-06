@@ -92,6 +92,7 @@ add_executable(HorseRunner
 target_link_libraries(HorseRunner
     PRIVATE
     HorseRuntime
+    HorseRenderD3D11
 )
 
 set_target_properties(HorseRunner PROPERTIES

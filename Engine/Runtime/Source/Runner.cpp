@@ -2,11 +2,11 @@
 #include "HorseEngine/Core/FileSystem.h"
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Engine.h"
+#include "HorseEngine/Render/D3D11Renderer.h"
 #include <filesystem>
 #include <iostream>
 #include <string>
 #include <windows.h>
-
 
 int main(int argc, char **argv) {
   // Initialize logging immediately
@@ -69,6 +69,23 @@ int main(int argc, char **argv) {
     auto engine = new Horse::Engine();
     if (engine->Initialize(headless)) {
       std::cout << "Engine Initialized. Starting Run Loop..." << std::endl;
+
+      std::unique_ptr<Horse::D3D11Renderer> renderer;
+      if (!headless) {
+        renderer = std::make_unique<Horse::D3D11Renderer>();
+        Horse::RendererDesc desc;
+        desc.WindowHandle = engine->GetWindow()->GetNativeWindow();
+        desc.Width = engine->GetWindow()->GetWidth();
+        desc.Height = engine->GetWindow()->GetHeight();
+        desc.VSync = true;
+
+        if (renderer->Initialize(desc)) {
+          engine->SetRenderer(renderer.get());
+        } else {
+          std::cerr << "Failed to initialize Renderer!" << std::endl;
+        }
+      }
+
       engine->Run();
       std::cout << "Engine Run Loop execution finished." << std::endl;
     } else {
