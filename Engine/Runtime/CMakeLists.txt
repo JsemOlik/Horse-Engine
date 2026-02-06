@@ -4,7 +4,7 @@
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(sol2 CONFIG REQUIRED)
 
-# LuaJIT/Lua finding for vcpkg
+find_package(physfs CONFIG REQUIRED)
 find_path(LUA_INCLUDE_DIR NAMES lua.h PATH_SUFFIXES luajit lua5.1 lua)
 find_library(LUA_LIBRARY NAMES lua51 luajit lua)
 
@@ -21,6 +21,8 @@ add_library(HorseRuntime SHARED
     Source/Core/Time.cpp
     Source/Core/Logging.cpp
     Source/Core/Memory.cpp
+    Source/Core/FileSystem.cpp
+    Source/Core/FileSystem.cpp
     Source/Core/JobSystem.cpp
     Source/Scene/UUID.cpp
     Source/Scene/Entity.cpp
@@ -59,6 +61,7 @@ target_link_libraries(HorseRuntime
         dxgi.lib
         dxguid.lib
         d3dcompiler.lib
+        PhysFS::PhysFS
 )
 
 target_compile_definitions(HorseRuntime
@@ -80,3 +83,19 @@ add_custom_command(TARGET HorseRuntime POST_BUILD
     "${CMAKE_CURRENT_SOURCE_DIR}/Textures"
     "$<TARGET_FILE_DIR:HorseRuntime>/Engine/Runtime/Textures"
 )
+
+# HorseRunner (Bootstrap Executable)
+add_executable(HorseRunner
+    Source/Runner.cpp
+)
+
+target_link_libraries(HorseRunner
+    PRIVATE
+    HorseRuntime
+)
+
+set_target_properties(HorseRunner PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Editor"
+)
+
+# Copy HorseGame.dll to same dir if needed (handled by build system usually for runtime path)
