@@ -16,11 +16,7 @@ static std::unordered_map<std::string, AxisMapping> s_Axes;
 bool Input::IsKeyPressed(int keycode) {
   auto it = s_KeyStates.find(keycode);
   bool pressed = (it != s_KeyStates.end()) ? it->second : false;
-  // Verbose logging - only log if pressed to avoid spamming
-  if (pressed) {
-    HORSE_LOG_CORE_INFO("Input: IsKeyPressed: {} -> {} (StatesAddr: {})",
-                        keycode, pressed, (void *)&s_KeyStates);
-  }
+
   return pressed;
 }
 
@@ -74,8 +70,7 @@ float Input::GetAxisValue(const std::string &name) {
 }
 
 void Input::UpdateKeyState(int keycode, bool pressed) {
-  HORSE_LOG_CORE_INFO("Input: UpdateKeyState: {} -> {} (StatesAddr: {})",
-                      keycode, pressed, (void *)&s_KeyStates);
+
   s_KeyStates[keycode] = pressed;
 }
 
