@@ -1,8 +1,10 @@
 #include "PakWriter.h"
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <string>
 #include <vector>
+
 
 void PrintUsage() {
   std::cout << "Usage: HorsePackager <CookedAssetsDir> <OutputDir> "
@@ -76,21 +78,31 @@ int main(int argc, char **argv) {
     std::cerr << "Error copying Game DLL: " << e.what() << std::endl;
   }
 
-  // 4. Copy Dependencies (Quick hack: copy all DLLs from Runtime dir)
-  // In a real scenario, we'd know exactly what to copy.
-  // For now, let's copy *.dll from runtime dir to output dir, skipping
-  // HorseGame.dll as we handled it (or overwriting is fine).
+  // 4. Copy Dependencies
   std::filesystem::path runtimeDir = runtimeExe.parent_path();
   for (const auto &entry : std::filesystem::directory_iterator(runtimeDir)) {
     if (entry.path().extension() == ".dll" &&
-        entry.path().filename() !=
-            "HorseGame.dll") { // Avoid copying old game dll if present
+        entry.path().filename() != "HorseGame.dll") {
       try {
         std::filesystem::copy_file(
             entry.path(), outputDir / entry.path().filename(),
             std::filesystem::copy_options::overwrite_existing);
       } catch (...) {
       }
+    }
+  }
+
+  // 5. Copy Engine assets
+  std::filesystem::path buildEngineDir = runtimeDir / "Engine";
+  if (std::filesystem::exists(buildEngineDir)) {
+    try {
+      std::filesystem::copy(
+          buildEngineDir, outputDir / "Engine",
+          std::filesystem::copy_options::recursive |
+              std::filesystem::copy_options::overwrite_existing);
+      std::cout << "Copied Engine assets" << std::endl;
+    } catch (const std::exception &e) {
+      std::cerr << "Error copying Engine assets: " << e.what() << std::endl;
     }
   }
 
