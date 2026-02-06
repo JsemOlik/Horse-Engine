@@ -22,6 +22,9 @@ public:
   static bool ReadText(const std::filesystem::path &path, std::string &outText);
 
   static bool Exists(const std::filesystem::path &path);
+
+  static std::vector<std::string>
+  Enumerate(const std::filesystem::path &directory);
 };
 
 } // namespace Horse

@@ -4,7 +4,6 @@
 #include <iostream>
 #include <physfs.h>
 
-
 namespace Horse {
 
 static bool s_Initialized = false;
@@ -95,6 +94,31 @@ bool FileSystem::Exists(const std::filesystem::path &path) {
     return true;
   }
   return std::filesystem::exists(path);
+}
+
+std::vector<std::string>
+FileSystem::Enumerate(const std::filesystem::path &directory) {
+  std::vector<std::string> results;
+  std::string pathStr = directory.string();
+  std::replace(pathStr.begin(), pathStr.end(), '\\', '/');
+
+  if (s_Initialized) {
+    char **rc = PHYSFS_enumerateFiles(pathStr.c_str());
+    char **i;
+    for (i = rc; *i != NULL; i++) {
+      results.push_back(*i);
+    }
+    PHYSFS_freeList(rc);
+  } else {
+    // Fallback
+    if (std::filesystem::exists(directory) &&
+        std::filesystem::is_directory(directory)) {
+      for (const auto &entry : std::filesystem::directory_iterator(directory)) {
+        results.push_back(entry.path().filename().string());
+      }
+    }
+  }
+  return results;
 }
 
 } // namespace Horse
