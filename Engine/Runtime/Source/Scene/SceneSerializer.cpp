@@ -341,6 +341,19 @@ static std::shared_ptr<Scene> DeserializeSceneFromJson(const json &sceneJson) {
         gameModule->CreateScript(nsc.ClassName, entity);
       }
     }
+
+    // RigidBody Component
+    if (componentsJson.contains("RigidBodyComponent")) {
+      auto &rb = entity.AddComponent<RigidBodyComponent>();
+      DeserializeRigidBodyComponent(componentsJson["RigidBodyComponent"], rb);
+    }
+
+    // BoxCollider Component
+    if (componentsJson.contains("BoxColliderComponent")) {
+      auto &bc = entity.AddComponent<BoxColliderComponent>();
+      DeserializeBoxColliderComponent(componentsJson["BoxColliderComponent"],
+                                      bc);
+    }
   }
 
   // Third pass: Restore relationships
