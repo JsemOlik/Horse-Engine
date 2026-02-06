@@ -236,6 +236,8 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
                                      1000.0f);
   bool cameraFound = (overrideView != nullptr && overrideProjection != nullptr);
 
+  entt::entity cameraOwner = entt::null; // Track who owns the camera
+
   if (!cameraFound) {
     // Find primary camera
     auto cameraView = registry.view<TransformComponent, CameraComponent>();
@@ -247,6 +249,16 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
 
       // Use WorldTransform for correct hierarchy support
       glm::mat4 worldTransform = transform.WorldTransform;
+
+      // Capture Camera Parent (The Player Body)
+      Horse::Entity camEnt(entity, scene);
+      if (camEnt.HasComponent<RelationshipComponent>()) {
+        cameraOwner = camEnt.GetComponent<RelationshipComponent>().Parent;
+      }
+
+      // Need to duplicate the matrix setup code here or trust the previous
+      // implementation. For safety in this Replace Block, I'll assume the
+      // context is inside the camera loop. Reuse the logic I wrote before:
 
       // Convert glm::mat4 to XMMATRIX
       XMMATRIX worldMat = XMMatrixSet(
@@ -300,6 +312,12 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
   auto meshView = registry.view<TransformComponent, MeshRendererComponent>();
 
   for (auto entity : meshView) {
+    // Hidden From Player Camera Logic:
+    // If this entity owns the current camera (i.e., is the Player Body), do not
+    // render it.
+    if (entity == cameraOwner)
+      continue;
+
     auto [transform, mesh] =
         meshView.get<TransformComponent, MeshRendererComponent>(entity);
 

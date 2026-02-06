@@ -285,6 +285,9 @@ static std::shared_ptr<Scene> DeserializeSceneFromJson(const json &sceneJson) {
     UUID uuid(std::stoull(entityJson["uuid"].get<std::string>()));
     Entity entity(uuidToEntity[uuid], scene.get());
 
+    if (!entityJson.contains("components"))
+      continue;
+
     const auto &componentsJson = entityJson["components"];
 
     // Tag Component (always present)

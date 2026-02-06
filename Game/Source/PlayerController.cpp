@@ -91,7 +91,8 @@ void PlayerController::OnUpdate(float deltaTime) {
     yOffset *= m_Sensitivity;
 
     m_Yaw += xOffset;
-    m_Pitch += yOffset;
+    m_Pitch -= yOffset; // Inverted Y-axis fix: Mouse UP (negative dy) should
+                        // Increase Pitch (Look Up)
 
     // Clamp Pitch
     if (m_Pitch > 89.0f)
