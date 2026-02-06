@@ -60,6 +60,8 @@ public:
   ID3D11Device *GetDevice() const { return m_Device.Get(); }
   ID3D11DeviceContext *GetContext() const { return m_Context.Get(); }
 
+  void SetWireframe(bool enabled);
+
 private:
   struct Vertex {
     f32 x, y, z;
@@ -70,6 +72,7 @@ private:
   bool CreateDeviceAndSwapChain(const RendererDesc &desc);
   bool CreateRenderTargetView();
   bool CreateDepthStencilView();
+  bool CreateRasterizerStates();
   bool InitCube();
 
   ComPtr<ID3D11Device> m_Device;
@@ -78,6 +81,10 @@ private:
   ComPtr<ID3D11RenderTargetView> m_RenderTargetView;
   ComPtr<ID3D11DepthStencilView> m_DepthStencilView;
   ComPtr<ID3D11Texture2D> m_DepthStencilBuffer;
+
+  ComPtr<ID3D11RasterizerState> m_RasterizerStateSolid;
+  ComPtr<ID3D11RasterizerState> m_RasterizerStateWireframe;
+  bool m_WireframeEnabled = false;
 
   // Cube members
   std::unique_ptr<class D3D11Texture> m_CubeTexture;

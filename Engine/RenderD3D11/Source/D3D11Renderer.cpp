@@ -43,6 +43,11 @@ bool D3D11Renderer::Initialize(const RendererDesc &desc) {
     return false;
   }
 
+  if (!CreateRasterizerStates()) {
+    HORSE_LOG_RENDER_ERROR("Failed to create rasterizer states");
+    return false;
+  }
+
   // Create Material Constant Buffer
   m_MaterialConstantBuffer = std::make_unique<D3D11Buffer>();
   if (!m_MaterialConstantBuffer->Initialize(
@@ -103,11 +108,15 @@ void D3D11Renderer::Shutdown() {
 
   m_DepthStencilView.Reset();
   m_DepthStencilBuffer.Reset();
+  m_RasterizerStateSolid.Reset();
+  m_RasterizerStateWireframe.Reset();
   m_RenderTargetView.Reset();
   m_SwapChain.Reset();
   m_Context.Reset();
   m_Device.Reset();
 }
+
+void D3D11Renderer::SetWireframe(bool enabled) { m_WireframeEnabled = enabled; }
 
 void D3D11Renderer::BeginFrame() {
   m_Context->OMSetRenderTargets(1, m_RenderTargetView.GetAddressOf(),
@@ -409,6 +418,10 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
   m_CubeIndexBuffer->Bind(m_Context.Get(), 0);
   m_Context->IASetInputLayout(m_CubeInputLayout.Get());
   m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+  // Set Rasterizer State
+  m_Context->RSSetState(m_WireframeEnabled ? m_RasterizerStateWireframe.Get()
+                                           : m_RasterizerStateSolid.Get());
 
   m_Context->VSSetShader(m_CubeVS.Get(), nullptr, 0);
   m_CubeConstantBuffer->Bind(m_Context.Get(), 0);
@@ -719,6 +732,36 @@ bool D3D11Renderer::CreateRenderTargetView() {
   }
 
   m_Context->OMSetRenderTargets(1, m_RenderTargetView.GetAddressOf(), nullptr);
+  return true;
+}
+
+bool D3D11Renderer::CreateRasterizerStates() {
+  D3D11_RASTERIZER_DESC desc = {};
+  desc.FillMode = D3D11_FILL_SOLID;
+  desc.CullMode = D3D11_CULL_BACK;
+  desc.FrontCounterClockwise = FALSE;
+  desc.DepthBias = 0;
+  desc.DepthBiasClamp = 0.0f;
+  desc.SlopeScaledDepthBias = 0.0f;
+  desc.DepthClipEnable = TRUE;
+  desc.ScissorEnable = FALSE;
+  desc.MultisampleEnable = FALSE;
+  desc.AntialiasedLineEnable = FALSE;
+
+  HRESULT hr = m_Device->CreateRasterizerState(&desc, &m_RasterizerStateSolid);
+  if (FAILED(hr)) {
+    HORSE_LOG_RENDER_ERROR("Failed to create solid rasterizer state");
+    return false;
+  }
+
+  desc.FillMode = D3D11_FILL_WIREFRAME;
+  desc.CullMode = D3D11_CULL_NONE; // Disable culling for wireframe
+  hr = m_Device->CreateRasterizerState(&desc, &m_RasterizerStateWireframe);
+  if (FAILED(hr)) {
+    HORSE_LOG_RENDER_ERROR("Failed to create wireframe rasterizer state");
+    return false;
+  }
+
   return true;
 }
 

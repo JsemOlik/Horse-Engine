@@ -11,12 +11,31 @@
 #include <QKeyEvent>
 #include <QMimeData>
 #include <QMouseEvent>
+#include <QPushButton>
 #include <QUrl>
 #include <glm/gtc/type_ptr.hpp>
+
 
 SceneViewport::SceneViewport(QWidget *parent) : D3D11ViewportWidget(parent) {
   setFocusPolicy(Qt::StrongFocus);
   setAcceptDrops(true);
+
+  QPushButton *wireframeBtn = new QPushButton("Wireframe", this);
+  wireframeBtn->setGeometry(10, 10, 80, 30);
+  wireframeBtn->setCheckable(true);
+  wireframeBtn->setStyleSheet(
+      "QPushButton { background-color: #333; color: white; border: 1px solid "
+      "#555; border-radius: 4px; }"
+      "QPushButton:checked { background-color: #555; border-color: #777; }"
+      "QPushButton:hover { background-color: #444; }");
+
+  connect(wireframeBtn, &QPushButton::toggled, [this](bool checked) {
+    if (m_Renderer) {
+      m_Renderer->SetWireframe(checked);
+    }
+    // Ensure we repaint immediately
+    update();
+  });
 }
 
 void SceneViewport::mousePressEvent(QMouseEvent *event) {
