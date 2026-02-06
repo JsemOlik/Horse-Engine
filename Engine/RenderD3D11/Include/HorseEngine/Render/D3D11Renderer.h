@@ -57,6 +57,9 @@ public:
                    const DirectX::XMMATRIX &world,
                    const DirectX::XMFLOAT4 &color);
 
+  void DrawSkybox(const DirectX::XMMATRIX &view,
+                  const DirectX::XMMATRIX &projection);
+
   ID3D11Device *GetDevice() const { return m_Device.Get(); }
   ID3D11DeviceContext *GetContext() const { return m_Context.Get(); }
 
@@ -84,6 +87,12 @@ private:
 
   ComPtr<ID3D11RasterizerState> m_RasterizerStateSolid;
   ComPtr<ID3D11RasterizerState> m_RasterizerStateWireframe;
+  ComPtr<ID3D11RasterizerState> m_RasterizerStateSkybox; // No culling
+
+  // Skybox Resources
+  std::unique_ptr<D3D11Texture> m_SkyboxTexture;
+  ComPtr<ID3D11VertexShader> m_SkyboxVS;
+  ComPtr<ID3D11PixelShader> m_SkyboxPS;
   int m_ViewMode = 0;
 
   // Cube members

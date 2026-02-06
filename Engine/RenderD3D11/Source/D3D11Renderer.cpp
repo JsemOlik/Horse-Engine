@@ -114,6 +114,11 @@ void D3D11Renderer::Shutdown() {
   m_SwapChain.Reset();
   m_Context.Reset();
   m_Device.Reset();
+
+  m_SkyboxTexture.reset();
+  m_SkyboxVS.Reset();
+  m_SkyboxPS.Reset();
+  m_RasterizerStateSkybox.Reset();
 }
 
 void D3D11Renderer::SetViewMode(int mode) { m_ViewMode = mode; }
@@ -137,6 +142,64 @@ void D3D11Renderer::Clear(f32 r, f32 g, f32 b, f32 a) {
 }
 
 void D3D11Renderer::Present() { m_SwapChain->Present(m_VSync ? 1 : 0, 0); }
+
+void D3D11Renderer::DrawSkybox(const DirectX::XMMATRIX &view,
+                               const DirectX::XMMATRIX &projection) {
+  if (!m_SkyboxVS || !m_SkyboxPS || !m_SkyboxTexture || !m_CubeInitialized)
+    return;
+
+  // Skybox follows the camera, so we zero out the translation from the view
+  // matrix Or we can just build a rotation-only view matrix.
+  XMMATRIX rotationView = view;
+  rotationView.r[3] = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f); // Zero translation
+
+  // WVP for Skybox:
+  // World (Identity, but scale huge?) -> No, VS sets Z=W, so standard unit cube
+  // works if we want to sample direction.
+  XMMATRIX wvp = rotationView * projection;
+
+  // Update constant buffer
+  XMFLOAT4X4 wvpData;
+  XMStoreFloat4x4(&wvpData, XMMatrixTranspose(wvp));
+  m_CubeConstantBuffer->UpdateData(m_Context.Get(), &wvpData, sizeof(wvpData));
+  m_CubeConstantBuffer->Bind(m_Context.Get(), 0);
+
+  // Set Pipeline State
+  m_Context->IASetInputLayout(m_CubeInputLayout.Get());
+  m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+  m_CubeVertexBuffer->Bind(m_Context.Get(), 0);
+  m_CubeIndexBuffer->Bind(m_Context.Get(), 0);
+
+  // Rasterizer: Cull None (we are inside) or Front (if winding order matches)
+  m_Context->RSSetState(m_RasterizerStateSkybox.Get());
+
+  // Depth Stencil:
+  // We want Skybox to be at Far Plane (Z=1).
+  // If we draw it LAST (recommended), we need Depth Func = LESS_EQUAL (since
+  // usually it's LESS). And Depth Write should be disabled to not mess with
+  // existing depth buffer? Actually if it's strictly at far plane, it won't
+  // overwrite closer objects. But we might want it to be behind everything.
+  // Standard way: Draw Last. Depth Func: LessEqual. Depth Write: Off.
+  D3D11_DEPTH_STENCIL_DESC dsDesc = {};
+  dsDesc.DepthEnable = TRUE;
+  dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO; // Don't write depth
+  dsDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL; // Ensure it passes at Z=1
+  ComPtr<ID3D11DepthStencilState> dsState;
+  m_Device->CreateDepthStencilState(&dsDesc, &dsState);
+  m_Context->OMSetDepthStencilState(dsState.Get(), 0);
+
+  // Bind Shaders and Texture
+  m_Context->VSSetShader(m_SkyboxVS.Get(), nullptr, 0);
+  m_Context->PSSetShader(m_SkyboxPS.Get(), nullptr, 0);
+  m_SkyboxTexture->Bind(m_Context.Get(), 0);
+
+  m_Context->DrawIndexed(36, 0, 0);
+
+  // Restore Default Depth State (Standard)
+  m_Context->OMSetDepthStencilState(nullptr, 0);
+  // Restore Default Rasterizer
+  m_Context->RSSetState(m_RasterizerStateSolid.Get());
+}
 
 void D3D11Renderer::DrawCube() {
   if (!m_CubeInitialized) {
@@ -407,6 +470,12 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
     }
   }
 
+  // Draw Skybox Last (Background)
+  // Only if we found a camera
+  if (cameraFound) {
+    DrawSkybox(view, projection);
+  }
+
   // Sort front-to-back (optimization for opaque objects to leverage early-Z)
   std::sort(renderItems.begin(), renderItems.end(),
             [](const RenderItem &a, const RenderItem &b) {
@@ -675,6 +744,32 @@ bool D3D11Renderer::InitCube() {
   }
 
   m_CubeInitialized = true;
+
+  // Initialize Skybox Shader
+  D3D11Shader skyVS, skyPS;
+  if (skyVS.CompileFromFile(m_Device.Get(),
+                            L"Engine/Runtime/Shaders/Skybox.hlsl", "VS",
+                            "vs_5_0")) {
+    m_SkyboxVS = skyVS.GetVertexShader();
+  } else {
+    HORSE_LOG_RENDER_ERROR("Failed to compile Skybox VS");
+  }
+
+  if (skyPS.CompileFromFile(m_Device.Get(),
+                            L"Engine/Runtime/Shaders/Skybox.hlsl", "PS",
+                            "ps_5_0")) {
+    m_SkyboxPS = skyPS.GetPixelShader();
+  } else {
+    HORSE_LOG_RENDER_ERROR("Failed to compile Skybox PS");
+  }
+
+  // Load Skybox Texture
+  m_SkyboxTexture = std::make_unique<D3D11Texture>();
+  if (!m_SkyboxTexture->LoadFromFile(m_Device.Get(), m_Context.Get(),
+                                     "Engine/Runtime/Textures/Skybox.png")) {
+    HORSE_LOG_RENDER_WARN("Failed to load Skybox.png, sky will be empty");
+  }
+
   return true;
 }
 
@@ -762,6 +857,14 @@ bool D3D11Renderer::CreateRasterizerStates() {
   hr = m_Device->CreateRasterizerState(&desc, &m_RasterizerStateWireframe);
   if (FAILED(hr)) {
     HORSE_LOG_RENDER_ERROR("Failed to create wireframe rasterizer state");
+    return false;
+  }
+
+  desc.FillMode = D3D11_FILL_SOLID;
+  desc.CullMode = D3D11_CULL_NONE; // Skybox needs inside faces
+  hr = m_Device->CreateRasterizerState(&desc, &m_RasterizerStateSkybox);
+  if (FAILED(hr)) {
+    HORSE_LOG_RENDER_ERROR("Failed to create skybox rasterizer state");
     return false;
   }
 
