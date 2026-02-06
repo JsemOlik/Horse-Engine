@@ -68,6 +68,7 @@ find_package(EnTT CONFIG REQUIRED)
 add_subdirectory(ThirdParty/glm)
 
 # Subdirectories
+add_subdirectory(Engine/Physics)
 add_subdirectory(Engine/Runtime)
 add_subdirectory(Engine/RenderD3D11)
 add_subdirectory(Editor)

@@ -37,21 +37,24 @@ add_library(HorseRuntime SHARED
     Source/Scripting/LuaScriptEngine.cpp
 )
 
+
 target_include_directories(HorseRuntime
     PUBLIC Include
+           "${CMAKE_SOURCE_DIR}/Engine/Physics/Include"
     PRIVATE Source
     ${LUA_INCLUDE_DIR}
 )
 
 target_link_libraries(HorseRuntime
     PUBLIC
+        HorsePhysics
         spdlog::spdlog
         fmt::fmt
         EnTT::EnTT
         nlohmann_json::nlohmann_json
         glm::glm
         ${LUA_LIBRARY}
-        sol2
+        sol2::sol2
         d3d11.lib
         dxgi.lib
         dxguid.lib

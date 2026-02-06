@@ -11,6 +11,8 @@
 
 namespace Horse {
 
+class PhysicsSystem; // Forward declaration
+
 enum class SceneState { Edit = 0, Play, Pause, Loading };
 enum class LoadingStage { None = 0, Assets, Components, Scripts, Ready };
 
@@ -49,6 +51,9 @@ public:
   // Update systems
   void OnUpdate(float deltaTime);
 
+  // Physics
+  PhysicsSystem *GetPhysicsSystem() const { return m_PhysicsSystem; }
+
 private:
   void UpdateTransformHierarchy();
   void UpdateEntityTransform(Entity entity, const glm::mat4 &parentTransform);
@@ -62,6 +67,9 @@ private:
   SceneState m_State = SceneState::Edit;
   LoadingStage m_LoadingStage = LoadingStage::None;
   std::vector<std::string> m_LoadingQueue;
+
+  // Physics
+  PhysicsSystem *m_PhysicsSystem = nullptr;
 };
 
 } // namespace Horse

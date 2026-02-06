@@ -14,6 +14,8 @@
 #include <filesystem>
 
 #include "HorseEngine/Asset/AssetManager.h"
+#include "HorseEngine/Engine.h"
+#include "HorseEngine/Game/GameModule.h"
 
 HierarchyPanel::HierarchyPanel(QWidget *parent) : QWidget(parent) {
 
@@ -217,6 +219,10 @@ void HierarchyPanel::OnContextMenuRequested(const QPoint &pos) {
   connect(createCubeAction, &QAction::triggered, this,
           &HierarchyPanel::OnCreateCube);
 
+  QAction *createPlayerAction = contextMenu.addAction("Create Player");
+  connect(createPlayerAction, &QAction::triggered, this,
+          &HierarchyPanel::OnCreatePlayer);
+
   QAction *createCameraAction = contextMenu.addAction("Create Camera");
   connect(createCameraAction, &QAction::triggered, this,
           &HierarchyPanel::OnCreateCamera);
@@ -271,6 +277,80 @@ void HierarchyPanel::OnCreateCube() {
 
   auto &meshRenderer = entity.AddComponent<Horse::MeshRendererComponent>();
   meshRenderer.MaterialGUID = "";
+  RefreshHierarchy();
+}
+
+void HierarchyPanel::OnCreatePlayer() {
+  if (!m_Scene)
+    return;
+
+  // 1. Remove existing "Main Camera" if found
+  auto &registry = m_Scene->GetRegistry();
+  auto view = registry.view<Horse::TagComponent, Horse::CameraComponent>();
+  for (auto entity : view) {
+    auto &tag = view.get<Horse::TagComponent>(entity);
+    if (tag.Name == "Main Camera") {
+      m_Scene->DestroyEntity(Horse::Entity(entity, m_Scene.get()));
+      // We can break if we assume only one, but let's be safe and catch
+      // duplicate default cameras
+    }
+  }
+
+  // 2. Create Player Entity
+  auto player = m_Scene->CreateEntity("Player");
+
+  // Set requested size (0.5 x 1.0 x 0.5)
+  auto &playerTransform = player.GetComponent<Horse::TransformComponent>();
+  playerTransform.Scale = {0.5f, 1.0f, 0.5f};
+
+  // 2.5 Add MeshRenderer (so we can see it!)
+  auto &meshRenderer = player.AddComponent<Horse::MeshRendererComponent>();
+  meshRenderer.MaterialGUID = ""; // Defaults to standard material/cube mesh
+
+  // 3. Add RigidBody
+  auto &rb = player.AddComponent<Horse::RigidBodyComponent>();
+  rb.Anchored = false; // Dynamic
+  // rb.FixedRotation = true; // TODO: Add support for rotation locking in
+  // RigidBodyComponent
+
+  // 4. Add BoxCollider
+  // Matches the visual scale (1.0 * 0.5 = 0.5 width, etc relative to physics?)
+  // Jolt BoxShape uses Half-Extents usually, but our component defines full
+  // Size? Let's assume Component.Size is Full Size in Local Space. Since we
+  // scaled the Transform to 0.5, 1.0, 0.5. If Collider Size is 1,1,1 -> World
+  // Size is 0.5, 1.0, 0.5. So we keep Collider Size at 1.0 (relative to
+  // Transform) to match Mesh? Or is Collider Size absolute (World)? Usually
+  // Physics shapes in ECS architectures are often independent or scaled by
+  // transform. In Horse Engine Jolt Integration (PhysicsSystem.cpp), we need to
+  // check if we apply scale. Assuming we propagate Scale to HalfExtents:
+  //   HalfExtent = (Collider.Size * Transform.Scale) / 2.
+  // So if we want total size 0.5, 1.0, 0.5...
+  //   Transform 0.5, 1.0, 0.5 -> Collider Size 1.0, 1.0, 1.0 triggers correct
+  //   shape.
+  // Let's set Collider Size to {1.0f, 1.0f, 1.0f} so it matches the Mesh
+  // perfectly.
+  auto &bc = player.AddComponent<Horse::BoxColliderComponent>();
+  bc.Size = {1.0f, 2.0f, 1.0f};
+  bc.Offset = {0.0f, 0.0f, 0.0f}; // Centered
+
+  // 5. Add Script
+  // We need to use the Engine -> GameModule to create the script because we
+  // can't link to Game DLL directly
+  if (Horse::Engine::Get()->GetGameModule()) {
+    Horse::Engine::Get()->GetGameModule()->CreateScript("PlayerController",
+                                                        player);
+  }
+
+  // 6. Create Child Camera
+  auto cameraEntity = m_Scene->CreateEntity("Camera");
+  m_Scene->SetEntityParent(cameraEntity, player);
+
+  auto &transform = cameraEntity.GetComponent<Horse::TransformComponent>();
+  transform.Position = {0.0f, 1.6f, 0.0f}; // Eye height
+
+  auto &camComp = cameraEntity.AddComponent<Horse::CameraComponent>();
+  camComp.Primary = true;
+
   RefreshHierarchy();
 }
 

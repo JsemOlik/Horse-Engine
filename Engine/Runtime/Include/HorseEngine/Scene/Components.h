@@ -3,11 +3,14 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
+#include "HorseEngine/Core/Logging.h"
+#include "HorseEngine/Physics/PhysicsComponents.h"
 #include "HorseEngine/Scene/UUID.h"
 #include <array>
 #include <entt/entt.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <string>
+
 
 namespace Horse {
 

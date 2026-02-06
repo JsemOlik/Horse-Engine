@@ -5,7 +5,6 @@
 #include "HorseEngine/Scripting/LuaScriptEngine.h"
 #include <iostream>
 
-
 namespace Horse {
 
 Engine *Engine::s_Instance = nullptr;
@@ -31,6 +30,7 @@ bool Engine::Initialize(bool headless) {
     windowDesc.Title = L"Horse Engine";
     windowDesc.Width = 1280;
     windowDesc.Height = 720;
+    windowDesc.VSync = false;
 
     m_Window = std::make_unique<Window>(windowDesc);
     HORSE_LOG_CORE_INFO("Window initialized");

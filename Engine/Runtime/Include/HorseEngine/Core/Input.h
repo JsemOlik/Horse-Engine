@@ -12,6 +12,8 @@ struct MousePosition {
   float Y;
 };
 
+enum class CursorMode { Normal = 0, Hidden = 1, Locked = 2 };
+
 enum KeyCode {
   KEY_NONE = 0x00,
   KEY_LBUTTON = 0x01,
@@ -90,12 +92,14 @@ public:
                            const std::vector<int> &positiveKeys,
                            const std::vector<int> &negativeKeys);
 
+  static void SetCursorMode(CursorMode mode);
+  static CursorMode GetCursorMode();
   static bool IsActionPressed(const std::string &name);
   static float GetAxisValue(const std::string &name);
 
   // Internal
   static void UpdateKeyState(int keycode, bool pressed);
-  static void UpdateMousePosition(float x, float y);
+  static void UpdateMousePosition(float x, float y, bool isSnap = false);
   static void UpdateMouseButtonState(int button, bool pressed);
 };
 

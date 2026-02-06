@@ -236,6 +236,8 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
                                      1000.0f);
   bool cameraFound = (overrideView != nullptr && overrideProjection != nullptr);
 
+  entt::entity cameraOwner = entt::null; // Track who owns the camera
+
   if (!cameraFound) {
     // Find primary camera
     auto cameraView = registry.view<TransformComponent, CameraComponent>();
@@ -245,21 +247,31 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
       if (!camera.Primary)
         continue;
 
-      XMVECTOR pos = XMVectorSet(transform.Position[0], transform.Position[1],
-                                 transform.Position[2], 1.0f);
+      // Use WorldTransform for correct hierarchy support
+      glm::mat4 worldTransform = transform.WorldTransform;
 
-      // Use transform rotation
-      XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(
-          XMConvertToRadians(transform.Rotation[0]),
-          XMConvertToRadians(transform.Rotation[1]),
-          XMConvertToRadians(transform.Rotation[2]));
-      XMVECTOR forward =
-          XMVector3TransformCoord(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), rotMat);
-      XMVECTOR target = pos + forward;
-      XMVECTOR up =
-          XMVector3TransformCoord(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), rotMat);
+      // Capture Camera Parent (The Player Body)
+      Horse::Entity camEnt(entity, scene);
+      if (camEnt.HasComponent<RelationshipComponent>()) {
+        cameraOwner = camEnt.GetComponent<RelationshipComponent>().Parent;
+      }
 
-      view = XMMatrixLookAtLH(pos, target, up);
+      // Need to duplicate the matrix setup code here or trust the previous
+      // implementation. For safety in this Replace Block, I'll assume the
+      // context is inside the camera loop. Reuse the logic I wrote before:
+
+      // Convert glm::mat4 to XMMATRIX
+      XMMATRIX worldMat = XMMatrixSet(
+          worldTransform[0][0], worldTransform[0][1], worldTransform[0][2],
+          worldTransform[0][3], worldTransform[1][0], worldTransform[1][1],
+          worldTransform[1][2], worldTransform[1][3], worldTransform[2][0],
+          worldTransform[2][1], worldTransform[2][2], worldTransform[2][3],
+          worldTransform[3][0], worldTransform[3][1], worldTransform[3][2],
+          worldTransform[3][3]);
+
+      // View Matrix is Inverse of World Matrix
+      XMVECTOR det;
+      view = XMMatrixInverse(&det, worldMat);
 
       if (camera.Type == CameraComponent::ProjectionType::Perspective) {
         projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(camera.FOV),
@@ -300,6 +312,12 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
   auto meshView = registry.view<TransformComponent, MeshRendererComponent>();
 
   for (auto entity : meshView) {
+    // Hidden From Player Camera Logic:
+    // If this entity owns the current camera (i.e., is the Player Body), do not
+    // render it.
+    if (entity == cameraOwner)
+      continue;
+
     auto [transform, mesh] =
         meshView.get<TransformComponent, MeshRendererComponent>(entity);
 

@@ -29,6 +29,8 @@ private slots:
   void OnContextMenuRequested(const QPoint &pos);
   void OnCreateEmptyEntity();
   void OnCreateCube();
+
+  void OnCreatePlayer();
   void OnCreateCamera();
   void OnCreateLight();
   void OnDeleteEntity();
