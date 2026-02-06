@@ -86,6 +86,7 @@ int main(int argc, char **argv) {
         entry.path().filename() !=
             "HorseGame.dll") { // Avoid copying old game dll if present
       try {
+        std::filesystem::copy_file(
             entry.path(), outputDir / entry.path().filename(),
             std::filesystem::copy_options::overwrite_existing);
       } catch (...) {

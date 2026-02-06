@@ -5,7 +5,6 @@
 #include <string>
 #include <vector>
 
-
 namespace Horse {
 
 struct PakFileEntry {
@@ -22,17 +21,13 @@ public:
   PakWriter(const std::filesystem::path &outputPath);
   ~PakWriter();
 
-  void AddFile(const std::filesystem::path &sourcePath,
+  bool AddFile(const std::filesystem::path &sourcePath,
                const std::string &internalPath);
   bool Finalize();
 
 private:
   std::filesystem::path m_OutputPath;
-  std::ofstream m_Stream;
-  std::vector<PakFileEntry> m_Entries;
-
-  // Start offset for directory table
-  uint64_t m_DirectoryOffset = 0;
+  std::ofstream m_OutputStream;
 };
 
 } // namespace Horse

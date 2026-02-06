@@ -1,4 +1,5 @@
 #include "HorseEngine/Core/FileSystem.h"
+#include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Engine.h"
 #include <filesystem>
 #include <iostream>
@@ -7,6 +8,9 @@
 
 
 int main(int argc, char **argv) {
+  // Initialize logging immediately
+  Horse::Logger::Initialize();
+
   if (argc > 0) {
     std::cout << "Starting HorseRunner from: " << argv[0] << std::endl;
 
@@ -56,13 +60,26 @@ int main(int argc, char **argv) {
     }
   }
 
-  auto engine = new Horse::Engine();
-  if (engine->Initialize(headless)) {
-    engine->Run();
+  try {
+    auto engine = new Horse::Engine();
+    if (engine->Initialize(headless)) {
+      std::cout << "Engine Initialized. Starting Run Loop..." << std::endl;
+      engine->Run();
+      std::cout << "Engine Run Loop execution finished." << std::endl;
+    } else {
+      std::cerr << "Engine Initialize failed!" << std::endl;
+    }
+
+    Horse::FileSystem::Shutdown();
+    delete engine;
+  } catch (const std::exception &e) {
+    std::cerr << "Unhandled exception: " << e.what() << std::endl;
+  } catch (...) {
+    std::cerr << "Unknown unhandled exception!" << std::endl;
   }
 
-  Horse::FileSystem::Shutdown();
-  delete engine;
+  std::cout << "Press Enter to exit..." << std::endl;
+  std::cin.get();
 
   return 0;
 }

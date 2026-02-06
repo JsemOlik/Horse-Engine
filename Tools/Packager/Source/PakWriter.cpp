@@ -1,143 +1,194 @@
 #include "PakWriter.h"
+#include <ctime>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <spdlog/spdlog.h>
 #include <vector>
 #include <zlib.h>
 
-// Simple logging
-#define LOG_INFO(...)                                                          \
-  printf("[Packager] " __VA_ARGS__);                                           \
-  printf("\n")
-#define LOG_ERROR(...)                                                         \
-  printf("[Packager Error] " __VA_ARGS__);                                     \
-  printf("\n")
-
 namespace Horse {
 
-struct PakHeader {
-  char Magic[4] = {'H', 'P', 'A', 'K'};
-  uint32_t Version = 1;
-  uint32_t FileCount = 0;
-  uint32_t Flags = 0;
-  uint64_t DirOffset = 0;
+// ZIP Structures (packed)
+#pragma pack(push, 1)
+
+struct ZipLocalHeader {
+  uint32_t signature = 0x04034b50;
+  uint16_t versionNeeded = 20;
+  uint16_t flags = 0;
+  uint16_t compressionMethod = 8; // 8 = Deflate
+  uint16_t lastModTime = 0;
+  uint16_t lastModDate = 0;
+  uint32_t crc32 = 0;
+  uint32_t compressedSize = 0;
+  uint32_t uncompressedSize = 0;
+  uint16_t filenameLength = 0;
+  uint16_t extraFieldLength = 0;
+};
+
+struct ZipCentralDirectoryHeader {
+  uint32_t signature = 0x02014b50;
+  uint16_t versionMadeBy = 20;
+  uint16_t versionNeeded = 20;
+  uint16_t flags = 0;
+  uint16_t compressionMethod = 8;
+  uint16_t lastModTime = 0;
+  uint16_t lastModDate = 0;
+  uint32_t crc32 = 0;
+  uint32_t compressedSize = 0;
+  uint32_t uncompressedSize = 0;
+  uint16_t filenameLength = 0;
+  uint16_t extraFieldLength = 0;
+  uint16_t fileCommentLength = 0;
+  uint16_t diskNumberStart = 0;
+  uint16_t internalFileAttr = 0;
+  uint32_t externalFileAttr = 0;
+  uint32_t relativeOffsetOfLocalHeader = 0;
+};
+
+struct ZipEndOfCentralDirectory {
+  uint32_t signature = 0x06054b50;
+  uint16_t numberOfThisDisk = 0;
+  uint16_t diskWhereCentralDirectoryStarts = 0;
+  uint16_t numberOfCentralDirectoryRecordsOnThisDisk = 0;
+  uint16_t totalNumberOfCentralDirectoryRecords = 0;
+  uint32_t sizeOfCentralDirectory = 0;
+  uint32_t offsetOfStartOfCentralDirectory = 0;
+  uint16_t zipCommentLength = 0;
+};
+
+#pragma pack(pop)
+
+struct ZipEntryInfo {
+  std::string filename;
+  uint32_t crc32;
+  uint32_t compressedSize;
+  uint32_t uncompressedSize;
+  uint32_t localHeaderOffset;
 };
 
 PakWriter::PakWriter(const std::filesystem::path &outputPath)
     : m_OutputPath(outputPath) {
-  m_Stream.open(outputPath, std::ios::binary);
-  if (m_Stream.is_open()) {
-    // Reserve space for header
-    PakHeader header;
-    m_Stream.write(reinterpret_cast<char *>(&header), sizeof(PakHeader));
-  } else {
-    LOG_ERROR("Failed to open output file: %s", outputPath.string().c_str());
+  m_OutputStream.open(outputPath, std::ios::binary);
+  if (!m_OutputStream.is_open()) {
+    spdlog::error("Failed to open output PAK file: {}", outputPath.string());
   }
 }
 
 PakWriter::~PakWriter() {
-  if (m_Stream.is_open()) {
-    m_Stream.close();
+  if (m_OutputStream.is_open()) {
+    m_OutputStream.close();
   }
 }
 
-// Simple CRC32 implementation
-uint32_t CalculateCRC32(const std::vector<uint8_t> &data) {
-  uLong crc = crc32(0L, Z_NULL, 0);
-  crc = crc32(crc, data.data(), (uInt)data.size());
-  return (uint32_t)crc;
-}
+static std::vector<ZipEntryInfo> s_Entries;
 
-void PakWriter::AddFile(const std::filesystem::path &sourcePath,
-                        const std::string &internalPath) {
-  if (!m_Stream.is_open())
-    return;
-
-  std::ifstream file(sourcePath, std::ios::binary | std::ios::ate);
+bool PakWriter::AddFile(const std::filesystem::path &inputPath,
+                        const std::string &entryName) {
+  std::ifstream file(inputPath, std::ios::binary | std::ios::ate);
   if (!file.is_open()) {
-    LOG_ERROR("Failed to open source file: %s", sourcePath.string().c_str());
-    return;
+    spdlog::error("Failed to open input file: {}", inputPath.string());
+    return false;
   }
 
-  std::streamsize fileSize = file.tellg();
-  file.seekg(0, std::ios::beg);
+  size_t fileSize = file.tellg();
+  std::vector<char> buffer(fileSize);
+  file.seekg(0);
+  file.read(buffer.data(), fileSize);
+  file.close();
 
-  std::vector<uint8_t> buffer(fileSize);
-  if (!file.read(reinterpret_cast<char *>(buffer.data()), fileSize)) {
-    LOG_ERROR("Failed to read source file: %s", sourcePath.string().c_str());
-    return;
+  // 1. Calculate CRC32
+  uLong crc = crc32(0L, Z_NULL, 0);
+  crc = crc32(crc, reinterpret_cast<const Bytef *>(buffer.data()),
+              (uInt)fileSize);
+
+  // 2. Compress (Raw Deflate for ZIP)
+  // Estimate size
+  uLong compressedBound = compressBound((uLong)fileSize);
+  std::vector<char> compressedBuffer(compressedBound);
+
+  z_stream defstream;
+  defstream.zalloc = Z_NULL;
+  defstream.zfree = Z_NULL;
+  defstream.opaque = Z_NULL;
+
+  // WindowBits = -15 for raw deflate (no zlib header/trailer)
+  if (deflateInit2(&defstream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, -15, 8,
+                   Z_DEFAULT_STRATEGY) != Z_OK) {
+    spdlog::error("Failed to initialize zlib deflate");
+    return false;
   }
 
-  // Compress
-  uLongf compressedSize = compressBound((uLong)fileSize);
-  std::vector<uint8_t> compressedBuffer(compressedSize);
+  defstream.avail_in = (uInt)fileSize;
+  defstream.next_in = (Bytef *)buffer.data();
+  defstream.avail_out = (uInt)compressedBound;
+  defstream.next_out = (Bytef *)compressedBuffer.data();
 
-  // Using zlib
-  if (compress(compressedBuffer.data(), &compressedSize, buffer.data(),
-               (uLong)fileSize) != Z_OK) {
-    LOG_ERROR("Failed to compress file: %s", sourcePath.string().c_str());
-    // Fallback to uncompressed? For now, just store uncompressed if fail logic
-    // is needed, but here we abort entry or store uncompressed. Let's store
-    // uncompressed if compression fails or is worse? For simplicity, assume
-    // compression works or fail.
-    return;
-  }
+  deflate(&defstream, Z_FINISH);
 
-  // Choose smaller
-  bool useCompressed = compressedSize < fileSize;
-  const std::vector<uint8_t> &dataToWrite =
-      useCompressed ? compressedBuffer : buffer;
-  uint64_t finalSize = useCompressed ? compressedSize : fileSize;
+  uLong compressedSize = defstream.total_out;
+  deflateEnd(&defstream);
 
-  uint64_t currentOffset = m_Stream.tellp();
-  m_Stream.write(reinterpret_cast<const char *>(dataToWrite.data()), finalSize);
+  // 3. Write Local Header
+  ZipLocalHeader lfh;
+  lfh.crc32 = (uint32_t)crc;
+  lfh.compressedSize = (uint32_t)compressedSize;
+  lfh.uncompressedSize = (uint32_t)fileSize;
+  lfh.filenameLength = (uint16_t)entryName.length();
 
-  PakFileEntry entry;
-  entry.Path = internalPath;
-  entry.Offset = currentOffset;
-  entry.Size = fileSize; // Original Size
-  entry.CompressedSize = finalSize;
-  entry.Hash = CalculateCRC32(buffer); // Hash of original data
-  entry.Flags = useCompressed ? 1 : 0; // Flag 1 = Compressed
+  uint32_t currentOffset = (uint32_t)m_OutputStream.tellp();
 
-  m_Entries.push_back(entry);
-  LOG_INFO("Added: %s -> %s (Size: %llu, Comp: %llu)",
-           sourcePath.string().c_str(), internalPath.c_str(), fileSize,
-           finalSize);
+  m_OutputStream.write(reinterpret_cast<const char *>(&lfh),
+                       sizeof(ZipLocalHeader));
+  m_OutputStream.write(entryName.c_str(), entryName.length());
+  m_OutputStream.write(compressedBuffer.data(), compressedSize);
+
+  // Store info for Central Directory
+  ZipEntryInfo info;
+  info.filename = entryName;
+  info.crc32 = lfh.crc32;
+  info.compressedSize = lfh.compressedSize;
+  info.uncompressedSize = lfh.uncompressedSize;
+  info.localHeaderOffset = currentOffset;
+  s_Entries.push_back(info);
+
+  spdlog::info("Added file: {} (Size: {}, Compressed: {})", entryName, fileSize,
+               compressedSize);
+  return true;
 }
 
 bool PakWriter::Finalize() {
-  if (!m_Stream.is_open())
-    return false;
+  uint32_t cdStartOffset = (uint32_t)m_OutputStream.tellp();
 
-  // Write Directory
-  m_DirectoryOffset = m_Stream.tellp();
+  // Write Central Directory Headers
+  for (const auto &entry : s_Entries) {
+    ZipCentralDirectoryHeader cdh;
+    cdh.crc32 = entry.crc32;
+    cdh.compressedSize = entry.compressedSize;
+    cdh.uncompressedSize = entry.uncompressedSize;
+    cdh.filenameLength = (uint16_t)entry.filename.length();
+    cdh.relativeOffsetOfLocalHeader = entry.localHeaderOffset;
 
-  for (const auto &entry : m_Entries) {
-    // Format: PathLength(u16), Path(chars), Offset(u64), Size(u64),
-    // CompressedSize(u64), Hash(u32), Flags(u32)
-    uint16_t pathLen = (uint16_t)entry.Path.length();
-    m_Stream.write(reinterpret_cast<const char *>(&pathLen), sizeof(pathLen));
-    m_Stream.write(entry.Path.c_str(), pathLen);
-    m_Stream.write(reinterpret_cast<const char *>(&entry.Offset),
-                   sizeof(entry.Offset));
-    m_Stream.write(reinterpret_cast<const char *>(&entry.Size),
-                   sizeof(entry.Size));
-    m_Stream.write(reinterpret_cast<const char *>(&entry.CompressedSize),
-                   sizeof(entry.CompressedSize));
-    m_Stream.write(reinterpret_cast<const char *>(&entry.Hash),
-                   sizeof(entry.Hash));
-    m_Stream.write(reinterpret_cast<const char *>(&entry.Flags),
-                   sizeof(entry.Flags));
+    m_OutputStream.write(reinterpret_cast<const char *>(&cdh),
+                         sizeof(ZipCentralDirectoryHeader));
+    m_OutputStream.write(entry.filename.c_str(), entry.filename.length());
   }
 
-  // Update Header
-  m_Stream.seekp(0);
-  PakHeader header;
-  header.FileCount = (uint32_t)m_Entries.size();
-  header.DirOffset = m_DirectoryOffset;
-  m_Stream.write(reinterpret_cast<char *>(&header), sizeof(PakHeader));
+  uint32_t cdEndOffset = (uint32_t)m_OutputStream.tellp();
+  uint32_t cdSize = cdEndOffset - cdStartOffset;
 
-  LOG_INFO("Finalized PAK. Files: %zu, Dir Offset: %llu", m_Entries.size(),
-           m_DirectoryOffset);
+  // Write End of Central Directory Record
+  ZipEndOfCentralDirectory eocd;
+  eocd.numberOfCentralDirectoryRecordsOnThisDisk = (uint16_t)s_Entries.size();
+  eocd.totalNumberOfCentralDirectoryRecords = (uint16_t)s_Entries.size();
+  eocd.sizeOfCentralDirectory = cdSize;
+  eocd.offsetOfStartOfCentralDirectory = cdStartOffset;
+
+  m_OutputStream.write(reinterpret_cast<const char *>(&eocd),
+                       sizeof(ZipEndOfCentralDirectory));
+
+  spdlog::info("PAK Finalized. Total Files: {}", s_Entries.size());
+  s_Entries.clear();
   return true;
 }
 
