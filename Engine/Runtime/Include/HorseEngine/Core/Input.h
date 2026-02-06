@@ -99,7 +99,7 @@ public:
 
   // Internal
   static void UpdateKeyState(int keycode, bool pressed);
-  static void UpdateMousePosition(float x, float y);
+  static void UpdateMousePosition(float x, float y, bool isSnap = false);
   static void UpdateMouseButtonState(int button, bool pressed);
 };
 
