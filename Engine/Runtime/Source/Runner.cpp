@@ -1,3 +1,4 @@
+#include "HorseEngine/Asset/AssetManager.h"
 #include "HorseEngine/Core/FileSystem.h"
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Engine.h"
@@ -24,8 +25,12 @@ int main(int argc, char **argv) {
     std::filesystem::path exePath(argv[0]);
     std::string exeDir = exePath.parent_path().string();
 
-    // Mount Base Directory (where EXE is)
+    // Mount Game.pak
+    // ...
     Horse::FileSystem::Mount(exeDir, "/");
+
+    // Initialize AssetManager (Runtime assumes Root /)
+    Horse::AssetManager::Get().Initialize(".");
 
     // Mount Game.pak
     // It should be adjacent to executable

@@ -1,4 +1,5 @@
 #include "HorseEngine/Scene/SceneSerializer.h"
+#include "HorseEngine/Core/FileSystem.h"
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Engine.h"
 #include "HorseEngine/Scene/Components.h"
@@ -427,19 +428,21 @@ std::string SceneSerializer::SerializeToJSONString(const Scene *scene) {
   }
 }
 
+#include "HorseEngine/Core/FileSystem.h"
+
+// ... imports
+
 std::shared_ptr<Scene>
 SceneSerializer::DeserializeFromJSON(const std::string &filepath) {
   try {
-    std::ifstream file(filepath);
-    if (!file.is_open()) {
+    std::string jsonContent;
+    if (!FileSystem::ReadText(filepath, jsonContent)) {
       HORSE_LOG_CORE_ERROR("Failed to open file for reading: {}", filepath);
       return nullptr;
     }
 
-    json sceneJson;
-    file >> sceneJson;
-    file.close();
-
+    json sceneJson = json::parse(jsonContent);
+    // ... rest is same
     auto scene = DeserializeSceneFromJson(sceneJson);
     HORSE_LOG_CORE_INFO("Scene deserialized successfully from: {}", filepath);
     return scene;
