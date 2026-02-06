@@ -6,35 +6,65 @@
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Scene.h"
 #include <DirectXMath.h>
+#include <QAction>
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QKeyEvent>
+#include <QMenu>
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPushButton>
 #include <QUrl>
 #include <glm/gtc/type_ptr.hpp>
 
-
 SceneViewport::SceneViewport(QWidget *parent) : D3D11ViewportWidget(parent) {
   setFocusPolicy(Qt::StrongFocus);
   setAcceptDrops(true);
 
-  QPushButton *wireframeBtn = new QPushButton("Wireframe", this);
-  wireframeBtn->setGeometry(10, 10, 80, 30);
-  wireframeBtn->setCheckable(true);
-  wireframeBtn->setStyleSheet(
-      "QPushButton { background-color: #333; color: white; border: 1px solid "
-      "#555; border-radius: 4px; }"
-      "QPushButton:checked { background-color: #555; border-color: #777; }"
-      "QPushButton:hover { background-color: #444; }");
+  QPushButton *viewBtn = new QPushButton("View", this);
+  viewBtn->setGeometry(10, 10, 80, 30);
 
-  connect(wireframeBtn, &QPushButton::toggled, [this](bool checked) {
+  // Pill shape styling with dropdown arrow
+  viewBtn->setStyleSheet(
+      "QPushButton { "
+      "  background-color: #333; "
+      "  color: white; "
+      "  border: 1px solid #555; "
+      "  border-radius: 15px; " // Pill shape (half of height 30)
+      "  padding-left: 10px; "
+      "  padding-right: 10px; "
+      "  text-align: center; "
+      "}"
+      "QPushButton::menu-indicator { image: none; }" // Hide default indicator
+                                                     // if preferred, or keep it
+      "QPushButton:hover { background-color: #444; }"
+      "QPushButton:pressed { background-color: #222; }"
+      "QMenu { "
+      "  background-color: #333; "
+      "  color: white; "
+      "  border: 1px solid #555; "
+      "}"
+      "QMenu::item:selected { background-color: #444; }");
+
+  QMenu *viewMenu = new QMenu(viewBtn);
+
+  QAction *solidAction = viewMenu->addAction("Solid");
+  QAction *wireframeAction = viewMenu->addAction("Wireframe");
+
+  viewBtn->setMenu(viewMenu);
+
+  connect(solidAction, &QAction::triggered, [this]() {
     if (m_Renderer) {
-      m_Renderer->SetWireframe(checked);
+      m_Renderer->SetWireframe(false);
+      update();
     }
-    // Ensure we repaint immediately
-    update();
+  });
+
+  connect(wireframeAction, &QAction::triggered, [this]() {
+    if (m_Renderer) {
+      m_Renderer->SetWireframe(true);
+      update();
+    }
   });
 }
 
