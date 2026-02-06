@@ -18,20 +18,37 @@ void PlayerController::OnCreate() {
     if (scene && scene->GetPhysicsSystem()) {
       m_BodyInterface = scene->GetPhysicsSystem()->GetBodyInterface();
 
-      // Lock rotation for a standard character controller feel (so it doesn't
-      // tumble) Note: Ideally this should be a setting on RigidBodyComponent,
-      // but we can enforce it here for now.
+      // Lock rotation for a standard character controller feel
       JPH::BodyID bodyID =
           static_cast<JPH::Body *>(m_RigidBody->RuntimeBody)->GetID();
       m_BodyInterface->SetRotation(bodyID, JPH::Quat::sIdentity(),
                                    JPH::EActivation::Activate);
     }
-    // Set max angular velocity to 0 to prevent spinning from collisions?
-    // Better way in Jolt:
-    // body->GetMotionProperties()->SetInverseInertiaDiagonal(JPH::Vec3::sZero());
-    // But we need access to the Body* or lock flags. Jolt has EallowedDOFs.
-    // For now, let's just apply forces.
   }
+
+  // Find Child Camera
+  if (GetEntity().HasComponent<RelationshipComponent>()) {
+    auto &rel = GetComponent<RelationshipComponent>();
+    entt::entity childHandle = rel.FirstChild;
+    while (childHandle != entt::null) {
+      Horse::Entity child(childHandle, GetEntity().GetScene());
+      if (child.HasComponent<CameraComponent>()) {
+        m_CameraEntity = child;
+        break;
+      }
+      if (child.HasComponent<RelationshipComponent>()) {
+        childHandle = child.GetComponent<RelationshipComponent>().NextSibling;
+      } else {
+        break;
+      }
+    }
+  }
+
+  // Init Mouse State
+  auto mousePos = Input::GetMousePosition();
+  m_LastMouseX = mousePos.X;
+  m_LastMouseY = mousePos.Y;
+  m_FirstMouse = true;
 }
 
 void PlayerController::OnUpdate(float deltaTime) {
@@ -42,25 +59,62 @@ void PlayerController::OnUpdate(float deltaTime) {
       static_cast<JPH::Body *>(m_RigidBody->RuntimeBody)->GetID();
 
   // -------------------------------------------------------------------------
-  // Look Rotation (Standard FPS Camera)
+  // Look Rotation
   // -------------------------------------------------------------------------
-  // We need to rotate the ENTITY (transform) based on mouse input.
-  // However, since physics drives position/rotation, we should rotate the
-  // physics body OR rotate the camera child entity separately. Unity style:
-  // Player object rotates Y (Yaw), Camera child rotates X (Pitch).
 
-  // Let's assume standard ECS structure: Player Entity has Camera as Child.
-  // But here we are the Player Entity.
+  // 1. Calculate Mouse Delta
+  auto mousePos = Input::GetMousePosition();
+  if (m_FirstMouse) {
+    m_LastMouseX = mousePos.X;
+    m_LastMouseY = mousePos.Y;
+    m_FirstMouse = false;
+  }
 
-  // For simplicity in this first pass, let's just do movement relative to World
-  // or Local. If we want Yaw rotation on the body:
+  float xOffset = mousePos.X - m_LastMouseX;
+  float yOffset =
+      m_LastMouseY -
+      mousePos.Y; // Reversed since Y-coords range from bottom to top commonly?
+                  // Or top-down? Win32 usually is Top-Left origin.
+  // If Win32 is Top-Left (0,0), then Down increases Y. pitch up implies looking
+  // "up". Let's assume standard mouse look: moving mouse UP (negative Y delta)
+  // should pitch UP. So LastY - CurrentY gives positive when moving Up.
+  // Correct.
 
-  static float yaw = 0.0f;
-  static float pitch = 0.0f;
+  m_LastMouseX = mousePos.X;
+  m_LastMouseY = mousePos.Y;
 
-  // This is a bit hacky without a proper Input system for "Mouse Delta",
-  // but let's assume we can get simple key-based rotation or wait for Mouse
-  // Delta API. START-UP HACK: Just movement for now.
+  // IMPORTANT: Only rotate if right mouse button is held (Editor Mode style) OR
+  // if we are in "Capture Mode" For now, let's require Right Mouse Button for
+  // the Player Controller too, to avoid annoyance in Editor.
+  if (Input::IsMouseButtonPressed(KEY_RBUTTON)) {
+    xOffset *= m_Sensitivity;
+    yOffset *= m_Sensitivity;
+
+    m_Yaw += xOffset;
+    m_Pitch += yOffset;
+
+    // Clamp Pitch
+    if (m_Pitch > 89.0f)
+      m_Pitch = 89.0f;
+    if (m_Pitch < -89.0f)
+      m_Pitch = -89.0f;
+
+    // 2. Rotate Body (Yaw)
+    // Physics Rotation - convert Yaw (degrees) to Radians and around Y axis
+    // Note: Jolt uses Radians.
+    // -m_Yaw because... coordinate systems. Let's try standard first.
+    JPH::Quat rotation =
+        JPH::Quat::sRotation(JPH::Vec3::sAxisY(), glm::radians(m_Yaw));
+    m_BodyInterface->SetRotation(bodyID, rotation, JPH::EActivation::Activate);
+
+    // 3. Rotate Camera (Pitch)
+    if (m_CameraEntity) {
+      auto &transform = m_CameraEntity.GetComponent<TransformComponent>();
+      transform.Rotation[0] = m_Pitch;
+      // transform.Rotation.y = 0; // Local rotation, so Yaw is handled by
+      // parent transform.Rotation.z = 0;
+    }
+  }
 
   // -------------------------------------------------------------------------
   // Movement
@@ -68,26 +122,42 @@ void PlayerController::OnUpdate(float deltaTime) {
   JPH::Vec3 velocity = m_BodyInterface->GetLinearVelocity(bodyID);
   JPH::Vec3 moveDir = JPH::Vec3::sZero();
 
+  // Calculate Forward/Right vectors based on YAW
+  // Simple trig or use the quaternion we just set.
+  float yawRad = glm::radians(m_Yaw);
+  JPH::Vec3 forward(
+      sin(yawRad), 0,
+      cos(yawRad)); // Z is forward? In standard OpenGL, -Z is forward.
+  // Let's assume +Z is forward for now, fix if inverted.
+  // Actually, if we rotate the body, "Forward" in Local space is just (0,0,1).
+  // Jolt's linear velocity is in World Space. So we need World Forward.
+
+  // Forward vector from Yaw:
+  // x = sin(yaw), z = cos(yaw)
+
+  JPH::Vec3 right(cos(yawRad), 0, -sin(yawRad));
+
   if (Input::IsKeyPressed(KEY_W))
-    moveDir.SetZ(-1.0f);
+    moveDir += forward;
   if (Input::IsKeyPressed(KEY_S))
-    moveDir.SetZ(1.0f);
+    moveDir -= forward;
   if (Input::IsKeyPressed(KEY_A))
-    moveDir.SetX(-1.0f);
+    moveDir -= right;
   if (Input::IsKeyPressed(KEY_D))
-    moveDir.SetX(1.0f);
+    moveDir += right;
 
   if (moveDir.LengthSq() > 0.0f) {
     moveDir = moveDir.Normalized() * m_Speed;
     // Preserve vertical velocity (gravity)
     moveDir.SetY(velocity.GetY());
 
-    // Directly setting velocity for responsive movement (Basic Character
-    // Controller style) Ideally we use specialized CharacterVirtual from Jolt,
-    // but explicit velocity works for simple boxes. Activate essential for
-    // sleeping bodies
     m_BodyInterface->SetLinearVelocity(bodyID, moveDir);
     m_BodyInterface->ActivateBody(bodyID);
+  } else {
+    // Dampen horizontal velocity if no input?
+    // For now just keep gravity.
+    m_BodyInterface->SetLinearVelocity(bodyID,
+                                       JPH::Vec3(0, velocity.GetY(), 0));
   }
 
   // -------------------------------------------------------------------------
