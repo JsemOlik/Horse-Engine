@@ -160,7 +160,10 @@ static json SerializeRigidBodyComponent(const RigidBodyComponent &comp) {
           {"useGravity", comp.UseGravity},
           {"isSensor", comp.IsSensor},
           {"linearVelocity", comp.LinearVelocity},
-          {"angularVelocity", comp.AngularVelocity}};
+          {"angularVelocity", comp.AngularVelocity},
+          {"lockRotationX", comp.LockRotationX},
+          {"lockRotationY", comp.LockRotationY},
+          {"lockRotationZ", comp.LockRotationZ}};
 }
 
 static void DeserializeRigidBodyComponent(const json &j,
@@ -168,10 +171,11 @@ static void DeserializeRigidBodyComponent(const json &j,
   comp.Anchored = j.value("anchored", false);
   comp.UseGravity = j.value("useGravity", true);
   comp.IsSensor = j.value("isSensor", false);
-  if (j.contains("linearVelocity"))
-    comp.LinearVelocity = j["linearVelocity"].get<std::array<float, 3>>();
   if (j.contains("angularVelocity"))
     comp.AngularVelocity = j["angularVelocity"].get<std::array<float, 3>>();
+  comp.LockRotationX = j.value("lockRotationX", false);
+  comp.LockRotationY = j.value("lockRotationY", false);
+  comp.LockRotationZ = j.value("lockRotationZ", false);
 }
 
 static json SerializeBoxColliderComponent(const BoxColliderComponent &comp) {
