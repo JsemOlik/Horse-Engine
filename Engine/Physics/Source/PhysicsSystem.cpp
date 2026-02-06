@@ -267,7 +267,10 @@ void PhysicsSystem::OnRuntimeStart(Scene *scene) {
     // TODO: Other shapes
 
     if (!shape) {
-      // Fallback or just skip
+      HORSE_LOG_CORE_WARN(
+          "Entity '{}' has a RigidBody but no valid Collider (BoxCollider, "
+          "etc.). Physics body will NOT be created.",
+          entity.GetComponent<TagComponent>().Name);
       continue;
     }
 

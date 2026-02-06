@@ -405,28 +405,18 @@ void InspectorPanel::DrawComponents() {
     m_ContentLayout->addWidget(materialGroup);
   }
 
-  // --------------------------------------------------------------------------
-  // Scripts Category
-  // --------------------------------------------------------------------------
-  QGroupBox *scriptsGroup = new QGroupBox("Scripts");
-  QVBoxLayout *scriptsVLayout = new QVBoxLayout(scriptsGroup);
-
-  // Native Script
+  // Native Script Component
   if (m_SelectedEntity.HasComponent<Horse::NativeScriptComponent>()) {
     auto &script =
         m_SelectedEntity.GetComponent<Horse::NativeScriptComponent>();
 
-    // We already have a group box for Native Script details in the existing
-    // code, but nesting group boxes can be ugly. Let's make a simple widget
-    // layout instead.
-    QWidget *nsWidget = new QWidget();
-    QFormLayout *nsLayout = new QFormLayout(nsWidget);
-    nsLayout->setContentsMargins(0, 0, 0, 0);
+    QGroupBox *nsGroup = new QGroupBox("C++ Script");
+    QFormLayout *nsLayout = new QFormLayout(nsGroup);
 
-    nsLayout->addRow("C++ Class:",
+    nsLayout->addRow("Class:",
                      new QLabel(QString::fromStdString(script.ClassName)));
 
-    QPushButton *removeBtn = new QPushButton("Remove Script");
+    QPushButton *removeBtn = new QPushButton("Remove Component");
     connect(removeBtn, &QPushButton::clicked, this, [this]() {
       if (m_SelectedEntity) {
         m_SelectedEntity.RemoveComponent<Horse::NativeScriptComponent>();
@@ -434,47 +424,17 @@ void InspectorPanel::DrawComponents() {
       }
     });
     nsLayout->addRow(removeBtn);
-    scriptsVLayout->addWidget(nsWidget);
-  } else {
-    QPushButton *addScriptBtn = new QPushButton("Attach C++ Script");
-    connect(addScriptBtn, &QPushButton::clicked, this, [this]() {
-      auto engine = Horse::Engine::Get();
-      auto gameModule = engine ? engine->GetGameModule() : nullptr;
-      if (!gameModule) {
-        HORSE_LOG_CORE_ERROR("No Game Module loaded!");
-        return;
-      }
-
-      QMenu menu;
-      auto scriptNames = gameModule->GetAvailableScripts();
-      for (const auto &name : scriptNames) {
-        menu.addAction(QString::fromStdString(name),
-                       [this, gameModule, name]() {
-                         if (m_SelectedEntity) {
-                           gameModule->CreateScript(name, m_SelectedEntity);
-                           RefreshInspector();
-                         }
-                       });
-      }
-
-      if (scriptNames.empty()) {
-        menu.addAction("No scripts available")->setEnabled(false);
-      }
-
-      menu.exec(QCursor::pos());
-    });
-    scriptsVLayout->addWidget(addScriptBtn);
+    m_ContentLayout->addWidget(nsGroup);
   }
 
-  // Lua Script
+  // Lua Script Component
   if (m_SelectedEntity.HasComponent<Horse::ScriptComponent>()) {
     auto &script = m_SelectedEntity.GetComponent<Horse::ScriptComponent>();
 
-    QWidget *lsWidget = new QWidget();
-    QFormLayout *lsLayout = new QFormLayout(lsWidget);
-    lsLayout->setContentsMargins(0, 0, 0, 0);
+    QGroupBox *lsGroup = new QGroupBox("Lua Script");
+    QFormLayout *lsLayout = new QFormLayout(lsGroup);
 
-    // 1. Scan for scripts
+    // Scan for scripts
     QComboBox *scriptCombo = new QComboBox();
     scriptCombo->addItem("None", "");
 
@@ -508,7 +468,6 @@ void InspectorPanel::DrawComponents() {
       }
     }
 
-    // If manually set to an absolute path, add it
     if (!script.ScriptPath.empty() && currentIndex == 0) {
       QString currentPath = QString::fromStdString(script.ScriptPath);
       scriptCombo->addItem(currentPath + " (External)", currentPath);
@@ -527,10 +486,9 @@ void InspectorPanel::DrawComponents() {
           }
         });
 
-    lsLayout->addRow("Lua Script:", scriptCombo);
+    lsLayout->addRow("Script:", scriptCombo);
 
-    // Open Script Button
-    QPushButton *openBtn = new QPushButton("Edit");
+    QPushButton *openBtn = new QPushButton("Edit Script");
     connect(openBtn, &QPushButton::clicked, this, [this, scriptCombo]() {
       QString path =
           scriptCombo->itemData(scriptCombo->currentIndex()).toString();
@@ -544,10 +502,9 @@ void InspectorPanel::DrawComponents() {
             QUrl::fromLocalFile(QString::fromStdString(fullPath.string())));
       }
     });
-    lsLayout->addRow("", openBtn);
+    lsLayout->addRow(openBtn);
 
-    // Remove Component Button
-    QPushButton *removeBtn = new QPushButton("Remove Script");
+    QPushButton *removeBtn = new QPushButton("Remove Component");
     connect(removeBtn, &QPushButton::clicked, this, [this]() {
       if (m_SelectedEntity) {
         m_SelectedEntity.RemoveComponent<Horse::ScriptComponent>();
@@ -555,32 +512,15 @@ void InspectorPanel::DrawComponents() {
       }
     });
     lsLayout->addRow(removeBtn);
-    scriptsVLayout->addWidget(lsWidget);
-  } else {
-    QPushButton *addLuaBtn = new QPushButton("Attach Lua Script");
-    connect(addLuaBtn, &QPushButton::clicked, this, [this]() {
-      if (m_SelectedEntity) {
-        m_SelectedEntity.AddComponent<Horse::ScriptComponent>();
-        RefreshInspector();
-      }
-    });
-    scriptsVLayout->addWidget(addLuaBtn);
+    m_ContentLayout->addWidget(lsGroup);
   }
-
-  m_ContentLayout->addWidget(scriptsGroup);
-
-  // --------------------------------------------------------------------------
-  // Physics Category
-  // --------------------------------------------------------------------------
-  QGroupBox *physicsGroup = new QGroupBox("Physics");
-  QVBoxLayout *physicsVLayout = new QVBoxLayout(physicsGroup);
 
   // RigidBody Component
   if (m_SelectedEntity.HasComponent<Horse::RigidBodyComponent>()) {
     auto &rb = m_SelectedEntity.GetComponent<Horse::RigidBodyComponent>();
 
-    QGroupBox *rbBox = new QGroupBox("Rigid Body");
-    QFormLayout *rbLayout = new QFormLayout(rbBox);
+    QGroupBox *rbGroup = new QGroupBox("Rigid Body");
+    QFormLayout *rbLayout = new QFormLayout(rbGroup);
 
     QCheckBox *anchoredCheck = new QCheckBox();
     anchoredCheck->setChecked(rb.Anchored);
@@ -589,7 +529,7 @@ void InspectorPanel::DrawComponents() {
         m_SelectedEntity.GetComponent<Horse::RigidBodyComponent>().Anchored =
             checked;
     });
-    rbLayout->addRow("Anchored (Static):", anchoredCheck);
+    rbLayout->addRow("Static (Anchored):", anchoredCheck);
 
     QCheckBox *gravityCheck = new QCheckBox();
     gravityCheck->setChecked(rb.UseGravity);
@@ -609,8 +549,7 @@ void InspectorPanel::DrawComponents() {
     });
     rbLayout->addRow("Is Sensor:", sensorCheck);
 
-    // Remove Button
-    QPushButton *removeBtn = new QPushButton("Remove RigidBody");
+    QPushButton *removeBtn = new QPushButton("Remove Component");
     connect(removeBtn, &QPushButton::clicked, this, [this]() {
       if (m_SelectedEntity) {
         m_SelectedEntity.RemoveComponent<Horse::RigidBodyComponent>();
@@ -618,14 +557,14 @@ void InspectorPanel::DrawComponents() {
       }
     });
     rbLayout->addRow(removeBtn);
-    physicsVLayout->addWidget(rbBox);
+    m_ContentLayout->addWidget(rbGroup);
   }
 
   // BoxCollider Component
   if (m_SelectedEntity.HasComponent<Horse::BoxColliderComponent>()) {
     auto &bc = m_SelectedEntity.GetComponent<Horse::BoxColliderComponent>();
-    QGroupBox *bcBox = new QGroupBox("Box Collider");
-    QFormLayout *bcLayout = new QFormLayout(bcBox);
+    QGroupBox *bcGroup = new QGroupBox("Box Collider");
+    QFormLayout *bcLayout = new QFormLayout(bcGroup);
 
     // Size
     QHBoxLayout *sizeLayout = new QHBoxLayout();
@@ -661,8 +600,7 @@ void InspectorPanel::DrawComponents() {
     }
     bcLayout->addRow(offsetLayout);
 
-    // Remove Button
-    QPushButton *removeBtn = new QPushButton("Remove BoxCollider");
+    QPushButton *removeBtn = new QPushButton("Remove Component");
     connect(removeBtn, &QPushButton::clicked, this, [this]() {
       if (m_SelectedEntity) {
         m_SelectedEntity.RemoveComponent<Horse::BoxColliderComponent>();
@@ -670,32 +608,95 @@ void InspectorPanel::DrawComponents() {
       }
     });
     bcLayout->addRow(removeBtn);
-    physicsVLayout->addWidget(bcBox);
+    m_ContentLayout->addWidget(bcGroup);
   }
 
+  // --------------------------------------------------------------------------
   // Add Component Button
-  QPushButton *addPhysicsBtn = new QPushButton("Add Component");
-  connect(addPhysicsBtn, &QPushButton::clicked, this, [this]() {
-    QMenu menu;
-    if (m_SelectedEntity) {
-      if (!m_SelectedEntity.HasComponent<Horse::RigidBodyComponent>()) {
-        menu.addAction("Rigid Body", [this]() {
-          m_SelectedEntity.AddComponent<Horse::RigidBodyComponent>();
-          RefreshInspector();
-        });
-      }
-      if (!m_SelectedEntity.HasComponent<Horse::BoxColliderComponent>()) {
-        menu.addAction("Box Collider", [this]() {
-          m_SelectedEntity.AddComponent<Horse::BoxColliderComponent>();
-          RefreshInspector();
-        });
-      }
-    }
-    if (!menu.isEmpty()) {
-      menu.exec(QCursor::pos());
-    }
-  });
-  physicsVLayout->addWidget(addPhysicsBtn);
+  // --------------------------------------------------------------------------
+  QPushButton *addComponentBtn = new QPushButton("Add Component");
+  addComponentBtn->setStyleSheet("padding: 5px; font-weight: bold;");
 
-  m_ContentLayout->addWidget(physicsGroup);
+  connect(addComponentBtn, &QPushButton::clicked, this, [this]() {
+    QMenu menu;
+
+    // Core Components
+    if (!m_SelectedEntity.HasComponent<Horse::CameraComponent>()) {
+      menu.addAction("Camera", [this]() {
+        m_SelectedEntity.AddComponent<Horse::CameraComponent>();
+        RefreshInspector();
+      });
+    }
+    if (!m_SelectedEntity.HasComponent<Horse::LightComponent>()) {
+      menu.addAction("Light", [this]() {
+        m_SelectedEntity.AddComponent<Horse::LightComponent>();
+        RefreshInspector();
+      });
+    }
+    if (!m_SelectedEntity.HasComponent<Horse::MeshRendererComponent>()) {
+      menu.addAction("Mesh Renderer", [this]() {
+        m_SelectedEntity.AddComponent<Horse::MeshRendererComponent>();
+        RefreshInspector();
+      });
+    }
+
+    menu.addSeparator();
+
+    // Physics
+    if (!m_SelectedEntity.HasComponent<Horse::RigidBodyComponent>()) {
+      menu.addAction("Rigid Body", [this]() {
+        m_SelectedEntity.AddComponent<Horse::RigidBodyComponent>();
+        RefreshInspector();
+      });
+    }
+    if (!m_SelectedEntity.HasComponent<Horse::BoxColliderComponent>()) {
+      menu.addAction("Box Collider", [this]() {
+        m_SelectedEntity.AddComponent<Horse::BoxColliderComponent>();
+        RefreshInspector();
+      });
+    }
+
+    menu.addSeparator();
+
+    // Scripts (Lua)
+    if (!m_SelectedEntity.HasComponent<Horse::ScriptComponent>()) {
+      menu.addAction("Lua Script", [this]() {
+        m_SelectedEntity.AddComponent<Horse::ScriptComponent>();
+        RefreshInspector();
+      });
+    }
+
+    // Scripts (C++)
+    if (!m_SelectedEntity.HasComponent<Horse::NativeScriptComponent>()) {
+      QMenu *cppMenu = menu.addMenu("C++ Script");
+
+      auto engine = Horse::Engine::Get();
+      auto gameModule = engine ? engine->GetGameModule() : nullptr;
+
+      if (gameModule) {
+        auto scriptNames = gameModule->GetAvailableScripts();
+        for (const auto &name : scriptNames) {
+          cppMenu->addAction(
+              QString::fromStdString(name), [this, gameModule, name]() {
+                if (m_SelectedEntity) {
+                  gameModule->CreateScript(name, m_SelectedEntity);
+                  RefreshInspector();
+                }
+              });
+        }
+        if (scriptNames.empty()) {
+          cppMenu->actions().isEmpty();
+          // Just to ensure checks
+          cppMenu->addAction("No scripts found")->setEnabled(false);
+        }
+      } else {
+        cppMenu->addAction("Game Module Not Loaded")->setEnabled(false);
+      }
+    }
+
+    menu.exec(QCursor::pos());
+  });
+
+  m_ContentLayout->addWidget(addComponentBtn);
+  m_ContentLayout->addStretch();
 }
