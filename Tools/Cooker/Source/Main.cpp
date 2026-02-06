@@ -125,6 +125,7 @@ int main(int argc, char **argv) {
           // Use hashed relative path as stable GUID
           std::string relPathStr =
               std::filesystem::relative(entry.path(), assetsDir).string();
+          std::replace(relPathStr.begin(), relPathStr.end(), '\\', '/');
           meta.Handle = UUID((uint64_t)std::hash<std::string>{}(relPathStr));
           meta.Type = type;
           meta.FilePath = relPathStr;

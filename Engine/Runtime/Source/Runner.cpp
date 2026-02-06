@@ -59,11 +59,13 @@ int main(int argc, char **argv) {
     // Load Project Config
     std::vector<uint8_t> projectData;
     if (Horse::FileSystem::ReadBytes("Game.project.bin", projectData)) {
+#pragma pack(push, 1)
       struct ProjectCookedHeader {
         char Magic[4];
         uint32_t Version;
         uint64_t DefaultLevelGUID;
       };
+#pragma pack(pop)
 
       if (projectData.size() >= sizeof(ProjectCookedHeader)) {
         auto header =
@@ -71,6 +73,9 @@ int main(int argc, char **argv) {
         if (memcmp(header->Magic, "HPRJ", 4) == 0) {
           auto project = std::make_shared<Horse::Project>();
           auto &config = project->GetConfig();
+
+          HORSE_LOG_CORE_INFO("Project Bin Loaded. DefaultLevelGUID: {0}",
+                              header->DefaultLevelGUID);
 
           // Load Manifest to resolve GUID
           std::string manifestContent;
@@ -83,12 +88,15 @@ int main(int argc, char **argv) {
                 auto &assets = manifest["Assets"];
                 if (assets.contains(guidStr)) {
                   config.DefaultScene = assets[guidStr].get<std::string>();
-                  std::cout << "Resolved Default Scene: " << config.DefaultScene
-                            << std::endl;
+                  HORSE_LOG_CORE_INFO("Resolved Default Scene: {0}",
+                                      config.DefaultScene);
+                } else {
+                  HORSE_LOG_CORE_WARN(
+                      "GUID {0} not found in Game.manifest.json", guidStr);
                 }
               }
             } catch (...) {
-              std::cerr << "Failed to parse Game.manifest.json" << std::endl;
+              HORSE_LOG_CORE_ERROR("Failed to parse Game.manifest.json");
             }
           }
 

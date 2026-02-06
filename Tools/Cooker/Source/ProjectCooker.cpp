@@ -5,11 +5,13 @@
 
 namespace Horse {
 
+#pragma pack(push, 1)
 struct ProjectCookedHeader {
   char Magic[4] = {'H', 'P', 'R', 'J'};
   uint32_t Version = 1;
   uint64_t DefaultLevelGUID = 0;
 };
+#pragma pack(pop)
 
 bool ProjectCooker::Cook(const std::filesystem::path &sourcePath,
                          const AssetMetadata &metadata,
@@ -26,8 +28,23 @@ bool ProjectCooker::Cook(const std::filesystem::path &sourcePath,
     header.DefaultLevelGUID = j["DefaultLevel"].get<uint64_t>();
   } else if (j.contains("defaultScene")) {
     std::string scenePath = j["defaultScene"].get<std::string>();
+
+    // Normalize path to match asset manifest (remove "Assets/" prefix and use
+    // forward slashes)
+    std::string normalizedPath = scenePath;
+    if (normalizedPath.find("Assets/") == 0) {
+      normalizedPath = normalizedPath.substr(7);
+    } else if (normalizedPath.find("Assets\\") == 0) {
+      normalizedPath = normalizedPath.substr(7);
+    }
+
+    std::replace(normalizedPath.begin(), normalizedPath.end(), '\\', '/');
+
     // Store hashed filename as GUID to match manifest
-    header.DefaultLevelGUID = std::hash<std::string>{}(scenePath);
+    header.DefaultLevelGUID = std::hash<std::string>{}(normalizedPath);
+    HORSE_LOG_CORE_INFO(
+        "Cooking Default Scene: {0} (Normalized: {1}, GUID: {2})", scenePath,
+        normalizedPath, header.DefaultLevelGUID);
   }
 
   std::filesystem::path outputPath = context.OutputDir / "Game.project.bin";
