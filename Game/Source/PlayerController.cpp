@@ -83,10 +83,8 @@ void PlayerController::OnUpdate(float deltaTime) {
   m_LastMouseX = mousePos.X;
   m_LastMouseY = mousePos.Y;
 
-  // IMPORTANT: Only rotate if right mouse button is held (Editor Mode style) OR
-  // if we are in "Capture Mode" For now, let's require Right Mouse Button for
-  // the Player Controller too, to avoid annoyance in Editor.
-  if (Input::IsMouseButtonPressed(KEY_RBUTTON)) {
+  // IMPORTANT: Rotate if the cursor is locked (standard gameplay feel)
+  if (Input::GetCursorMode() == CursorMode::Locked) {
     xOffset *= m_Sensitivity;
     yOffset *= m_Sensitivity;
 
