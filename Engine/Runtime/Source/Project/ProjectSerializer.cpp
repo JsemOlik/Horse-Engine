@@ -1,4 +1,5 @@
 #include "HorseEngine/Project/ProjectSerializer.h"
+#include "HorseEngine/Core/FileSystem.h"
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Project/Project.h"
 
@@ -33,15 +34,15 @@ bool ProjectSerializer::SerializeToJSON(const std::string &filepath) {
 }
 
 bool ProjectSerializer::DeserializeFromJSON(const std::string &filepath) {
-  std::ifstream f(filepath);
-  if (!f.is_open())
+  std::string jsonContent;
+  if (!FileSystem::ReadText(filepath, jsonContent))
     return false;
 
   json projectJson;
   try {
-    projectJson = json::parse(f);
+    projectJson = json::parse(jsonContent);
   } catch (const json::parse_error &e) {
-    std::cerr << "Project parse error: " << e.what() << std::endl;
+    HORSE_LOG_CORE_ERROR("Project parse error: {}", e.what());
     return false;
   }
 
@@ -64,16 +65,20 @@ bool ProjectSerializer::DeserializeFromJSON(const std::string &filepath) {
 struct ProjectCookedHeader {
   char Magic[4];
   uint32_t Version;
+  char Name[128];
   uint64_t DefaultLevelGUID;
 };
 
 bool ProjectSerializer::DeserializeFromBinary(const std::string &filepath) {
-  std::ifstream stream(filepath, std::ios::binary);
-  if (!stream.is_open())
+  std::vector<uint8_t> data;
+  if (!FileSystem::ReadBytes(filepath, data))
+    return false;
+
+  if (data.size() < sizeof(ProjectCookedHeader))
     return false;
 
   ProjectCookedHeader header;
-  stream.read(reinterpret_cast<char *>(&header), sizeof(ProjectCookedHeader));
+  memcpy(&header, data.data(), sizeof(ProjectCookedHeader));
 
   if (header.Magic[0] != 'H' || header.Magic[1] != 'P' ||
       header.Magic[2] != 'R' || header.Magic[3] != 'J') {
@@ -82,6 +87,7 @@ bool ProjectSerializer::DeserializeFromBinary(const std::string &filepath) {
   }
 
   auto &config = m_Project->GetConfig();
+  config.Name = std::string(header.Name);
   config.DefaultLevelGUID = header.DefaultLevelGUID;
 
   std::filesystem::path path(filepath);

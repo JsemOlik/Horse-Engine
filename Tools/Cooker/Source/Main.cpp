@@ -124,7 +124,8 @@ int main(int argc, char **argv) {
           AssetMetadata meta;
           // Use hashed relative path as stable GUID
           std::string relPathStr =
-              std::filesystem::relative(entry.path(), assetsDir).string();
+              std::filesystem::relative(entry.path(), assetsDir)
+                  .generic_string();
           meta.Handle = UUID((uint64_t)std::hash<std::string>{}(relPathStr));
           meta.Type = type;
           meta.FilePath = relPathStr;
