@@ -22,8 +22,6 @@ bool ProjectSerializer::SerializeToJSON(const std::string &filepath) {
   projectJson["engineVersion"] = config.EngineVersion;
   projectJson["defaultScene"] = config.DefaultScene;
   projectJson["assetDirectory"] = config.AssetDirectory;
-  projectJson["skyboxTexture"] = config.SkyboxTexture;
-  projectJson["defaultCubeTexture"] = config.DefaultCubeTexture;
 
   std::ofstream fout(filepath);
   if (!fout.is_open())
@@ -52,10 +50,6 @@ bool ProjectSerializer::DeserializeFromJSON(const std::string &filepath) {
   config.EngineVersion = projectJson.value("engineVersion", "0.1.0");
   config.DefaultScene = projectJson.value("defaultScene", "");
   config.AssetDirectory = projectJson.value("assetDirectory", "Assets");
-  config.SkyboxTexture =
-      projectJson.value("skyboxTexture", "Assets/Textures/skybox.png");
-  config.DefaultCubeTexture = projectJson.value(
-      "defaultCubeTexture", "Assets/Textures/Checkerboard.png");
 
   std::filesystem::path path(filepath);
   config.ProjectFileName = path.filename();

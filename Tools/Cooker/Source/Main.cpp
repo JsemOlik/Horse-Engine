@@ -1,7 +1,6 @@
 #include "CookerRegistry.h"
 #include "HorseEngine/Asset/Asset.h"
 #include "HorseEngine/Asset/AssetManager.h"
-#include "HorseEngine/Core/Hash.h"
 #include "HorseEngine/Core/Logging.h"
 #include "LevelCooker.h"
 #include "MaterialCooker.h"
@@ -9,7 +8,6 @@
 #include "ProjectCooker.h"
 #include "ScriptCooker.h"
 #include "TextureCooker.h"
-
 
 #include <filesystem>
 #include <fstream>
@@ -127,8 +125,7 @@ int main(int argc, char **argv) {
           // Use hashed relative path as stable GUID
           std::string relPathStr =
               std::filesystem::relative(entry.path(), assetsDir).string();
-          std::replace(relPathStr.begin(), relPathStr.end(), '\\', '/');
-          meta.Handle = UUID(Hash::HashString(relPathStr));
+          meta.Handle = UUID((uint64_t)std::hash<std::string>{}(relPathStr));
           meta.Type = type;
           meta.FilePath = relPathStr;
           cookingRegistry[meta.Handle] = meta;
@@ -149,9 +146,6 @@ int main(int argc, char **argv) {
       std::filesystem::path sourcePath = assetsDir / metadata.FilePath;
       if (cooker->Cook(sourcePath, metadata, context)) {
         std::filesystem::path cookedRelPath = metadata.FilePath;
-        if (cookedRelPath.extension() == ".json") {
-          cookedRelPath.replace_extension("");
-        }
         cookedRelPath.replace_extension(cooker->GetCookedExtension());
         manifest["Assets"][std::to_string((uint64_t)handle)] =
             cookedRelPath.string();

@@ -29,9 +29,7 @@ const AssetMetadata &
 AssetManager::GetMetadata(const std::filesystem::path &filePath) const {
   static AssetMetadata emptyMetadata;
   auto relativePath = std::filesystem::relative(filePath, m_AssetsDirectory);
-  std::string relPathStr = relativePath.string();
-  std::replace(relPathStr.begin(), relPathStr.end(), '\\', '/');
-  auto it = m_FilePathToHandle.find(relPathStr);
+  auto it = m_FilePathToHandle.find(relativePath);
   if (it != m_FilePathToHandle.end()) {
     return GetMetadata(it->second);
   }
@@ -60,9 +58,7 @@ void AssetManager::ImportAsset(const std::filesystem::path &path, UUID uuid) {
 
   AssetMetadata metadata;
   metadata.Handle = uuid;
-  std::string relPathStr = relativePath.string();
-  std::replace(relPathStr.begin(), relPathStr.end(), '\\', '/');
-  metadata.FilePath = relPathStr;
+  metadata.FilePath = relativePath;
   metadata.Type = DetermineAssetType(path);
 
   if (metadata.Type == AssetType::None)
@@ -145,10 +141,8 @@ void AssetManager::ProcessDirectory(const std::filesystem::path &directory) {
           AssetMetadata metadata;
           metadata.Handle = UUID(j["Handle"].get<uint64_t>());
           metadata.Type = AssetTypeFromString(j["Type"]);
-          std::string relPathStr =
-              std::filesystem::relative(path, m_AssetsDirectory).string();
-          std::replace(relPathStr.begin(), relPathStr.end(), '\\', '/');
-          metadata.FilePath = relPathStr;
+          metadata.FilePath =
+              std::filesystem::relative(path, m_AssetsDirectory);
           // relative might fail if paths are virtual?
           // If 'path' is "Assets/Textures/Wall.png" and m_AssetsDirectory is
           // "Assets", relative is "Textures/Wall.png". Correct.

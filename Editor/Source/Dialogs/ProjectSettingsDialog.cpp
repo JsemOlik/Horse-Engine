@@ -18,10 +18,8 @@ ProjectSettingsDialog::ProjectSettingsDialog(
   m_NameEdit = new QLineEdit(QString::fromStdString(config.Name));
   m_VersionEdit = new QLineEdit(QString::fromStdString(config.EngineVersion));
   m_SceneCombo = new QComboBox();
-  m_SkyboxCombo = new QComboBox();
 
   ScanForScenes();
-  ScanForTextures();
 
   // Select current default scene if it exists in the list
   int index =
@@ -30,17 +28,9 @@ ProjectSettingsDialog::ProjectSettingsDialog(
     m_SceneCombo->setCurrentIndex(index);
   }
 
-  // Select current skybox texture
-  int skyIndex =
-      m_SkyboxCombo->findText(QString::fromStdString(config.SkyboxTexture));
-  if (skyIndex != -1) {
-    m_SkyboxCombo->setCurrentIndex(skyIndex);
-  }
-
   formLayout->addRow("Project Name:", m_NameEdit);
   formLayout->addRow("Engine Version:", m_VersionEdit);
   formLayout->addRow("Default Scene:", m_SceneCombo);
-  formLayout->addRow("Skybox Texture:", m_SkyboxCombo);
 
   mainLayout->addLayout(formLayout);
 
@@ -85,42 +75,5 @@ void ProjectSettingsDialog::ScanForScenes() {
     }
   } catch (const std::exception &e) {
     // Log error silently or show message
-  }
-}
-
-void ProjectSettingsDialog::ScanForTextures() {
-  m_SkyboxCombo->clear();
-  m_SkyboxCombo->addItem(""); // Empty option
-
-  if (!m_Project)
-    return;
-
-  std::filesystem::path projectDir = m_Project->GetConfig().ProjectDirectory;
-  std::filesystem::path textureDir =
-      projectDir / m_Project->GetConfig().AssetDirectory / "Textures";
-
-  if (!std::filesystem::exists(textureDir))
-    return;
-
-  try {
-    for (const auto &entry : std::filesystem::directory_iterator(textureDir)) {
-      if (entry.is_regular_file()) {
-        std::string filename = entry.path().filename().string();
-        std::string ext = entry.path().extension().string();
-        std::transform(filename.begin(), filename.end(), filename.begin(),
-                       ::tolower);
-
-        if (filename.starts_with("skybox") &&
-            (ext == ".png" || ext == ".jpg" || ext == ".tga" ||
-             ext == ".dds")) {
-          std::string relativePath =
-              std::filesystem::relative(entry.path(), projectDir)
-                  .generic_string();
-          m_SkyboxCombo->addItem(QString::fromStdString(relativePath));
-        }
-      }
-    }
-  } catch (const std::exception &e) {
-    // Log error
   }
 }

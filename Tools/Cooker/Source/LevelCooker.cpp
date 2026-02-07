@@ -26,9 +26,6 @@ bool LevelCooker::Cook(const std::filesystem::path &sourcePath,
   // logic to extract counts...
 
   std::filesystem::path outputPath = context.OutputDir / metadata.FilePath;
-  if (outputPath.extension() == ".json") {
-    outputPath.replace_extension(""); // Remove .json
-  }
   outputPath.replace_extension(GetCookedExtension());
   std::filesystem::create_directories(outputPath.parent_path());
 

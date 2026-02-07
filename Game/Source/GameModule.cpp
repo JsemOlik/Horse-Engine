@@ -24,7 +24,6 @@ private:
   float m_Time = 0.0f;
 };
 
-#include "HorseEngine/Project/Project.h"
 #include "HorseEngine/Scene/SceneSerializer.h"
 
 // ...
@@ -35,16 +34,10 @@ public:
     HORSE_LOG_CORE_INFO("MyGameModule::OnLoad() called!");
 
     // Load Scene
-    // Retrieve default scene from Project Config
-    std::string scenePath;
-    if (auto project = Project::GetActive()) {
-      scenePath = project->GetConfig().DefaultScene;
-    }
-
-    if (scenePath.empty()) {
-      HORSE_LOG_CORE_WARN("No default scene specified in project config!");
-      return;
-    }
+    // Path should match what is in PAK.
+    // Cooker output might be "Scenes/..." or just root relative.
+    // Try scanning or hardcoded.
+    std::string scenePath = "Scenes/TC1.horselevel.horselevel";
 
     m_ActiveScene = SceneSerializer::DeserializeFromJSON(scenePath);
     if (m_ActiveScene) {

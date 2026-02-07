@@ -10,7 +10,6 @@
 #include "Dialogs/PreferencesDialog.h"
 #include "EditorPreferences.h"
 #include "HorseEngine/Asset/AssetManager.h"
-#include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Core/Time.h"
 #include "HorseEngine/Render/MaterialRegistry.h"
 #include "HorseEngine/Scene/Components.h"
@@ -371,31 +370,6 @@ void EditorWindow::NewProject(const std::string &filepath) {
   std::filesystem::create_directories(project->GetConfig().ProjectDirectory /
                                       project->GetConfig().AssetDirectory /
                                       "Scripts");
-  std::filesystem::create_directories(project->GetConfig().ProjectDirectory /
-                                      project->GetConfig().AssetDirectory /
-                                      "Textures");
-
-  // Copy default textures from Engine
-  try {
-    std::filesystem::path engineTextureDir = "Engine/Runtime/Textures";
-    std::filesystem::path projectTextureDir =
-        project->GetConfig().ProjectDirectory /
-        project->GetConfig().AssetDirectory / "Textures";
-
-    if (std::filesystem::exists(engineTextureDir / "Checkerboard.png")) {
-      std::filesystem::copy_file(
-          engineTextureDir / "Checkerboard.png",
-          projectTextureDir / "Checkerboard.png",
-          std::filesystem::copy_options::overwrite_existing);
-    }
-    if (std::filesystem::exists(engineTextureDir / "skybox.png")) {
-      std::filesystem::copy_file(
-          engineTextureDir / "skybox.png", projectTextureDir / "skybox.png",
-          std::filesystem::copy_options::overwrite_existing);
-    }
-  } catch (const std::exception &e) {
-    HORSE_LOG_CORE_ERROR("Failed to copy default textures: {}", e.what());
-  }
 
   Horse::Project::SetActive(project);
   Horse::Project::SetActive(project);
@@ -496,7 +470,6 @@ void EditorWindow::OnProjectSettings() {
     config.Name = newName;
     config.EngineVersion = dialog.GetEngineVersion();
     config.DefaultScene = dialog.GetDefaultScene();
-    config.SkyboxTexture = dialog.GetSkyboxTexture();
 
     // Handle project file renaming if name changed
     if (oldName != newName) {

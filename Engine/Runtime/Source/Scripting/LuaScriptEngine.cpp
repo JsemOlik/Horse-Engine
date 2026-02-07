@@ -1,12 +1,10 @@
 #include "HorseEngine/Scripting/LuaScriptEngine.h"
-#include "HorseEngine/Core/FileSystem.h"
 #include "HorseEngine/Core/Input.h"
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Project/Project.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Scene.h"
 #include <filesystem>
-
 
 namespace Horse {
 
@@ -116,28 +114,28 @@ void LuaScriptEngine::OnCreateEntity(Entity entity) {
   if (sc.ScriptPath.empty())
     return;
 
-  std::string scriptPath = sc.ScriptPath;
+  namespace fs = std::filesystem;
+  fs::path scriptPath = sc.ScriptPath;
 
-  // Normalize path (remove "Assets/" prefix if present to match PAK structure)
-  if (scriptPath.find("Assets/") == 0) {
-    scriptPath = scriptPath.substr(7);
-  } else if (scriptPath.find("Assets\\") == 0) {
-    scriptPath = scriptPath.substr(7);
+  // Resolve relative path
+  if (scriptPath.is_relative()) {
+    auto projectDir = Project::GetProjectDirectory();
+    if (!projectDir.empty()) {
+      scriptPath = projectDir / scriptPath;
+    }
   }
-  std::replace(scriptPath.begin(), scriptPath.end(), '\\', '/');
 
-  std::string scriptSource;
-  if (!FileSystem::ReadText(scriptPath, scriptSource)) {
-    HORSE_LOG_CORE_ERROR("Lua script not found or failed to read: {}",
-                         scriptPath);
+  if (!fs::exists(scriptPath)) {
+    HORSE_LOG_CORE_ERROR("Lua script not found: {}", scriptPath.string());
     return;
   }
 
-  auto result = s_LuaState->script(scriptSource, sol::script_pass_on_error);
+  auto result =
+      s_LuaState->script_file(scriptPath.string(), sol::script_pass_on_error);
   if (!result.valid()) {
     sol::error err = result;
-    HORSE_LOG_CORE_ERROR("Failed to execute Lua script {}: {}", scriptPath,
-                         err.what());
+    HORSE_LOG_CORE_ERROR("Failed to load Lua script {}: {}",
+                         scriptPath.string(), err.what());
     return;
   }
 

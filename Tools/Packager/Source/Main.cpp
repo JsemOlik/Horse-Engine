@@ -226,30 +226,15 @@ int main(int argc, char **argv) {
     }
   }
 
-  // 5. Copy Engine assets (Only Shaders and core Textures)
-  std::filesystem::path buildEngineDir = runtimeDir / "Engine/Runtime";
+  // 5. Copy Engine assets
+  std::filesystem::path buildEngineDir = runtimeDir / "Engine";
   if (std::filesystem::exists(buildEngineDir)) {
     try {
-      // Shaders
-      std::filesystem::create_directories(outputDir / "Engine/Runtime/Shaders");
-      if (std::filesystem::exists(buildEngineDir / "Shaders")) {
-        std::filesystem::copy(
-            buildEngineDir / "Shaders", outputDir / "Engine/Runtime/Shaders",
-            std::filesystem::copy_options::recursive |
-                std::filesystem::copy_options::overwrite_existing);
-        std::cout << "Copied Engine Shaders" << std::endl;
-      }
-
-      // Textures
-      std::filesystem::create_directories(outputDir /
-                                          "Engine/Runtime/Textures");
-      if (std::filesystem::exists(buildEngineDir / "Textures")) {
-        std::filesystem::copy(
-            buildEngineDir / "Textures", outputDir / "Engine/Runtime/Textures",
-            std::filesystem::copy_options::recursive |
-                std::filesystem::copy_options::overwrite_existing);
-        std::cout << "Copied Engine Textures" << std::endl;
-      }
+      std::filesystem::copy(
+          buildEngineDir, outputDir / "Engine",
+          std::filesystem::copy_options::recursive |
+              std::filesystem::copy_options::overwrite_existing);
+      std::cout << "Copied Engine assets" << std::endl;
     } catch (const std::exception &e) {
       std::cerr << "Error copying Engine assets: " << e.what() << std::endl;
     }

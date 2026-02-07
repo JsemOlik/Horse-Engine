@@ -2,11 +2,9 @@
 #include "HorseEngine/Core/FileSystem.h"
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Engine.h"
-#include "HorseEngine/Project/Project.h"
 #include "HorseEngine/Render/D3D11Renderer.h"
 #include <filesystem>
 #include <iostream>
-#include <nlohmann/json.hpp>
 #include <string>
 #include <windows.h>
 
@@ -52,67 +50,9 @@ int main(int argc, char **argv) {
                    "std::filesystem..."
                 << std::endl;
       if (std::filesystem::exists(pakPath)) {
+        // Try mounting via absolute path logic if Exists fails (e.g. init
+        // issue)
         Horse::FileSystem::Mount(pakPathStr, "/");
-      }
-    }
-
-    // Load Project Config
-    std::vector<uint8_t> projectData;
-    if (Horse::FileSystem::ReadBytes("Game.project.bin", projectData)) {
-#pragma pack(push, 1)
-      struct ProjectCookedHeader {
-        char Magic[4];
-        uint32_t Version;
-        uint64_t DefaultLevelGUID;
-      };
-#pragma pack(pop)
-
-      if (projectData.size() >= sizeof(ProjectCookedHeader)) {
-        auto header =
-            reinterpret_cast<ProjectCookedHeader *>(projectData.data());
-        if (memcmp(header->Magic, "HPRJ", 4) == 0) {
-          auto project = std::make_shared<Horse::Project>();
-          auto &config = project->GetConfig();
-
-          HORSE_LOG_CORE_INFO("Project Bin Loaded. DefaultLevelGUID: {0}",
-                              header->DefaultLevelGUID);
-
-          // Load Manifest to resolve GUID
-          std::string manifestContent;
-          if (Horse::FileSystem::ReadText("Game.manifest.json",
-                                          manifestContent)) {
-            try {
-              auto manifest = nlohmann::json::parse(manifestContent);
-              std::string guidStr = std::to_string(header->DefaultLevelGUID);
-              if (manifest.contains("Assets")) {
-                auto &assets = manifest["Assets"];
-                if (assets.contains(guidStr)) {
-                  config.DefaultScene = assets[guidStr].get<std::string>();
-                  HORSE_LOG_CORE_INFO("Resolved Default Scene: {0}",
-                                      config.DefaultScene);
-                } else {
-                  HORSE_LOG_CORE_WARN(
-                      "GUID {0} not found in Game.manifest.json", guidStr);
-
-                  // Diagnostic: Log some available manifest keys
-                  HORSE_LOG_CORE_INFO(
-                      "Checking first 10 manifest entries for comparison...");
-                  int count = 0;
-                  for (auto &[key, val] : assets.items()) {
-                    HORSE_LOG_CORE_INFO("  Manifest Key: {0} -> {1}", key,
-                                        val.get<std::string>());
-                    if (++count >= 10)
-                      break;
-                  }
-                }
-              }
-            } catch (...) {
-              HORSE_LOG_CORE_ERROR("Failed to parse Game.manifest.json");
-            }
-          }
-
-          Horse::Project::SetActive(project);
-        }
       }
     }
   }
