@@ -9,6 +9,7 @@
 #include "ScriptCooker.h"
 #include "TextureCooker.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -97,8 +98,10 @@ int main(int argc, char **argv) {
 
   CookerContext context;
   context.AssetsDir = assetsDir;
-  context.OutputDir = outputDir;
   context.Platform = platform;
+  // Initialize context early if needed, though we populate it fully later
+  context.AssetsDir = assetsDir;
+  context.OutputDir = outputDir;
 
   nlohmann::json manifest;
   manifest["Assets"] = nlohmann::json::object();
@@ -139,6 +142,17 @@ int main(int argc, char **argv) {
   }
 
   HORSE_LOG_CORE_INFO("Processing {0} assets...", cookingRegistry.size());
+
+  context.AssetsDir = assetsDir;
+  context.OutputDir = outputDir;
+  context.Platform = platform;
+
+  // Map file paths to GUIDs for lookups during cooking (e.g. ProjectCooker)
+  for (const auto &[handle, metadata] : cookingRegistry) {
+    std::string pathStr = metadata.FilePath.string();
+    std::replace(pathStr.begin(), pathStr.end(), '\\', '/');
+    context.AssetPathToGUID[pathStr] = handle;
+  }
 
   for (const auto &[handle, metadata] : cookingRegistry) {
     AssetCooker *cooker = CookerRegistry::GetCooker(metadata.Type);

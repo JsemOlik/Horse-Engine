@@ -43,15 +43,24 @@ public:
 
     if (auto project = Project::GetActive()) {
       uint64_t defaultGUID = project->GetConfig().DefaultLevelGUID;
+      HORSE_LOG_CORE_INFO("Active project found. DefaultLevelGUID: {}",
+                          defaultGUID);
       if (defaultGUID != 0) {
         std::filesystem::path resolvedPath =
             AssetManager::Get().GetFileSystemPath(UUID(defaultGUID));
         if (!resolvedPath.empty()) {
           scenePath = resolvedPath.string();
+          HORSE_LOG_CORE_INFO("Resolved default scene path: {}", scenePath);
           // Normalize separators for PhysFS/SceneSerializer
           std::replace(scenePath.begin(), scenePath.end(), '\\', '/');
+        } else {
+          HORSE_LOG_CORE_ERROR(
+              "Failed to resolve file system path for GUID: {}", defaultGUID);
         }
       }
+    } else {
+      HORSE_LOG_CORE_WARN(
+          "No active project found, using fallback scene path.");
     }
 
     m_ActiveScene = SceneSerializer::DeserializeFromJSON(scenePath);

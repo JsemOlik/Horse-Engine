@@ -1,4 +1,5 @@
 #include "HorseEngine/Engine.h"
+#include "HorseEngine/Core/FileSystem.h"
 #include "HorseEngine/Core/Input.h"
 #include "HorseEngine/Core/Memory.h"
 #include "HorseEngine/Game/GameModule.h"
@@ -7,6 +8,7 @@
 #include "HorseEngine/Scripting/LuaScriptEngine.h"
 #include <filesystem>
 #include <iostream>
+#include <vector>
 
 namespace Horse {
 
@@ -52,12 +54,19 @@ bool Engine::Initialize(bool headless) {
 
   // Standalone mode: Load project binary if it exists
   std::filesystem::path projectBin = "Game.project.bin";
-  if (std::filesystem::exists(projectBin)) {
+  HORSE_LOG_CORE_INFO("Checking for project binary via FileSystem...");
+  if (FileSystem::Exists(projectBin)) {
     auto project = Project::LoadFromBinary(projectBin);
     if (project) {
       Project::SetActive(project);
-      HORSE_LOG_CORE_INFO("Loaded Project configuration from binary");
+      HORSE_LOG_CORE_INFO(
+          "Loaded Project configuration from binary. DefaultLevelGUID: {}",
+          project->GetConfig().DefaultLevelGUID);
+    } else {
+      HORSE_LOG_CORE_ERROR("Failed to load Project configuration from binary!");
     }
+  } else {
+    HORSE_LOG_CORE_WARN("Game.project.bin not found via FileSystem");
   }
 
   LoadGameDLL("HorseGame.dll");

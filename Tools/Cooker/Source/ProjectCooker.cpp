@@ -1,5 +1,6 @@
 #include "ProjectCooker.h"
 #include "HorseEngine/Core/Logging.h"
+#include <algorithm>
 #include <fstream>
 #include <nlohmann/json.hpp>
 
@@ -34,8 +35,20 @@ bool ProjectCooker::Cook(const std::filesystem::path &sourcePath,
       scenePath = scenePath.substr(7);
     }
 
-    // Store hashed filename as GUID to match manifest
-    header.DefaultLevelGUID = std::hash<std::string>{}(scenePath);
+    // Normalize separators for lookup
+    std::replace(scenePath.begin(), scenePath.end(), '\\', '/');
+
+    // Look up actual GUID from registry
+    if (context.AssetPathToGUID.count(scenePath)) {
+      header.DefaultLevelGUID = (uint64_t)context.AssetPathToGUID.at(scenePath);
+      HORSE_LOG_CORE_INFO("Resolved default scene GUID for {0}: {1}", scenePath,
+                          header.DefaultLevelGUID);
+    } else {
+      HORSE_LOG_CORE_WARN("Could not find GUID for default scene: {0}. "
+                          "Falling back to path hash.",
+                          scenePath);
+      header.DefaultLevelGUID = std::hash<std::string>{}(scenePath);
+    }
   }
 
   std::filesystem::path outputPath = context.OutputDir / "Game.project.bin";
