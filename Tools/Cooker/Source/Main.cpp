@@ -1,6 +1,7 @@
 #include "CookerRegistry.h"
 #include "HorseEngine/Asset/Asset.h"
 #include "HorseEngine/Asset/AssetManager.h"
+#include "HorseEngine/Core/Hash.h"
 #include "HorseEngine/Core/Logging.h"
 #include "LevelCooker.h"
 #include "MaterialCooker.h"
@@ -8,6 +9,7 @@
 #include "ProjectCooker.h"
 #include "ScriptCooker.h"
 #include "TextureCooker.h"
+
 
 #include <filesystem>
 #include <fstream>
@@ -126,7 +128,7 @@ int main(int argc, char **argv) {
           std::string relPathStr =
               std::filesystem::relative(entry.path(), assetsDir).string();
           std::replace(relPathStr.begin(), relPathStr.end(), '\\', '/');
-          meta.Handle = UUID((uint64_t)std::hash<std::string>{}(relPathStr));
+          meta.Handle = UUID(Hash::HashString(relPathStr));
           meta.Type = type;
           meta.FilePath = relPathStr;
           cookingRegistry[meta.Handle] = meta;

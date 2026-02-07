@@ -1,5 +1,8 @@
 #include "ProjectCooker.h"
+#include "HorseEngine/Asset/AssetManager.h"
+#include "HorseEngine/Core/Hash.h"
 #include "HorseEngine/Core/Logging.h"
+#include <algorithm>
 #include <fstream>
 #include <nlohmann/json.hpp>
 
@@ -40,11 +43,26 @@ bool ProjectCooker::Cook(const std::filesystem::path &sourcePath,
 
     std::replace(normalizedPath.begin(), normalizedPath.end(), '\\', '/');
 
-    // Store hashed filename as GUID to match manifest
-    header.DefaultLevelGUID = std::hash<std::string>{}(normalizedPath);
-    HORSE_LOG_CORE_INFO(
-        "Cooking Default Scene: {0} (Normalized: {1}, GUID: {2})", scenePath,
-        normalizedPath, header.DefaultLevelGUID);
+    // Try to resolve GUID via AssetManager (so it matches manifest/meta files)
+    // Pass the absolute path so AssetManager::GetMetadata can correctly compute
+    // the relative path
+    auto &assetMetadata =
+        AssetManager::Get().GetMetadata(context.AssetsDir / normalizedPath);
+    if (assetMetadata.IsValid()) {
+      header.DefaultLevelGUID = (uint64_t)assetMetadata.Handle;
+      HORSE_LOG_CORE_INFO(
+          "Resolved Default Scene GUID via AssetManager: {0} -> {1}",
+          normalizedPath, header.DefaultLevelGUID);
+    } else {
+      // Fallback to stable hash if not in registry
+      header.DefaultLevelGUID = Hash::HashString(normalizedPath);
+      HORSE_LOG_CORE_WARN("Default Scene {0} not found in AssetRegistry! "
+                          "Falling back to Hash: {1}",
+                          normalizedPath, header.DefaultLevelGUID);
+    }
+
+    HORSE_LOG_CORE_INFO("Cooking Default Scene Entry: {0} (GUID: {1})",
+                        scenePath, header.DefaultLevelGUID);
   }
 
   std::filesystem::path outputPath = context.OutputDir / "Game.project.bin";

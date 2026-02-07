@@ -93,6 +93,17 @@ int main(int argc, char **argv) {
                 } else {
                   HORSE_LOG_CORE_WARN(
                       "GUID {0} not found in Game.manifest.json", guidStr);
+
+                  // Diagnostic: Log some available manifest keys
+                  HORSE_LOG_CORE_INFO(
+                      "Checking first 10 manifest entries for comparison...");
+                  int count = 0;
+                  for (auto &[key, val] : assets.items()) {
+                    HORSE_LOG_CORE_INFO("  Manifest Key: {0} -> {1}", key,
+                                        val.get<std::string>());
+                    if (++count >= 10)
+                      break;
+                  }
                 }
               }
             } catch (...) {
