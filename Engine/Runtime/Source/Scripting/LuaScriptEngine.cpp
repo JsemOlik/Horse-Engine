@@ -1,4 +1,5 @@
 #include "HorseEngine/Scripting/LuaScriptEngine.h"
+#include "HorseEngine/Core/FileSystem.h"
 #include "HorseEngine/Core/Input.h"
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Project/Project.h"
@@ -117,21 +118,30 @@ void LuaScriptEngine::OnCreateEntity(Entity entity) {
   namespace fs = std::filesystem;
   fs::path scriptPath = sc.ScriptPath;
 
-  // Resolve relative path
-  if (scriptPath.is_relative()) {
+  // For cooked/packaged builds, keep paths relative for PhysFS
+  // For editor builds, resolve to absolute paths
+  if (!Project::IsCooked() && scriptPath.is_relative()) {
     auto projectDir = Project::GetProjectDirectory();
     if (!projectDir.empty()) {
       scriptPath = projectDir / scriptPath;
     }
   }
 
-  if (!fs::exists(scriptPath)) {
+  // Use FileSystem::Exists to support both raw files and PAK files
+  if (!FileSystem::Exists(scriptPath)) {
     HORSE_LOG_CORE_ERROR("Lua script not found: {}", scriptPath.string());
     return;
   }
 
-  auto result =
-      s_LuaState->script_file(scriptPath.string(), sol::script_pass_on_error);
+  // Read script content via FileSystem (supports PAK files)
+  std::string scriptContent;
+  if (!FileSystem::ReadText(scriptPath, scriptContent)) {
+    HORSE_LOG_CORE_ERROR("Failed to read Lua script: {}", scriptPath.string());
+    return;
+  }
+
+  // Execute script from string instead of file
+  auto result = s_LuaState->script(scriptContent, sol::script_pass_on_error);
   if (!result.valid()) {
     sol::error err = result;
     HORSE_LOG_CORE_ERROR("Failed to load Lua script {}: {}",

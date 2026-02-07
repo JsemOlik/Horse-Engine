@@ -14,6 +14,7 @@ struct HORSE_API ProjectConfig {
   std::string DefaultScene;
   uint64_t DefaultLevelGUID = 0;
   std::string AssetDirectory = "Assets";
+  bool IsCooked = false; // True for packaged/cooked builds
 
   // Internal paths
   std::filesystem::path ProjectFileName;
@@ -45,6 +46,10 @@ public:
       return "";
     return s_ActiveProject->m_Config.ProjectDirectory /
            s_ActiveProject->m_Config.AssetDirectory;
+  }
+
+  static bool IsCooked() {
+    return s_ActiveProject ? s_ActiveProject->m_Config.IsCooked : false;
   }
 
 private:

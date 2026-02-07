@@ -87,6 +87,7 @@ Project::LoadFromBinary(const std::filesystem::path &path) {
   auto project = std::make_shared<Project>();
   auto &config = project->GetConfig();
   config.DefaultLevelGUID = header->DefaultLevelGUID;
+  config.IsCooked = true; // Mark as cooked/packaged
 
   // Set internal paths (useful for resolving relative to project)
   // In standalone, we assume project directory is the same as the EXE/PAK
