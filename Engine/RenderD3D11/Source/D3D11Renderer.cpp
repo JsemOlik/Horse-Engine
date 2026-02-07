@@ -379,14 +379,16 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
       // implementation. For safety in this Replace Block, I'll assume the
       // context is inside the camera loop. Reuse the logic I wrote before:
 
-      // Convert glm::mat4 to XMMATRIX
+      // Strip scale for view matrix calculation
+      glm::vec3 right = glm::normalize(glm::vec3(worldTransform[0]));
+      glm::vec3 up = glm::normalize(glm::vec3(worldTransform[1]));
+      glm::vec3 forward = glm::normalize(glm::vec3(worldTransform[2]));
+      glm::vec3 position = glm::vec3(worldTransform[3]);
+
+      // Convert to XMMATRIX (DirectXMath is Row-Major by default)
       XMMATRIX worldMat = XMMatrixSet(
-          worldTransform[0][0], worldTransform[0][1], worldTransform[0][2],
-          worldTransform[0][3], worldTransform[1][0], worldTransform[1][1],
-          worldTransform[1][2], worldTransform[1][3], worldTransform[2][0],
-          worldTransform[2][1], worldTransform[2][2], worldTransform[2][3],
-          worldTransform[3][0], worldTransform[3][1], worldTransform[3][2],
-          worldTransform[3][3]);
+          right.x, right.y, right.z, 0.0f, up.x, up.y, up.z, 0.0f, forward.x,
+          forward.y, forward.z, 0.0f, position.x, position.y, position.z, 1.0f);
 
       // View Matrix is Inverse of World Matrix
       XMVECTOR det;
