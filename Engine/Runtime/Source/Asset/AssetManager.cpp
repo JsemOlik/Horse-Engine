@@ -104,6 +104,15 @@ void AssetManager::LoadRegistry() {
             UUID handle(std::stoull(it.key()));
             std::string filePath = it.value().get<std::string>();
 
+            // Normalize separators and strip leading ./ or .\ for PhysFS
+            std::replace(filePath.begin(), filePath.end(), '\\', '/');
+            if (filePath.substr(0, 2) == "./") {
+              filePath = filePath.substr(2);
+            }
+            if (filePath.substr(0, 1) == "/") {
+              filePath = filePath.substr(1);
+            }
+
             AssetMetadata metadata;
             metadata.Handle = handle;
             metadata.FilePath = filePath;

@@ -50,9 +50,16 @@ public:
             AssetManager::Get().GetFileSystemPath(UUID(defaultGUID));
         if (!resolvedPath.empty()) {
           scenePath = resolvedPath.string();
-          HORSE_LOG_CORE_INFO("Resolved default scene path: {}", scenePath);
           // Normalize separators for PhysFS/SceneSerializer
           std::replace(scenePath.begin(), scenePath.end(), '\\', '/');
+
+          // Strip leading ./ or / which can confuse PhysFS
+          if (scenePath.substr(0, 2) == "./")
+            scenePath = scenePath.substr(2);
+          if (scenePath.substr(0, 1) == "/")
+            scenePath = scenePath.substr(1);
+
+          HORSE_LOG_CORE_INFO("Resolved default scene path: {}", scenePath);
         } else {
           HORSE_LOG_CORE_ERROR(
               "Failed to resolve file system path for GUID: {}", defaultGUID);
