@@ -183,7 +183,8 @@ void SceneViewport::Render() {
     DirectX::XMMATRIX projection = DirectX::XMMatrixPerspectiveFovLH(
         DirectX::XM_PIDIV4, width() / (float)height(), 0.1f, 1000.0f);
 
-    m_Renderer->RenderScene(m_Scene.get(), &view, &projection);
+    m_Renderer->RenderScene(m_Scene.get(), &view, &projection, width(),
+                            height());
 
     // Draw Collider Outline for Selected Entity
     if (m_SelectedEntity &&

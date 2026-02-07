@@ -30,7 +30,8 @@ public:
 
   virtual void
   RenderScene(Scene *scene, const DirectX::XMMATRIX *overrideView = nullptr,
-              const DirectX::XMMATRIX *overrideProjection = nullptr) = 0;
+              const DirectX::XMMATRIX *overrideProjection = nullptr,
+              uint32_t viewportWidth = 0, uint32_t viewportHeight = 0) = 0;
 
   virtual void OnResize(u32 width, u32 height) = 0;
 };

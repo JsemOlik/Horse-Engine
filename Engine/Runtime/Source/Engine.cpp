@@ -112,7 +112,8 @@ void Engine::RunFrame() {
 
     Scene *scene = m_GameModule->GetActiveScene();
     if (scene) {
-      m_Renderer->RenderScene(scene);
+      m_Renderer->RenderScene(scene, nullptr, nullptr, m_Window->GetWidth(),
+                              m_Window->GetHeight());
     }
 
     m_Renderer->EndFrame();

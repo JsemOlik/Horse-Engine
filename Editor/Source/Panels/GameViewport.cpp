@@ -9,7 +9,7 @@ void GameViewport::Render() {
   m_Renderer->Clear(m_ClearColor[0], m_ClearColor[1], m_ClearColor[2]);
 
   if (m_Scene) {
-    m_Renderer->RenderScene(m_Scene.get());
+    m_Renderer->RenderScene(m_Scene.get(), nullptr, nullptr, width(), height());
   }
 
   m_Renderer->EndFrame();

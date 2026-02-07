@@ -332,7 +332,9 @@ D3D11Renderer::GetShader(const std::string &shaderName,
 }
 
 void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
-                                const XMMATRIX *overrideProjection) {
+                                const XMMATRIX *overrideProjection,
+                                uint32_t viewportWidth,
+                                uint32_t viewportHeight) {
   if (!scene)
     return;
   if (!m_CubeInitialized) {
@@ -340,14 +342,17 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
       return;
   }
 
+  uint32_t width = viewportWidth > 0 ? viewportWidth : m_Width;
+  uint32_t height = viewportHeight > 0 ? viewportHeight : m_Height;
+  float aspectRatio = (float)width / (float)height;
+
   entt::registry &registry = scene->GetRegistry();
 
   XMMATRIX view = overrideView ? *overrideView : XMMatrixIdentity();
   XMMATRIX projection =
       overrideProjection
           ? *overrideProjection
-          : XMMatrixPerspectiveFovLH(XM_PIDIV4, m_Width / (f32)m_Height, 0.1f,
-                                     1000.0f);
+          : XMMatrixPerspectiveFovLH(XM_PIDIV4, aspectRatio, 0.1f, 1000.0f);
   bool cameraFound = (overrideView != nullptr && overrideProjection != nullptr);
 
   entt::entity cameraOwner = entt::null; // Track who owns the camera
@@ -389,10 +394,10 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
 
       if (camera.Type == CameraComponent::ProjectionType::Perspective) {
         projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(camera.FOV),
-                                              m_Width / (f32)m_Height,
-                                              camera.NearClip, camera.FarClip);
+                                              aspectRatio, camera.NearClip,
+                                              camera.FarClip);
       } else {
-        float orthoWidth = camera.OrthographicSize * (m_Width / (f32)m_Height);
+        float orthoWidth = camera.OrthographicSize * aspectRatio;
         float orthoHeight = camera.OrthographicSize;
         projection = XMMatrixOrthographicLH(orthoWidth, orthoHeight,
                                             camera.NearClip, camera.FarClip);
