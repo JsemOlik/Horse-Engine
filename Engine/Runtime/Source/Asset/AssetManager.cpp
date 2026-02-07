@@ -1,5 +1,6 @@
 #include "HorseEngine/Asset/AssetManager.h"
 #include "HorseEngine/Core/FileSystem.h"
+#include "HorseEngine/Core/Logging.h"
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -80,8 +81,20 @@ void AssetManager::LoadRegistry() {
   }
 
   // Check for manifest (Packaged mode)
-  std::filesystem::path manifestPath = m_AssetsDirectory / "Game.manifest.json";
+  std::string manifestPath = "Game.manifest.json";
+  if (!m_AssetsDirectory.empty() && m_AssetsDirectory != ".") {
+    manifestPath = (m_AssetsDirectory / "Game.manifest.json").string();
+  }
+
+  std::replace(manifestPath.begin(), manifestPath.end(), '\\', '/');
+  if (manifestPath.substr(0, 2) == "./") {
+    manifestPath = manifestPath.substr(2);
+  }
+
+  HORSE_LOG_CORE_INFO("Checking for asset manifest at: {}", manifestPath);
+
   if (FileSystem::Exists(manifestPath)) {
+    HORSE_LOG_CORE_INFO("Found manifest, loading...");
     std::string manifestContent;
     if (FileSystem::ReadText(manifestPath, manifestContent)) {
       try {
@@ -99,14 +112,19 @@ void AssetManager::LoadRegistry() {
             m_AssetRegistry[handle] = metadata;
             m_FilePathToHandle[metadata.FilePath] = handle;
           }
-          std::cout << "Loaded " << m_AssetRegistry.size()
-                    << " assets from manifest." << std::endl;
+          HORSE_LOG_CORE_INFO("Loaded {} assets from manifest.",
+                              m_AssetRegistry.size());
           return; // Skip filesystem scan
         }
       } catch (const std::exception &e) {
-        std::cerr << "Failed to parse manifest: " << e.what() << std::endl;
+        HORSE_LOG_CORE_ERROR("Failed to parse manifest: {}", e.what());
       }
+    } else {
+      HORSE_LOG_CORE_ERROR("Failed to read manifest content!");
     }
+  } else {
+    HORSE_LOG_CORE_WARN("Manifest not found at {}. Performing filesystem scan.",
+                        manifestPath);
   }
 
   ProcessDirectory(m_AssetsDirectory);
@@ -210,14 +228,16 @@ void AssetManager::WriteMetadata(const AssetMetadata &metadata) {
 AssetType AssetManager::DetermineAssetType(const std::filesystem::path &path) {
   auto extension = path.extension().string();
   // Simple extension check
-  if (extension == ".png" || extension == ".jpg" || extension == ".tga")
+  if (extension == ".png" || extension == ".jpg" || extension == ".tga" ||
+      extension == ".horsetexture")
     return AssetType::Texture;
-  if (extension == ".obj" || extension == ".fbx" || extension == ".gltf")
+  if (extension == ".obj" || extension == ".fbx" || extension == ".gltf" ||
+      extension == ".horsemesh")
     return AssetType::Mesh;
-  if (extension == ".horsemat")
+  if (extension == ".horsemat" || extension == ".horsematerial")
     return AssetType::Material;
   if (extension == ".horselevel" || extension == ".json") {
-    // Check if in Scenes folder
+    // Check if in Scenes folder or has .horselevel in name
     if (path.parent_path().filename() == "Scenes" ||
         path.filename().string().find(".horselevel") != std::string::npos)
       return AssetType::Scene;

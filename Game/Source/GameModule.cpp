@@ -39,7 +39,7 @@ public:
     // Cooker output might be "Scenes/..." or just root relative.
     // Try scanning or hardcoded.
     // Load Scene via Project Config
-    std::string scenePath = "Scenes/TC1.horselevel.horselevel";
+    std::string scenePath = "Scenes/TC1.horselevel";
 
     if (auto project = Project::GetActive()) {
       uint64_t defaultGUID = project->GetConfig().DefaultLevelGUID;

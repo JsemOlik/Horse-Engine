@@ -29,9 +29,6 @@ int main(int argc, char **argv) {
     // ...
     Horse::FileSystem::Mount(exeDir, "/");
 
-    // Initialize AssetManager (Runtime assumes Root /)
-    Horse::AssetManager::Get().Initialize(".");
-
     // Mount Game.pak
     // It should be adjacent to executable
     std::filesystem::path pakPath = exePath.parent_path() / "Game.pak";
@@ -55,6 +52,10 @@ int main(int argc, char **argv) {
         Horse::FileSystem::Mount(pakPathStr, "/");
       }
     }
+
+    // Initialize AssetManager after mounting PAK
+    // (Runtime assumes Root /)
+    Horse::AssetManager::Get().Initialize(".");
   }
 
   // Check for headless mode
