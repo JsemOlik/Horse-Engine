@@ -12,6 +12,7 @@ struct HORSE_API ProjectConfig {
   std::string GUID;
   std::string EngineVersion = "0.1.0";
   std::string DefaultScene;
+  uint64_t DefaultLevelGUID = 0;
   std::string AssetDirectory = "Assets";
 
   // Internal paths

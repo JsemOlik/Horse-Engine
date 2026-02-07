@@ -1,5 +1,6 @@
 #include "HorseEngine/Asset/AssetManager.h"
 #include "HorseEngine/Core/FileSystem.h"
+#include "HorseEngine/Core/Logging.h"
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -14,6 +15,35 @@ AssetManager &AssetManager::Get() {
 void AssetManager::Initialize(const std::filesystem::path &assetsDirectory) {
   m_AssetsDirectory = assetsDirectory;
   LoadRegistry();
+}
+
+void AssetManager::LoadManifest(const std::filesystem::path &manifestPath) {
+  std::string content;
+  if (!FileSystem::ReadText(manifestPath, content)) {
+    HORSE_LOG_CORE_ERROR("Failed to read manifest: {}", manifestPath.string());
+    return;
+  }
+
+  try {
+    nlohmann::json j = nlohmann::json::parse(content);
+    if (j.is_object() && j.contains("Assets") && j["Assets"].is_object()) {
+      for (auto [key, value] : j["Assets"].items()) {
+        UUID handle((uint64_t)std::stoull(key));
+        std::string filePath = value.get<std::string>();
+
+        AssetMetadata metadata;
+        metadata.Handle = handle;
+        metadata.FilePath = filePath;
+        metadata.Type = DetermineAssetType(filePath);
+
+        m_AssetRegistry[handle] = metadata;
+        m_FilePathToHandle[filePath] = handle;
+      }
+    }
+    HORSE_LOG_CORE_INFO("Loaded manifest: {}", manifestPath.string());
+  } catch (const std::exception &e) {
+    HORSE_LOG_CORE_ERROR("Failed to parse manifest: {}", e.what());
+  }
 }
 
 const AssetMetadata &AssetManager::GetMetadata(UUID handle) const {

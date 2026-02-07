@@ -21,6 +21,7 @@ if(MSVC)
         /W4                    # Warning level 4
         /permissive-           # Standards conformance
         /EHsc                  # Exception handling
+        /FS                    # Force Synchronous PDB Writes
         /wd4251                # Disable DLL interface warnings
         /wd4275                # Disable DLL base class warnings
     )

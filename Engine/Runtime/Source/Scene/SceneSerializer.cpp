@@ -428,8 +428,6 @@ std::string SceneSerializer::SerializeToJSONString(const Scene *scene) {
   }
 }
 
-#include "HorseEngine/Core/FileSystem.h"
-
 // ... imports
 
 std::shared_ptr<Scene>
@@ -453,6 +451,10 @@ SceneSerializer::DeserializeFromJSON(const std::string &filepath) {
     }
 
     json sceneJson = json::parse(jsonContent);
+    if (!sceneJson.is_object()) {
+      HORSE_LOG_CORE_ERROR("Invalid scene JSON: {}", filepath);
+      return nullptr;
+    }
     // ... rest is same
     auto scene = DeserializeSceneFromJson(sceneJson);
     HORSE_LOG_CORE_INFO("Scene deserialized successfully from: {}", filepath);
