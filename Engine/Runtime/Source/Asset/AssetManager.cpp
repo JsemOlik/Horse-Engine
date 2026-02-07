@@ -40,6 +40,9 @@ AssetManager::GetMetadata(const std::filesystem::path &filePath) const {
 std::filesystem::path AssetManager::GetFileSystemPath(UUID handle) const {
   auto metadata = GetMetadata(handle);
   if (metadata.IsValid()) {
+    if (m_AssetsDirectory.empty() || m_AssetsDirectory == ".") {
+      return metadata.FilePath;
+    }
     return m_AssetsDirectory / metadata.FilePath;
   }
   return {};
@@ -254,7 +257,9 @@ void AssetManager::WriteMetadata(const AssetMetadata &metadata) {
 }
 
 AssetType AssetManager::DetermineAssetType(const std::filesystem::path &path) {
-  auto extension = path.extension().string();
+  std::string filename = path.filename().string();
+  std::string extension = path.extension().string();
+
   // Simple extension check
   if (extension == ".png" || extension == ".jpg" || extension == ".tga" ||
       extension == ".horsetexture")
@@ -262,16 +267,19 @@ AssetType AssetManager::DetermineAssetType(const std::filesystem::path &path) {
   if (extension == ".obj" || extension == ".fbx" || extension == ".gltf" ||
       extension == ".horsemesh")
     return AssetType::Mesh;
+
+  // Handle double extension for cooked materials
   if (extension == ".horsemat" || extension == ".horsematerial" ||
-      extension == ".horsemat.bin")
+      filename.find(".horsemat.bin") != std::string::npos)
     return AssetType::Material;
+
   if (extension == ".horselevel" || extension == ".json") {
     // Check if in Scenes folder or has .horselevel in name
     if (path.parent_path().filename() == "Scenes" ||
-        path.filename().string().find(".horselevel") != std::string::npos)
+        filename.find(".horselevel") != std::string::npos)
       return AssetType::Scene;
-    // Check if in Materials folder for generic .json materials if we ever use
-    // them
+
+    // Check if in Materials folder
     if (path.parent_path().filename() == "Materials")
       return AssetType::Material;
   }

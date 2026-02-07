@@ -8,6 +8,13 @@ namespace Horse {
 
 static bool s_Initialized = false;
 
+static void CanonicalizePhysFSPath(std::string &path) {
+  std::replace(path.begin(), path.end(), '\\', '/');
+  while (path.size() >= 2 && path[0] == '.' && path[1] == '/') {
+    path = path.substr(2);
+  }
+}
+
 bool FileSystem::Initialize(const char *argv0) {
   if (s_Initialized)
     return true;
@@ -43,8 +50,7 @@ bool FileSystem::Mount(const std::string &archive,
 bool FileSystem::ReadBytes(const std::filesystem::path &path,
                            std::vector<uint8_t> &outData) {
   std::string pathStr = path.string();
-  std::replace(pathStr.begin(), pathStr.end(), '\\',
-               '/'); // Normalize for PhysFS
+  CanonicalizePhysFSPath(pathStr);
 
   if (s_Initialized) {
     if (PHYSFS_exists(pathStr.c_str())) {
@@ -88,7 +94,7 @@ bool FileSystem::ReadText(const std::filesystem::path &path,
 
 bool FileSystem::Exists(const std::filesystem::path &path) {
   std::string pathStr = path.string();
-  std::replace(pathStr.begin(), pathStr.end(), '\\', '/');
+  CanonicalizePhysFSPath(pathStr);
 
   if (s_Initialized && PHYSFS_exists(pathStr.c_str())) {
     return true;
@@ -100,7 +106,7 @@ std::vector<std::string>
 FileSystem::Enumerate(const std::filesystem::path &directory) {
   std::vector<std::string> results;
   std::string pathStr = directory.string();
-  std::replace(pathStr.begin(), pathStr.end(), '\\', '/');
+  CanonicalizePhysFSPath(pathStr);
 
   if (s_Initialized) {
     char **rc = PHYSFS_enumerateFiles(pathStr.c_str());
