@@ -8,8 +8,6 @@
 #include "HorseEngine/Scene/Scene.h"
 #include "HorseEngine/Scene/ScriptableEntity.h"
 #include "PlayerController.h"
-
-
 #include <cmath>
 #include <iostream>
 
@@ -36,29 +34,24 @@ public:
   virtual void OnLoad() override {
     HORSE_LOG_CORE_INFO("MyGameModule::OnLoad() called!");
 
-    // Load Scene dynamically from Project settings
-    std::string scenePath;
-    auto project = Project::GetActive();
-    if (project) {
-      uint64_t levelGUID = project->GetConfig().DefaultLevelGUID;
-      if (levelGUID != 0) {
-        auto &metadata = AssetManager::Get().GetMetadata(UUID(levelGUID));
-        if (metadata.IsValid()) {
-          scenePath = metadata.FilePath.string();
-          HORSE_LOG_CORE_INFO("Default scene resolved from GUID: {}",
-                              scenePath);
-        } else {
-          HORSE_LOG_CORE_WARN(
-              "Default Level GUID {} not found in AssetManager!", levelGUID);
+    // Load Scene
+    // Path should match what is in PAK.
+    // Cooker output might be "Scenes/..." or just root relative.
+    // Try scanning or hardcoded.
+    // Load Scene via Project Config
+    std::string scenePath = "Scenes/TC1.horselevel.horselevel";
+
+    if (auto project = Project::GetActive()) {
+      uint64_t defaultGUID = project->GetConfig().DefaultLevelGUID;
+      if (defaultGUID != 0) {
+        std::filesystem::path resolvedPath =
+            AssetManager::Get().GetFileSystemPath(UUID(defaultGUID));
+        if (!resolvedPath.empty()) {
+          scenePath = resolvedPath.string();
+          // Normalize separators for PhysFS/SceneSerializer
+          std::replace(scenePath.begin(), scenePath.end(), '\\', '/');
         }
       }
-    }
-
-    // Fallback or override
-    if (scenePath.empty()) {
-      HORSE_LOG_CORE_WARN("No default scene found in project settings, "
-                          "falling back to hardcoded default.");
-      scenePath = "Scenes/TestChamber01.horselevel.horselevel";
     }
 
     m_ActiveScene = SceneSerializer::DeserializeFromJSON(scenePath);

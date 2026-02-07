@@ -11,7 +11,6 @@ public:
   static AssetManager &Get();
 
   void Initialize(const std::filesystem::path &assetsDirectory);
-  void LoadManifest(const std::filesystem::path &manifestPath);
 
   // Registry queries
   const AssetMetadata &GetMetadata(UUID handle) const;

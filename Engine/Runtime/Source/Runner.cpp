@@ -2,8 +2,6 @@
 #include "HorseEngine/Core/FileSystem.h"
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Engine.h"
-#include "HorseEngine/Project/Project.h"
-#include "HorseEngine/Project/ProjectSerializer.h"
 #include "HorseEngine/Render/D3D11Renderer.h"
 #include <filesystem>
 #include <iostream>
@@ -56,18 +54,6 @@ int main(int argc, char **argv) {
         // issue)
         Horse::FileSystem::Mount(pakPathStr, "/");
       }
-    }
-
-    // Load Manifest and Project settings from PAK (or adjacent)
-    Horse::AssetManager::Get().LoadManifest("Game.manifest.json");
-
-    auto project = std::make_shared<Horse::Project>();
-    Horse::ProjectSerializer serializer(project);
-    if (serializer.DeserializeFromBinary("Game.project.bin")) {
-      Horse::Project::SetActive(project);
-      std::cout << "Loaded project: " << project->GetConfig().Name << std::endl;
-    } else {
-      std::cerr << "Failed to load Game.project.bin" << std::endl;
     }
   }
 

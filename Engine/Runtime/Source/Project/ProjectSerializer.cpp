@@ -1,6 +1,4 @@
 #include "HorseEngine/Project/ProjectSerializer.h"
-#include "HorseEngine/Core/FileSystem.h"
-#include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Project/Project.h"
 
 #include <filesystem>
@@ -34,26 +32,24 @@ bool ProjectSerializer::SerializeToJSON(const std::string &filepath) {
 }
 
 bool ProjectSerializer::DeserializeFromJSON(const std::string &filepath) {
-  std::string jsonContent;
-  if (!FileSystem::ReadText(filepath, jsonContent))
+  std::ifstream f(filepath);
+  if (!f.is_open())
     return false;
 
   json projectJson;
   try {
-    projectJson = json::parse(jsonContent);
+    projectJson = json::parse(f);
   } catch (const json::parse_error &e) {
-    HORSE_LOG_CORE_ERROR("Project parse error: {}", e.what());
+    std::cerr << "Project parse error: " << e.what() << std::endl;
     return false;
   }
 
   auto &config = m_Project->GetConfig();
-  if (projectJson.is_object()) {
-    config.Name = projectJson.value("name", "Untitled Project");
-    config.GUID = projectJson.value("guid", "");
-    config.EngineVersion = projectJson.value("engineVersion", "0.1.0");
-    config.DefaultScene = projectJson.value("defaultScene", "");
-    config.AssetDirectory = projectJson.value("assetDirectory", "Assets");
-  }
+  config.Name = projectJson.value("name", "Untitled Project");
+  config.GUID = projectJson.value("guid", "");
+  config.EngineVersion = projectJson.value("engineVersion", "0.1.0");
+  config.DefaultScene = projectJson.value("defaultScene", "");
+  config.AssetDirectory = projectJson.value("assetDirectory", "Assets");
 
   std::filesystem::path path(filepath);
   config.ProjectFileName = path.filename();
@@ -65,36 +61,30 @@ bool ProjectSerializer::DeserializeFromJSON(const std::string &filepath) {
 struct ProjectCookedHeader {
   char Magic[4];
   uint32_t Version;
-  char Name[128];
   uint64_t DefaultLevelGUID;
 };
 
-bool ProjectSerializer::DeserializeFromBinary(const std::string &filepath) {
-  std::vector<uint8_t> data;
-  if (!FileSystem::ReadBytes(filepath, data))
-    return false;
-
-  if (data.size() < sizeof(ProjectCookedHeader))
-    return false;
+std::shared_ptr<Project>
+Project::LoadFromBinary(const std::filesystem::path &path) {
+  std::ifstream stream(path, std::ios::binary);
+  if (!stream.is_open())
+    return nullptr;
 
   ProjectCookedHeader header;
-  memcpy(&header, data.data(), sizeof(ProjectCookedHeader));
+  stream.read(reinterpret_cast<char *>(&header), sizeof(ProjectCookedHeader));
 
   if (header.Magic[0] != 'H' || header.Magic[1] != 'P' ||
       header.Magic[2] != 'R' || header.Magic[3] != 'J') {
-    HORSE_LOG_CORE_ERROR("Invalid project binary: {}", filepath);
-    return false;
+    return nullptr;
   }
 
-  auto &config = m_Project->GetConfig();
-  config.Name = std::string(header.Name);
+  auto project = std::make_shared<Project>();
+  auto &config = project->GetConfig();
   config.DefaultLevelGUID = header.DefaultLevelGUID;
-
-  std::filesystem::path path(filepath);
-  config.ProjectFileName = path.filename();
   config.ProjectDirectory = path.parent_path();
+  config.ProjectFileName = path.filename();
 
-  return true;
+  return project;
 }
 
 } // namespace Horse

@@ -61,13 +61,13 @@ bool MaterialSerializer::Deserialize(const std::string &filepath,
   if (data.contains("Shader"))
     output.SetShaderName(data["Shader"]);
 
-  if (data.contains("FloatProperties") && data["FloatProperties"].is_object()) {
+  if (data.contains("FloatProperties")) {
     for (auto &[key, value] : data["FloatProperties"].items()) {
       output.SetFloat(key, value);
     }
   }
 
-  if (data.contains("ColorProperties") && data["ColorProperties"].is_object()) {
+  if (data.contains("ColorProperties")) {
     for (auto &[key, value] : data["ColorProperties"].items()) {
       if (value.is_array() && value.size() == 4) {
         std::array<float, 4> color = {value[0], value[1], value[2], value[3]};
@@ -76,8 +76,7 @@ bool MaterialSerializer::Deserialize(const std::string &filepath,
     }
   }
 
-  if (data.contains("TextureProperties") &&
-      data["TextureProperties"].is_object()) {
+  if (data.contains("TextureProperties")) {
     for (auto &[key, value] : data["TextureProperties"].items()) {
       output.SetTexture(key, value);
     }

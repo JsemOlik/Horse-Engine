@@ -2,8 +2,10 @@
 #include "HorseEngine/Core/Input.h"
 #include "HorseEngine/Core/Memory.h"
 #include "HorseEngine/Game/GameModule.h"
+#include "HorseEngine/Project/Project.h"
 #include "HorseEngine/Render/Renderer.h"
 #include "HorseEngine/Scripting/LuaScriptEngine.h"
+#include <filesystem>
 #include <iostream>
 
 namespace Horse {
@@ -47,6 +49,16 @@ bool Engine::Initialize(bool headless) {
   Input::RegisterAction("Jump", {KEY_SPACE});
   Input::RegisterAxis("Forward", {KEY_W}, {KEY_S});
   Input::RegisterAxis("Right", {KEY_D}, {KEY_A});
+
+  // Standalone mode: Load project binary if it exists
+  std::filesystem::path projectBin = "Game.project.bin";
+  if (std::filesystem::exists(projectBin)) {
+    auto project = Project::LoadFromBinary(projectBin);
+    if (project) {
+      Project::SetActive(project);
+      HORSE_LOG_CORE_INFO("Loaded Project configuration from binary");
+    }
+  }
 
   LoadGameDLL("HorseGame.dll");
 

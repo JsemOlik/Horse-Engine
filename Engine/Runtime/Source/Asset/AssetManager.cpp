@@ -1,6 +1,5 @@
 #include "HorseEngine/Asset/AssetManager.h"
 #include "HorseEngine/Core/FileSystem.h"
-#include "HorseEngine/Core/Logging.h"
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -15,35 +14,6 @@ AssetManager &AssetManager::Get() {
 void AssetManager::Initialize(const std::filesystem::path &assetsDirectory) {
   m_AssetsDirectory = assetsDirectory;
   LoadRegistry();
-}
-
-void AssetManager::LoadManifest(const std::filesystem::path &manifestPath) {
-  std::string content;
-  if (!FileSystem::ReadText(manifestPath, content)) {
-    HORSE_LOG_CORE_ERROR("Failed to read manifest: {}", manifestPath.string());
-    return;
-  }
-
-  try {
-    nlohmann::json j = nlohmann::json::parse(content);
-    if (j.is_object() && j.contains("Assets") && j["Assets"].is_object()) {
-      for (auto [key, value] : j["Assets"].items()) {
-        UUID handle((uint64_t)std::stoull(key));
-        std::string filePath = value.get<std::string>();
-
-        AssetMetadata metadata;
-        metadata.Handle = handle;
-        metadata.FilePath = filePath;
-        metadata.Type = DetermineAssetType(filePath);
-
-        m_AssetRegistry[handle] = metadata;
-        m_FilePathToHandle[filePath] = handle;
-      }
-    }
-    HORSE_LOG_CORE_INFO("Loaded manifest: {}", manifestPath.string());
-  } catch (const std::exception &e) {
-    HORSE_LOG_CORE_ERROR("Failed to parse manifest: {}", e.what());
-  }
 }
 
 const AssetMetadata &AssetManager::GetMetadata(UUID handle) const {
@@ -107,6 +77,36 @@ void AssetManager::LoadRegistry() {
   if (!std::filesystem::exists(m_AssetsDirectory)) {
     std::filesystem::create_directories(m_AssetsDirectory);
     return;
+  }
+
+  // Check for manifest (Packaged mode)
+  std::filesystem::path manifestPath = m_AssetsDirectory / "Game.manifest.json";
+  if (FileSystem::Exists(manifestPath)) {
+    std::string manifestContent;
+    if (FileSystem::ReadText(manifestPath, manifestContent)) {
+      try {
+        auto j = nlohmann::json::parse(manifestContent);
+        if (j.contains("Assets")) {
+          for (auto it = j["Assets"].begin(); it != j["Assets"].end(); ++it) {
+            UUID handle(std::stoull(it.key()));
+            std::string filePath = it.value().get<std::string>();
+
+            AssetMetadata metadata;
+            metadata.Handle = handle;
+            metadata.FilePath = filePath;
+            metadata.Type = DetermineAssetType(filePath);
+
+            m_AssetRegistry[handle] = metadata;
+            m_FilePathToHandle[metadata.FilePath] = handle;
+          }
+          std::cout << "Loaded " << m_AssetRegistry.size()
+                    << " assets from manifest." << std::endl;
+          return; // Skip filesystem scan
+        }
+      } catch (const std::exception &e) {
+        std::cerr << "Failed to parse manifest: " << e.what() << std::endl;
+      }
+    }
   }
 
   ProcessDirectory(m_AssetsDirectory);

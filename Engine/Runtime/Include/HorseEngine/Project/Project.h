@@ -33,6 +33,9 @@ public:
     s_ActiveProject = project;
   }
 
+  static std::shared_ptr<Project>
+  LoadFromBinary(const std::filesystem::path &path);
+
   static std::filesystem::path GetProjectDirectory() {
     return s_ActiveProject ? s_ActiveProject->m_Config.ProjectDirectory : "";
   }
