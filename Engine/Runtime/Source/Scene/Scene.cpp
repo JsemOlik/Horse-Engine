@@ -194,6 +194,9 @@ void Scene::TriggerAssetLoads() {
     if (!mesh.MeshGUID.empty()) {
       m_LoadingQueue.push_back(mesh.MeshGUID);
     }
+    if (!mesh.MaterialGUID.empty()) {
+      m_LoadingQueue.push_back(mesh.MaterialGUID);
+    }
   }
 
   HORSE_LOG_CORE_INFO("Triggered asset loading for {} assets.",

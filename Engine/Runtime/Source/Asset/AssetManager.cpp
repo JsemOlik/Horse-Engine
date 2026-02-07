@@ -45,6 +45,25 @@ std::filesystem::path AssetManager::GetFileSystemPath(UUID handle) const {
   return {};
 }
 
+UUID AssetManager::GetHandleByFriendlyName(const std::string &name) const {
+  for (const auto &[handle, metadata] : m_AssetRegistry) {
+    std::filesystem::path p = metadata.FilePath;
+    // Check if filename (stem) matches the name (e.g., "Cyan")
+    // Note: path might be "Materials/Cyan.horsemat.bin"
+    std::string stem = p.stem().string();
+    if (stem == name)
+      return handle;
+
+    // Second pass: strip TWO extensions if it's .horsemat.bin
+    if (p.extension() == ".bin") {
+      std::string stem2 = p.stem().stem().string();
+      if (stem2 == name)
+        return handle;
+    }
+  }
+  return UUID(0);
+}
+
 void AssetManager::ImportAsset(const std::filesystem::path &path) {
   ImportAsset(path, UUID());
 }
@@ -243,7 +262,8 @@ AssetType AssetManager::DetermineAssetType(const std::filesystem::path &path) {
   if (extension == ".obj" || extension == ".fbx" || extension == ".gltf" ||
       extension == ".horsemesh")
     return AssetType::Mesh;
-  if (extension == ".horsemat" || extension == ".horsematerial")
+  if (extension == ".horsemat" || extension == ".horsematerial" ||
+      extension == ".horsemat.bin")
     return AssetType::Material;
   if (extension == ".horselevel" || extension == ".json") {
     // Check if in Scenes folder or has .horselevel in name
