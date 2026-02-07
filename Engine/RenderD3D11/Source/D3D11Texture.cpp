@@ -1,6 +1,9 @@
 #include "HorseEngine/Render/D3D11Texture.h"
+#include "HorseEngine/Core/FileSystem.h"
 #include "HorseEngine/Core/Logging.h"
+#include "HorseEngine/Project/Project.h"
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <vector>
 #include <windows.h>
@@ -15,49 +18,79 @@ bool D3D11Texture::LoadFromFile(ID3D11Device *device,
                                 const std::string &filePath, bool srgb,
                                 bool generateMips) {
   namespace fs = std::filesystem;
-  fs::path texturePath = filePath;
-
-  // 1. Try direct path
-  if (!fs::exists(texturePath)) {
-    // 2. Try relative to executable
-    wchar_t exePath[MAX_PATH];
-    GetModuleFileNameW(NULL, exePath, MAX_PATH);
-    fs::path exeDir = fs::path(exePath).parent_path();
-    fs::path relativePath = exeDir / texturePath;
-
-    if (fs::exists(relativePath)) {
-      texturePath = relativePath;
-    } else {
-      // 3. Try climbing up from exe
-      fs::path searchDir = exeDir;
-      bool found = false;
-      for (int i = 0; i < 4; ++i) { // Search up to 4 levels
-        if (fs::exists(searchDir / texturePath)) {
-          texturePath = searchDir / texturePath;
-          found = true;
-          break;
+  
+  // Try loading through FileSystem (supports PAK files)
+  std::vector<uint8_t> fileData;
+  bool loaded = FileSystem::ReadBytes(filePath, fileData);
+  
+  // If FileSystem fails, try legacy path resolution for editor
+  if (!loaded) {
+    fs::path texturePath = filePath;
+    
+    // In editor mode, try project directory first
+    if (texturePath.is_relative() && !Project::IsCooked()) {
+      auto projectDir = Project::GetProjectDirectory();
+      if (!projectDir.empty()) {
+        fs::path projectTexturePath = projectDir / texturePath;
+        if (fs::exists(projectTexturePath)) {
+          texturePath = projectTexturePath;
         }
-        if (searchDir.has_parent_path())
-          searchDir = searchDir.parent_path();
-        else
-          break;
-      }
-
-      if (!found) {
-        HORSE_LOG_RENDER_ERROR("Failed to find texture file: {}",
-                               texturePath.string());
-        return false;
       }
     }
+    
+    // Try direct path
+    if (!fs::exists(texturePath)) {
+      // Try relative to executable
+      wchar_t exePath[MAX_PATH];
+      GetModuleFileNameW(NULL, exePath, MAX_PATH);
+      fs::path exeDir = fs::path(exePath).parent_path();
+      fs::path relativePath = exeDir / texturePath;
+
+      if (fs::exists(relativePath)) {
+        texturePath = relativePath;
+      } else {
+        // Try climbing up from exe
+        fs::path searchDir = exeDir;
+        bool found = false;
+        for (int i = 0; i < 4; ++i) {
+          if (fs::exists(searchDir / texturePath)) {
+            texturePath = searchDir / texturePath;
+            found = true;
+            break;
+          }
+          if (searchDir.has_parent_path())
+            searchDir = searchDir.parent_path();
+          else
+            break;
+        }
+
+        if (!found) {
+          HORSE_LOG_RENDER_ERROR("Failed to find texture file: {}", filePath);
+          return false;
+        }
+      }
+    }
+    
+    // Read file using standard filesystem
+    std::ifstream file(texturePath, std::ios::binary | std::ios::ate);
+    if (!file.is_open()) {
+      HORSE_LOG_RENDER_ERROR("Failed to open texture file: {}", texturePath.string());
+      return false;
+    }
+    std::streamsize size = file.tellg();
+    file.seekg(0, std::ios::beg);
+    fileData.resize(size);
+    file.read(reinterpret_cast<char*>(fileData.data()), size);
   }
 
   int width, height, channels;
   stbi_set_flip_vertically_on_load(true);
   unsigned char *data =
-      stbi_load(texturePath.string().c_str(), &width, &height, &channels, 4);
+      stbi_load_from_memory(fileData.data(), static_cast<int>(fileData.size()), 
+                           &width, &height, &channels, 4);
 
   if (!data) {
-    HORSE_LOG_RENDER_ERROR("Failed to load texture: {}", texturePath.string());
+    HORSE_LOG_RENDER_ERROR("Failed to decode texture: {}", filePath);
     return false;
   }
 

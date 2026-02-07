@@ -226,17 +226,19 @@ int main(int argc, char **argv) {
     }
   }
 
-  // 5. Copy Engine assets
-  std::filesystem::path buildEngineDir = runtimeDir / "Engine";
-  if (std::filesystem::exists(buildEngineDir)) {
+  // 5. Copy Engine shaders (textures now go in Game.pak via Assets folder)
+  std::filesystem::path buildEngineShadersDir = runtimeDir / "Engine" / "Runtime" / "Shaders";
+  if (std::filesystem::exists(buildEngineShadersDir)) {
     try {
+      std::filesystem::path outputShadersDir = outputDir / "Engine" / "Runtime" / "Shaders";
+      std::filesystem::create_directories(outputShadersDir);
       std::filesystem::copy(
-          buildEngineDir, outputDir / "Engine",
+          buildEngineShadersDir, outputShadersDir,
           std::filesystem::copy_options::recursive |
               std::filesystem::copy_options::overwrite_existing);
-      std::cout << "Copied Engine assets" << std::endl;
+      std::cout << "Copied Engine shaders" << std::endl;
     } catch (const std::exception &e) {
-      std::cerr << "Error copying Engine assets: " << e.what() << std::endl;
+      std::cerr << "Error copying Engine shaders: " << e.what() << std::endl;
     }
   }
 

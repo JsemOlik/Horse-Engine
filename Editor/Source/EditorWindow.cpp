@@ -11,6 +11,7 @@
 #include "EditorPreferences.h"
 #include "HorseEngine/Asset/AssetManager.h"
 #include "HorseEngine/Core/Time.h"
+#include "HorseEngine/Render/D3D11Renderer.h"
 #include "HorseEngine/Render/MaterialRegistry.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Entity.h"
@@ -370,6 +371,33 @@ void EditorWindow::NewProject(const std::string &filepath) {
   std::filesystem::create_directories(project->GetConfig().ProjectDirectory /
                                       project->GetConfig().AssetDirectory /
                                       "Scripts");
+  std::filesystem::create_directories(project->GetConfig().ProjectDirectory /
+                                      project->GetConfig().AssetDirectory /
+                                      "Textures");
+
+  // Copy default engine textures to new project
+  std::filesystem::path engineTextures = "Engine/Runtime/Textures";
+  std::filesystem::path projectTextures = project->GetConfig().ProjectDirectory /
+                                         project->GetConfig().AssetDirectory /
+                                         "Textures";
+  
+  try {
+    if (std::filesystem::exists(engineTextures / "Skybox.png")) {
+      std::filesystem::copy_file(
+          engineTextures / "Skybox.png",
+          projectTextures / "Skybox.png",
+          std::filesystem::copy_options::overwrite_existing);
+    }
+    if (std::filesystem::exists(engineTextures / "Checkerboard.png")) {
+      std::filesystem::copy_file(
+          engineTextures / "Checkerboard.png",
+          projectTextures / "Checkerboard.png",
+          std::filesystem::copy_options::overwrite_existing);
+    }
+  } catch (const std::exception &e) {
+    // Failed to copy default textures - not critical, just log it
+    HORSE_LOG_CORE_WARN("Failed to copy default textures: {}", e.what());
+  }
 
   Horse::Project::SetActive(project);
   Horse::Project::SetActive(project);
@@ -420,6 +448,14 @@ void EditorWindow::OpenProject(const std::string &filepath) {
 
     setWindowTitle(QString("Horse Engine Editor - %1")
                        .arg(QString::fromStdString(project->GetConfig().Name)));
+    
+    // Reload renderer textures now that project is active
+    if (m_SceneViewport && m_SceneViewport->GetRenderer()) {
+      m_SceneViewport->GetRenderer()->ReloadTextures();
+    }
+    if (m_GameViewport && m_GameViewport->GetRenderer()) {
+      m_GameViewport->GetRenderer()->ReloadTextures();
+    }
 
     if (m_ContentBrowserPanel) {
       m_ContentBrowserPanel->Refresh();

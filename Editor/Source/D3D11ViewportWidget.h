@@ -16,6 +16,7 @@ public:
   ~D3D11ViewportWidget();
 
   void SetScene(std::shared_ptr<Horse::Scene> scene) { m_Scene = scene; }
+  Horse::D3D11Renderer *GetRenderer() const { return m_Renderer.get(); }
 
   QPaintEngine *paintEngine() const override { return nullptr; }
 
