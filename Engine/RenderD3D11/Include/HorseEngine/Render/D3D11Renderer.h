@@ -60,6 +60,7 @@ public:
   ID3D11DeviceContext *GetContext() const { return m_Context.Get(); }
 
   void SetViewMode(int mode); // 0=Solid, 1=Wireframe, 2=ColoredTriangles
+  void ReloadTextures(); // Reload cube and skybox textures
 
 private:
   struct Vertex {

@@ -746,7 +746,7 @@ bool D3D11Renderer::InitCube() {
   m_CubeTexture = std::make_unique<D3D11Texture>();
   if (!m_CubeTexture->LoadFromFile(
           m_Device.Get(), m_Context.Get(),
-          "Engine/Runtime/Textures/Checkerboard.png")) {
+          "Assets/Textures/Checkerboard.png")) {
     HORSE_LOG_RENDER_WARN("Failed to load test texture, cube will be white");
   }
 
@@ -773,7 +773,7 @@ bool D3D11Renderer::InitCube() {
   // Load Skybox Texture
   m_SkyboxTexture = std::make_unique<D3D11Texture>();
   if (!m_SkyboxTexture->LoadFromFile(m_Device.Get(), m_Context.Get(),
-                                     "Engine/Runtime/Textures/Skybox.png")) {
+                                     "Assets/Textures/Skybox.png")) {
     HORSE_LOG_RENDER_WARN("Failed to load Skybox.png, sky will be empty");
   }
 
@@ -876,6 +876,25 @@ bool D3D11Renderer::CreateRasterizerStates() {
   }
 
   return true;
+}
+
+void D3D11Renderer::ReloadTextures() {
+  // Reload cube texture
+  m_CubeTexture = std::make_unique<D3D11Texture>();
+  if (!m_CubeTexture->LoadFromFile(
+          m_Device.Get(), m_Context.Get(),
+          "Assets/Textures/Checkerboard.png")) {
+    HORSE_LOG_RENDER_WARN("Failed to reload test texture");
+  }
+
+  // Reload skybox texture
+  m_SkyboxTexture = std::make_unique<D3D11Texture>();
+  if (!m_SkyboxTexture->LoadFromFile(m_Device.Get(), m_Context.Get(),
+                                     "Assets/Textures/Skybox.png")) {
+    HORSE_LOG_RENDER_WARN("Failed to reload Skybox.png");
+  }
+  
+  HORSE_LOG_RENDER_INFO("Textures reloaded from project");
 }
 
 } // namespace Horse
