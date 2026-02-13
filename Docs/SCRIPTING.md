@@ -1,86 +1,98 @@
-# Lua Scripting Reference
+# 📜 Lua Scripting Reference
 
-This document covers everything you can do within Lua scripts in the Horse Engine.
+Welcome to the Horse Engine scripting guide. We use **LuaJIT** to provide a fast, flexible, and easy-to-use scripting environment for your gameplay logic.
 
-## Script Lifecycle
+---
 
-Every Lua script should follow this structure:
+## 🚀 Script Structure
+
+Every script should be a module that returns a table containing lifecycle functions.
 
 ```lua
-local MyScript = {}
+local PlayerMovement = {}
 
--- Called when the script component is first created
-function MyScript:OnCreate(entity)
-    Horse.LogInfo("Script created for: " .. entity:GetName())
+-- Called once when the script component is initialized
+function PlayerMovement:OnCreate(entity)
+    self.speed = 5.0
+    Horse.LogInfo("Entity " .. entity:GetName() .. " is ready!")
 end
 
--- Called every frame in Play Mode
-function MyScript:OnUpdate(entity, deltaTime)
-    -- Your logic here
+-- Called every frame during Play Mode
+-- @param deltaTime: time since last frame in seconds
+function PlayerMovement:OnUpdate(entity, deltaTime)
+    local transform = entity:GetTransform()
+    local pos = transform.Position
+
+    if Horse.Input.IsKeyPressed(Horse.KEY_W) then
+        pos.z = pos.z + self.speed * deltaTime
+    end
+
+    transform.Position = pos
 end
 
-return MyScript
+return PlayerMovement
 ```
 
-## Global Namespace: `Horse`
+---
 
-### Logging
+## 🛠️ Global Namespace: `Horse`
 
-Use these to output messages to the Editor Console:
+The `Horse` namespace is your gateway to engine functionality.
 
-- `Horse.LogInfo(message)`
-- `Horse.LogWarn(message)`
-- `Horse.LogError(message)`
+### 📝 Logging
 
-### Input
+- `Horse.LogInfo(msg)`: Output an informative message to the console.
+- `Horse.LogWarn(msg)`: Output a warning.
+- `Horse.LogError(msg)`: Output an error (includes stack trace).
 
-Access keyboard and mouse state:
+### ⌨️ Input
 
-#### Keyboard
+Access real-time input status for keyboard and mouse.
 
-- `Horse.Input.IsKeyPressed(keyCode)`: Returns boolean. Use `Horse.KEY_W`, `Horse.KEY_SPACE`, etc.
-- `Horse.Input.IsActionPressed(actionName)`: Checks if any key mapped to an action (e.g., "Jump") is pressed.
-- `Horse.Input.GetAxisValue(axisName)`: Returns a float (usually -1.0 to 1.0) for an axis (e.g., "Forward").
+| Method                      | Description                                  |
+| :-------------------------- | :------------------------------------------- |
+| `IsKeyPressed(keyCode)`     | Returns `true` if the key is currently held. |
+| `IsActionPressed(name)`     | Checks for an action binding (e.g., "Jump"). |
+| `GetAxisValue(name)`        | Returns a float (-1.0 to 1.0) for an axis.   |
+| `IsMouseButtonPressed(btn)` | Checks for `Horse.KEY_LBUTTON`, `RBUTTON`.   |
+| `GetMousePosition()`        | Returns a table `{x, y}`.                    |
 
-#### Mouse
+---
 
-- `Horse.Input.IsMouseButtonPressed(buttonCode)`: Returns boolean. Use `Horse.KEY_LBUTTON`, `Horse.KEY_RBUTTON`.
-- `Horse.Input.GetMousePosition()`: Returns a table with `x` and `y`.
+## 🧊 Entity API
 
-## Entity API
+The `entity` object represents a game object in the scene.
 
-The `entity` object passed to `OnCreate` and `OnUpdate` has these methods:
+- **`entity:GetName()`**: Returns the string name (tag).
+- **`entity:GetUUID()`**: Returns the stable GUID string.
+- **`entity:GetTransform()`**: Returns the `TransformComponent` (guaranteed).
 
-- `entity:GetName()`: Returns the entity's tag name.
-- `entity:GetUUID()`: Returns the unique identifier string.
-- `entity:GetTransform()`: Returns the `TransformComponent`.
+---
 
-## Components
+## 🔧 Components
 
 ### TransformComponent
 
-Access and modify an entity's position, rotation, and scale:
+Manages position, rotation, and scale in 3D space.
 
-- `transform.Position`: Table with `x`, `y`, `z`.
-- `transform.Rotation`: Table with `x`, `y`, `z` (Euler angles).
-- `transform.Scale`: Table with `x`, `y`, `z`.
+- **`.Position`**: Table `{x, y, z}`.
+- **`.Rotation`**: Table `{x, y, z}` (Euler angles in degrees).
+- **`.Scale`**: Table `{x, y, z}`.
 
-Example of moving an entity:
+> [!TIP]
+> Always re-assign the table to actually apply changes:
+> `local p = t.Position; p.x = 10; t.Position = p`
 
-```lua
-function MyScript:OnUpdate(entity, deltaTime)
-    local transform = entity:GetTransform()
-    local pos = transform.Position
-    pos.x = pos.x + 1.0 * deltaTime
-    transform.Position = pos
-end
-```
+---
 
-## Key Codes Reference
+## ⌨️ Key Codes Reference
 
-Standard key codes are prefixed with `Horse.KEY_`. Examples:
+Common keys are available under `Horse.KEY_`:
 
-- `Horse.KEY_W`, `Horse.KEY_A`, `Horse.KEY_S`, `Horse.KEY_D`
-- `Horse.KEY_SPACE`, `Horse.KEY_ESCAPE`, `Horse.KEY_SHIFT`, `Horse.KEY_CONTROL`
-- `Horse.KEY_0` through `Horse.KEY_9`
-- `Horse.KEY_LBUTTON`, `Horse.KEY_RBUTTON`, `Horse.KEY_MBUTTON`
+- `W`, `A`, `S`, `D`, `SPACE`, `SHIFT`, `CONTROL`, `ESCAPE`
+- `0` through `9`
+- `LBUTTON`, `RBUTTON`, `MBUTTON`
+
+---
+
+**Last Updated**: 2026-02-08
