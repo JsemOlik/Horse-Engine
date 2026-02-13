@@ -1,4 +1,5 @@
 #include "HorseEngine/Scene/SceneSerializer.h"
+#include "HorseEngine/Core/FileSystem.h"
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Engine.h"
 #include "HorseEngine/Scene/Components.h"
@@ -427,19 +428,32 @@ std::string SceneSerializer::SerializeToJSONString(const Scene *scene) {
   }
 }
 
+#include "HorseEngine/Core/FileSystem.h"
+
+// ... imports
+
 std::shared_ptr<Scene>
 SceneSerializer::DeserializeFromJSON(const std::string &filepath) {
   try {
-    std::ifstream file(filepath);
-    if (!file.is_open()) {
+    std::string jsonContent;
+    if (!FileSystem::ReadText(filepath, jsonContent)) {
       HORSE_LOG_CORE_ERROR("Failed to open file for reading: {}", filepath);
       return nullptr;
     }
 
-    json sceneJson;
-    file >> sceneJson;
-    file.close();
+    // Check for HLVL header (Cooked Level)
+    if (jsonContent.size() >= 4 && jsonContent.substr(0, 4) == "HLVL") {
+      if (jsonContent.size() >= 16) {
+        // Skip Header (12 bytes) + Size (4 bytes) = 16 bytes
+        jsonContent = jsonContent.substr(16);
+      } else {
+        HORSE_LOG_CORE_ERROR("Corrupt cooked level file: {}", filepath);
+        return nullptr;
+      }
+    }
 
+    json sceneJson = json::parse(jsonContent);
+    // ... rest is same
     auto scene = DeserializeSceneFromJson(sceneJson);
     HORSE_LOG_CORE_INFO("Scene deserialized successfully from: {}", filepath);
     return scene;

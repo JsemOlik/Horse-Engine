@@ -1,10 +1,13 @@
 #include "HorseEngine/Project/ProjectSerializer.h"
 #include "HorseEngine/Project/Project.h"
 
+#include "HorseEngine/Core/FileSystem.h"
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
+#include <vector>
+
 
 using json = nlohmann::json;
 
@@ -56,6 +59,43 @@ bool ProjectSerializer::DeserializeFromJSON(const std::string &filepath) {
   config.ProjectDirectory = path.parent_path();
 
   return true;
+}
+
+struct ProjectCookedHeader {
+  char Magic[4];
+  uint32_t Version;
+  uint64_t DefaultLevelGUID;
+};
+
+std::shared_ptr<Project>
+Project::LoadFromBinary(const std::filesystem::path &path) {
+  std::vector<uint8_t> data;
+  if (!FileSystem::ReadBytes(path, data))
+    return nullptr;
+
+  if (data.size() < sizeof(ProjectCookedHeader))
+    return nullptr;
+
+  const ProjectCookedHeader *header =
+      reinterpret_cast<const ProjectCookedHeader *>(data.data());
+
+  if (header->Magic[0] != 'H' || header->Magic[1] != 'P' ||
+      header->Magic[2] != 'R' || header->Magic[3] != 'J') {
+    return nullptr;
+  }
+
+  auto project = std::make_shared<Project>();
+  auto &config = project->GetConfig();
+  config.DefaultLevelGUID = header->DefaultLevelGUID;
+  config.IsCooked = true; // Mark as cooked/packaged
+
+  // Set internal paths (useful for resolving relative to project)
+  // In standalone, we assume project directory is the same as the EXE/PAK
+  // directory
+  config.ProjectFileName = path.filename();
+  config.ProjectDirectory = std::filesystem::current_path();
+
+  return project;
 }
 
 } // namespace Horse

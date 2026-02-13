@@ -27,6 +27,8 @@ add_executable(HorseEditor WIN32
     Source/Dialogs/ProjectSettingsDialog.h
     Source/Dialogs/PreferencesDialog.cpp
     Source/Dialogs/PreferencesDialog.h
+    Source/Dialogs/BuildDialog.cpp
+    Source/Dialogs/BuildDialog.h
     Source/EditorPreferences.cpp
     Source/EditorPreferences.h
     Source/ThemeManager.cpp

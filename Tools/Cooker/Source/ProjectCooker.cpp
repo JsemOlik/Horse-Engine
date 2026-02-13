@@ -1,5 +1,6 @@
 #include "ProjectCooker.h"
 #include "HorseEngine/Core/Logging.h"
+#include <algorithm>
 #include <fstream>
 #include <nlohmann/json.hpp>
 
@@ -26,8 +27,28 @@ bool ProjectCooker::Cook(const std::filesystem::path &sourcePath,
     header.DefaultLevelGUID = j["DefaultLevel"].get<uint64_t>();
   } else if (j.contains("defaultScene")) {
     std::string scenePath = j["defaultScene"].get<std::string>();
-    // Store hashed filename as GUID to match manifest
-    header.DefaultLevelGUID = std::hash<std::string>{}(scenePath);
+
+    // Normalize path to match AssetManager (remove "Assets/" prefix)
+    if (scenePath.find("Assets/") == 0) {
+      scenePath = scenePath.substr(7);
+    } else if (scenePath.find("Assets\\") == 0) {
+      scenePath = scenePath.substr(7);
+    }
+
+    // Normalize separators for lookup
+    std::replace(scenePath.begin(), scenePath.end(), '\\', '/');
+
+    // Look up actual GUID from registry
+    if (context.AssetPathToGUID.count(scenePath)) {
+      header.DefaultLevelGUID = (uint64_t)context.AssetPathToGUID.at(scenePath);
+      HORSE_LOG_CORE_INFO("Resolved default scene GUID for {0}: {1}", scenePath,
+                          header.DefaultLevelGUID);
+    } else {
+      HORSE_LOG_CORE_WARN("Could not find GUID for default scene: {0}. "
+                          "Falling back to path hash.",
+                          scenePath);
+      header.DefaultLevelGUID = std::hash<std::string>{}(scenePath);
+    }
   }
 
   std::filesystem::path outputPath = context.OutputDir / "Game.project.bin";

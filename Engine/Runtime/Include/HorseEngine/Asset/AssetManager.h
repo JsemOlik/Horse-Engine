@@ -16,6 +16,7 @@ public:
   const AssetMetadata &GetMetadata(UUID handle) const;
   const AssetMetadata &GetMetadata(const std::filesystem::path &filePath) const;
   std::filesystem::path GetFileSystemPath(UUID handle) const;
+  UUID GetHandleByFriendlyName(const std::string &name) const;
 
   // Asset operations
   void ImportAsset(const std::filesystem::path &path);

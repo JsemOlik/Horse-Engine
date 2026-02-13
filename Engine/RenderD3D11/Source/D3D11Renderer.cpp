@@ -332,7 +332,9 @@ D3D11Renderer::GetShader(const std::string &shaderName,
 }
 
 void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
-                                const XMMATRIX *overrideProjection) {
+                                const XMMATRIX *overrideProjection,
+                                uint32_t viewportWidth,
+                                uint32_t viewportHeight) {
   if (!scene)
     return;
   if (!m_CubeInitialized) {
@@ -340,14 +342,17 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
       return;
   }
 
+  uint32_t width = viewportWidth > 0 ? viewportWidth : m_Width;
+  uint32_t height = viewportHeight > 0 ? viewportHeight : m_Height;
+  float aspectRatio = (float)width / (float)height;
+
   entt::registry &registry = scene->GetRegistry();
 
   XMMATRIX view = overrideView ? *overrideView : XMMatrixIdentity();
   XMMATRIX projection =
       overrideProjection
           ? *overrideProjection
-          : XMMatrixPerspectiveFovLH(XM_PIDIV4, m_Width / (f32)m_Height, 0.1f,
-                                     1000.0f);
+          : XMMatrixPerspectiveFovLH(XM_PIDIV4, aspectRatio, 0.1f, 1000.0f);
   bool cameraFound = (overrideView != nullptr && overrideProjection != nullptr);
 
   entt::entity cameraOwner = entt::null; // Track who owns the camera
@@ -374,14 +379,16 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
       // implementation. For safety in this Replace Block, I'll assume the
       // context is inside the camera loop. Reuse the logic I wrote before:
 
-      // Convert glm::mat4 to XMMATRIX
+      // Strip scale for view matrix calculation
+      glm::vec3 right = glm::normalize(glm::vec3(worldTransform[0]));
+      glm::vec3 up = glm::normalize(glm::vec3(worldTransform[1]));
+      glm::vec3 forward = glm::normalize(glm::vec3(worldTransform[2]));
+      glm::vec3 position = glm::vec3(worldTransform[3]);
+
+      // Convert to XMMATRIX (DirectXMath is Row-Major by default)
       XMMATRIX worldMat = XMMatrixSet(
-          worldTransform[0][0], worldTransform[0][1], worldTransform[0][2],
-          worldTransform[0][3], worldTransform[1][0], worldTransform[1][1],
-          worldTransform[1][2], worldTransform[1][3], worldTransform[2][0],
-          worldTransform[2][1], worldTransform[2][2], worldTransform[2][3],
-          worldTransform[3][0], worldTransform[3][1], worldTransform[3][2],
-          worldTransform[3][3]);
+          right.x, right.y, right.z, 0.0f, up.x, up.y, up.z, 0.0f, forward.x,
+          forward.y, forward.z, 0.0f, position.x, position.y, position.z, 1.0f);
 
       // View Matrix is Inverse of World Matrix
       XMVECTOR det;
@@ -389,10 +396,10 @@ void D3D11Renderer::RenderScene(Scene *scene, const XMMATRIX *overrideView,
 
       if (camera.Type == CameraComponent::ProjectionType::Perspective) {
         projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(camera.FOV),
-                                              m_Width / (f32)m_Height,
-                                              camera.NearClip, camera.FarClip);
+                                              aspectRatio, camera.NearClip,
+                                              camera.FarClip);
       } else {
-        float orthoWidth = camera.OrthographicSize * (m_Width / (f32)m_Height);
+        float orthoWidth = camera.OrthographicSize * aspectRatio;
         float orthoHeight = camera.OrthographicSize;
         projection = XMMatrixOrthographicLH(orthoWidth, orthoHeight,
                                             camera.NearClip, camera.FarClip);
@@ -739,7 +746,7 @@ bool D3D11Renderer::InitCube() {
   m_CubeTexture = std::make_unique<D3D11Texture>();
   if (!m_CubeTexture->LoadFromFile(
           m_Device.Get(), m_Context.Get(),
-          "Engine/Runtime/Textures/Checkerboard.png")) {
+          "Assets/Textures/Checkerboard.png")) {
     HORSE_LOG_RENDER_WARN("Failed to load test texture, cube will be white");
   }
 
@@ -766,7 +773,7 @@ bool D3D11Renderer::InitCube() {
   // Load Skybox Texture
   m_SkyboxTexture = std::make_unique<D3D11Texture>();
   if (!m_SkyboxTexture->LoadFromFile(m_Device.Get(), m_Context.Get(),
-                                     "Engine/Runtime/Textures/Skybox.png")) {
+                                     "Assets/Textures/Skybox.png")) {
     HORSE_LOG_RENDER_WARN("Failed to load Skybox.png, sky will be empty");
   }
 
@@ -782,7 +789,7 @@ bool D3D11Renderer::CreateDeviceAndSwapChain(const RendererDesc &desc) {
   swapChainDesc.BufferDesc.RefreshRate.Numerator = 60;
   swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
   swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-  swapChainDesc.OutputWindow = desc.WindowHandle;
+  swapChainDesc.OutputWindow = (HWND)desc.WindowHandle;
   swapChainDesc.SampleDesc.Count = 1;
   swapChainDesc.SampleDesc.Quality = 0;
   swapChainDesc.Windowed = TRUE;
@@ -869,6 +876,25 @@ bool D3D11Renderer::CreateRasterizerStates() {
   }
 
   return true;
+}
+
+void D3D11Renderer::ReloadTextures() {
+  // Reload cube texture
+  m_CubeTexture = std::make_unique<D3D11Texture>();
+  if (!m_CubeTexture->LoadFromFile(
+          m_Device.Get(), m_Context.Get(),
+          "Assets/Textures/Checkerboard.png")) {
+    HORSE_LOG_RENDER_WARN("Failed to reload test texture");
+  }
+
+  // Reload skybox texture
+  m_SkyboxTexture = std::make_unique<D3D11Texture>();
+  if (!m_SkyboxTexture->LoadFromFile(m_Device.Get(), m_Context.Get(),
+                                     "Assets/Textures/Skybox.png")) {
+    HORSE_LOG_RENDER_WARN("Failed to reload Skybox.png");
+  }
+  
+  HORSE_LOG_RENDER_INFO("Textures reloaded from project");
 }
 
 } // namespace Horse

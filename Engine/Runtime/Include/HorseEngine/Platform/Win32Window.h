@@ -4,7 +4,6 @@
 #include <functional>
 #include <string>
 
-
 #include <Windows.h>
 
 namespace Horse {
@@ -23,6 +22,7 @@ public:
   ~Window();
 
   bool PollEvents();
+  HWND GetNativeWindow() const { return m_Hwnd; }
 
   HWND GetHandle() const { return m_Hwnd; }
   u32 GetWidth() const { return m_Width; }

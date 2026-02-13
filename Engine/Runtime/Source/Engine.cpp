@@ -1,9 +1,14 @@
 #include "HorseEngine/Engine.h"
+#include "HorseEngine/Core/FileSystem.h"
 #include "HorseEngine/Core/Input.h"
 #include "HorseEngine/Core/Memory.h"
 #include "HorseEngine/Game/GameModule.h"
+#include "HorseEngine/Project/Project.h"
+#include "HorseEngine/Render/Renderer.h"
 #include "HorseEngine/Scripting/LuaScriptEngine.h"
+#include <filesystem>
 #include <iostream>
+#include <vector>
 
 namespace Horse {
 
@@ -47,6 +52,23 @@ bool Engine::Initialize(bool headless) {
   Input::RegisterAxis("Forward", {KEY_W}, {KEY_S});
   Input::RegisterAxis("Right", {KEY_D}, {KEY_A});
 
+  // Standalone mode: Load project binary if it exists
+  std::filesystem::path projectBin = "Game.project.bin";
+  HORSE_LOG_CORE_INFO("Checking for project binary via FileSystem...");
+  if (FileSystem::Exists(projectBin)) {
+    auto project = Project::LoadFromBinary(projectBin);
+    if (project) {
+      Project::SetActive(project);
+      HORSE_LOG_CORE_INFO(
+          "Loaded Project configuration from binary. DefaultLevelGUID: {}",
+          project->GetConfig().DefaultLevelGUID);
+    } else {
+      HORSE_LOG_CORE_ERROR("Failed to load Project configuration from binary!");
+    }
+  } else {
+    HORSE_LOG_CORE_WARN("Game.project.bin not found via FileSystem");
+  }
+
   LoadGameDLL("HorseGame.dll");
 
   return true;
@@ -78,9 +100,24 @@ void Engine::RunFrame() {
   FrameAllocator::Reset();
   Time::Update();
 
-  // Main loop work here
+  // Update
   if (m_GameModule) {
     m_GameModule->OnUpdate(Time::GetDeltaTime());
+  }
+
+  // Render
+  if (m_Renderer && m_GameModule) {
+    m_Renderer->BeginFrame();
+    m_Renderer->Clear(0.1f, 0.1f, 0.1f, 1.0f);
+
+    Scene *scene = m_GameModule->GetActiveScene();
+    if (scene) {
+      m_Renderer->RenderScene(scene, nullptr, nullptr, m_Window->GetWidth(),
+                              m_Window->GetHeight());
+    }
+
+    m_Renderer->EndFrame();
+    m_Renderer->Present();
   }
 }
 

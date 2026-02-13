@@ -12,6 +12,8 @@
 #include <vector>
 #include <wrl/client.h>
 
+#include "HorseEngine/Render/Renderer.h"
+
 namespace Horse {
 
 using Microsoft::WRL::ComPtr;
@@ -24,32 +26,26 @@ struct RenderItem {
   float DistanceSq; // To camera
 };
 
-struct RendererDesc {
-  HWND WindowHandle = nullptr;
-  u32 Width = 1280;
-  u32 Height = 720;
-  bool VSync = true;
-  bool Debug = true;
-};
-
-class D3D11Renderer {
+class D3D11Renderer : public Renderer {
 public:
   D3D11Renderer();
-  ~D3D11Renderer();
+  virtual ~D3D11Renderer();
 
-  bool Initialize(const RendererDesc &desc);
-  void Shutdown();
+  virtual bool Initialize(const RendererDesc &desc) override;
+  virtual void Shutdown() override;
 
-  void BeginFrame();
-  void EndFrame();
+  virtual void BeginFrame() override;
+  virtual void EndFrame() override;
 
-  void Clear(f32 r, f32 g, f32 b, f32 a = 1.0f);
-  void Present();
-  void RenderScene(class Scene *scene,
-                   const DirectX::XMMATRIX *overrideView = nullptr,
-                   const DirectX::XMMATRIX *overrideProjection = nullptr);
+  virtual void Clear(f32 r, f32 g, f32 b, f32 a = 1.0f) override;
+  virtual void Present() override;
+  virtual void
+  RenderScene(class Scene *scene,
+              const DirectX::XMMATRIX *overrideView = nullptr,
+              const DirectX::XMMATRIX *overrideProjection = nullptr,
+              uint32_t viewportWidth = 0, uint32_t viewportHeight = 0) override;
 
-  void OnResize(u32 width, u32 height);
+  virtual void OnResize(u32 width, u32 height) override;
 
   void DrawCube();
   void DrawWireBox(const DirectX::XMMATRIX &view,
@@ -64,6 +60,7 @@ public:
   ID3D11DeviceContext *GetContext() const { return m_Context.Get(); }
 
   void SetViewMode(int mode); // 0=Solid, 1=Wireframe, 2=ColoredTriangles
+  void ReloadTextures(); // Reload cube and skybox textures
 
 private:
   struct Vertex {

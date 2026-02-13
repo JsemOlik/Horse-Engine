@@ -11,6 +11,7 @@
 #include "EditorPreferences.h"
 #include "HorseEngine/Asset/AssetManager.h"
 #include "HorseEngine/Core/Time.h"
+#include "HorseEngine/Render/D3D11Renderer.h"
 #include "HorseEngine/Render/MaterialRegistry.h"
 #include "HorseEngine/Scene/Components.h"
 #include "HorseEngine/Scene/Entity.h"
@@ -156,11 +157,17 @@ void EditorWindow::CreateMenus() {
   connect(loadLayoutAction, &QAction::triggered, this,
           &EditorWindow::OnLoadLayout);
 
-  viewMenu->addSeparator();
-
   QAction *resetLayoutAction = viewMenu->addAction("Reset Layout");
   connect(resetLayoutAction, &QAction::triggered, this,
           &EditorWindow::OnResetLayout);
+
+  QMenu *buildMenu = menuBar()->addMenu("&Building");
+  QAction *cookAction = buildMenu->addAction("&Cook Project...");
+  connect(cookAction, &QAction::triggered, this, &EditorWindow::OnCookProject);
+
+  QAction *packageAction = buildMenu->addAction("&Package Project...");
+  connect(packageAction, &QAction::triggered, this,
+          &EditorWindow::OnPackageProject);
 
   QMenu *helpMenu = menuBar()->addMenu("&Help");
   helpMenu->addAction("&About");
@@ -364,6 +371,33 @@ void EditorWindow::NewProject(const std::string &filepath) {
   std::filesystem::create_directories(project->GetConfig().ProjectDirectory /
                                       project->GetConfig().AssetDirectory /
                                       "Scripts");
+  std::filesystem::create_directories(project->GetConfig().ProjectDirectory /
+                                      project->GetConfig().AssetDirectory /
+                                      "Textures");
+
+  // Copy default engine textures to new project
+  std::filesystem::path engineTextures = "Engine/Runtime/Textures";
+  std::filesystem::path projectTextures = project->GetConfig().ProjectDirectory /
+                                         project->GetConfig().AssetDirectory /
+                                         "Textures";
+  
+  try {
+    if (std::filesystem::exists(engineTextures / "Skybox.png")) {
+      std::filesystem::copy_file(
+          engineTextures / "Skybox.png",
+          projectTextures / "Skybox.png",
+          std::filesystem::copy_options::overwrite_existing);
+    }
+    if (std::filesystem::exists(engineTextures / "Checkerboard.png")) {
+      std::filesystem::copy_file(
+          engineTextures / "Checkerboard.png",
+          projectTextures / "Checkerboard.png",
+          std::filesystem::copy_options::overwrite_existing);
+    }
+  } catch (const std::exception &e) {
+    // Failed to copy default textures - not critical, just log it
+    HORSE_LOG_CORE_WARN("Failed to copy default textures: {}", e.what());
+  }
 
   Horse::Project::SetActive(project);
   Horse::Project::SetActive(project);
@@ -414,6 +448,14 @@ void EditorWindow::OpenProject(const std::string &filepath) {
 
     setWindowTitle(QString("Horse Engine Editor - %1")
                        .arg(QString::fromStdString(project->GetConfig().Name)));
+    
+    // Reload renderer textures now that project is active
+    if (m_SceneViewport && m_SceneViewport->GetRenderer()) {
+      m_SceneViewport->GetRenderer()->ReloadTextures();
+    }
+    if (m_GameViewport && m_GameViewport->GetRenderer()) {
+      m_GameViewport->GetRenderer()->ReloadTextures();
+    }
 
     if (m_ContentBrowserPanel) {
       m_ContentBrowserPanel->Refresh();
@@ -432,6 +474,18 @@ void EditorWindow::SaveProject(const std::string &filepath) {
   if (!serializer.SerializeToJSON(filepath)) {
     QMessageBox::critical(this, "Error", "Failed to save project!");
   }
+}
+
+#include "Dialogs/BuildDialog.h"
+
+void EditorWindow::OnCookProject() {
+  BuildDialog dialog(BuildToolType::Cook, this);
+  dialog.exec();
+}
+
+void EditorWindow::OnPackageProject() {
+  BuildDialog dialog(BuildToolType::Package, this);
+  dialog.exec();
 }
 
 #include "Dialogs/ProjectSettingsDialog.h"

@@ -1,4 +1,5 @@
 #include "HorseEngine/Render/MaterialRegistry.h"
+#include "HorseEngine/Asset/AssetManager.h"
 #include "HorseEngine/Core/Logging.h"
 #include "HorseEngine/Render/MaterialSerializer.h"
 #include <filesystem>
@@ -20,11 +21,51 @@ MaterialRegistry::MaterialRegistry() {
 }
 
 std::shared_ptr<MaterialInstance>
-MaterialRegistry::GetMaterial(const std::string &name) {
-  auto it = m_Materials.find(name);
+MaterialRegistry::GetMaterial(const std::string &nameOrGuid) {
+  auto it = m_Materials.find(nameOrGuid);
   if (it != m_Materials.end()) {
     return it->second;
   }
+
+  // If not found by name, try to treat as GUID and load via AssetManager
+  try {
+    UUID guid(0);
+    try {
+      guid = UUID(std::stoull(nameOrGuid));
+    } catch (...) {
+      // Not a numeric GUID, try friendly name via AssetManager
+      auto &am = AssetManager::Get();
+      guid = am.GetHandleByFriendlyName(nameOrGuid);
+      if (static_cast<u64>(guid) != 0) {
+        HORSE_LOG_CORE_INFO("MaterialRegistry: Resolved friendly name '{0}' to "
+                            "GUID {1}",
+                            nameOrGuid, static_cast<u64>(guid));
+      }
+    }
+
+    if (static_cast<u64>(guid) != 0) {
+      auto &am = AssetManager::Get();
+      std::filesystem::path path = am.GetFileSystemPath(guid);
+      HORSE_LOG_CORE_INFO("MaterialRegistry: Resolving GUID {0} -> Path: {1}",
+                          static_cast<u64>(guid), path.string());
+      if (!path.empty()) {
+        auto material = LoadMaterial(path.string());
+        if (material) {
+          m_Materials[nameOrGuid] = material;
+          return material;
+        } else {
+          HORSE_LOG_CORE_ERROR(
+              "MaterialRegistry: Failed to load material at {0}",
+              path.string());
+        }
+      } else {
+        HORSE_LOG_CORE_WARN("MaterialRegistry: No path found for GUID {0}",
+                            static_cast<u64>(guid));
+      }
+    }
+  } catch (...) {
+  }
+
   return m_Materials["Default"];
 }
 
