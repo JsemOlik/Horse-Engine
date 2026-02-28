@@ -67,16 +67,10 @@ Explore the in-depth documentation to master the Horse Engine:
 - [x] **Phase 3**: Renderer Core & Materials
 - [x] **Phase 4**: Asset Pipeline & Cooker
 - [x] **Phase 5**: Level System & PIE
-- [x] **Phase 6**: Game Coding (Lua & C++ DLL)
+- [x] **Phase 6**: Game Coding (Lua & C++ DLL) (C++ on hold)
 - [x] **Phase 7**: Packaging System
 - [x] **Phase 8**: Physics & Navigation
 - [ ] **Phase 9**: Lighting & Polish
-
----
-
-## 📜 License
-
-[Your License Information Here]
 
 ---
 
