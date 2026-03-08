@@ -60,18 +60,4 @@ Explore the in-depth documentation to master the Horse Engine:
 
 ---
 
-## 🗺️ Roadmap
-
-- [x] **Phase 1**: Bootstrap & Foundations
-- [x] **Phase 2**: ECS & Serialization
-- [x] **Phase 3**: Renderer Core & Materials
-- [x] **Phase 4**: Asset Pipeline & Cooker
-- [x] **Phase 5**: Level System & PIE
-- [x] **Phase 6**: Game Coding (Lua & C++ DLL) (C++ on hold)
-- [x] **Phase 7**: Packaging System
-- [x] **Phase 8**: Physics & Navigation
-- [ ] **Phase 9**: Lighting & Polish
-
----
-
 **Last Updated**: 2026-02-08
